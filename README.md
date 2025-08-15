@@ -1,5 +1,8 @@
 # Battler 0.3
 
+[![Tests](https://github.com/Zumik3/Battler_0.3/actions/workflows/test.yml/badge.svg)](https://github.com/yourusername/your-repo/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/Zumik3/Battler_0.3/branch/main/graph/badge.svg)](https://codecov.io/gh/yourusername/your-repo)
+
 Консольная RPG игра с пошаговыми боями, инвентарем и развитием персонажа.
 
 ## 🎮 Описание
