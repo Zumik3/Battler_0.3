@@ -29,3 +29,5 @@ MANIFEST
 code_collector.py
 collected_code.txt
 char_str.md
+
+.vscode
