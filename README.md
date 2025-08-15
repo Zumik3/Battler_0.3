@@ -1,5 +1,6 @@
 # Battler 0.3
 
+[![CI](https://github.com/Zumik3/Battler_0.3/actions/workflows/ci.yml/badge.svg)](https://github.com/Zumik3/Battler_0.3/actions/workflows/ci.yml)
 [![Build Status](https://github.com/Zumik3/Battler_0.3/actions/workflows/test.yml/badge.svg)](https://github.com/Zumik3/Battler_0.3/actions/workflows/test.yml)
 [![Coverage Status](https://coveralls.io/repos/github/Zumik3/Battler_0.3/badge.svg?branch=main)](https://coveralls.io/github/Zumik3/Battler_0.3?branch=main)
 
