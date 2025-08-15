@@ -1,7 +1,8 @@
 # Battler 0.3
 
-[![Tests](https://github.com/Zumik3/Battler_0.3/actions/workflows/test.yml/badge.svg)](https://github.com/yourusername/your-repo/actions/workflows/test.yml)
-[![codecov](https://codecov.io/gh/Zumik3/Battler_0.3/branch/main/graph/badge.svg)](https://codecov.io/gh/yourusername/your-repo)
+[![Tests](https://github.com/Zumik3/Battler_0.3/actions/workflows/test.yml/badge.svg)](https://github.com/Zumik3/Battler_0.3/actions/workflows/test.yml)
+[![Build Status](https://github.com/Zumik3/Battler_0.3/actions/workflows/test.yml/badge.svg)](https://github.com/Zumik3/Battler_0.3/actions/workflows/test.yml)
+[![Coverage Status](https://coveralls.io/repos/github/Zumik3/Battler_0.3/badge.svg?branch=main)](https://coveralls.io/github/Zumik3/Battler_0.3?branch=main)
 
 Консольная RPG игра с пошаговыми боями, инвентарем и развитием персонажа.
 
