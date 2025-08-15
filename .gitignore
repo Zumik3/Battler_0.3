@@ -25,5 +25,9 @@ wheels/
 *.egg
 MANIFEST
 
-# PyInstaller
-#  Usually these files are written by a python script from
+# Code coverage files
+code_collector.py
+collected_code.txt
+char_str.md
+
+.vscode
