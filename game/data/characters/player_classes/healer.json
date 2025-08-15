@@ -1,0 +1,20 @@
+{
+    "name": "Лекарь",
+    "role": "healer",
+    "class_icon": "H",
+    "class_icon_color": 6,
+    "base_stats": {
+        "strength": 5,
+        "agility": 12,
+        "intelligence": 16,
+        "vitality": 10
+    },
+    "growth_rates": {
+        "strength": 0.04,
+        "agility": 0.08,
+        "intelligence": 0.09,
+        "vitality": 0.08
+    },
+    "description": "Класс с низким уроном, средними защитой и здоровьем, способностью лечить.",
+    "starting_abilities": ["Heal", "MassHeal"]
+}

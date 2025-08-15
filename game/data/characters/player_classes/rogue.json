@@ -1,0 +1,20 @@
+{
+    "name": "Разбойник",
+    "role": "rogue",
+    "class_icon": "R",
+    "class_icon_color": 8,
+    "base_stats": {
+        "strength": 6,
+        "agility": 18,
+        "intelligence": 10,
+        "vitality": 7
+    },
+    "growth_rates": {
+        "strength": 0.05,
+        "agility": 0.08,
+        "intelligence": 0.06,
+        "vitality": 0.07
+    },
+    "description": "Класс с высокой ловкостью, умеренным уроном и низкой защитой.",
+    "starting_abilities": ["Backstab", "SlidingStrike", "CriticalStrike", "PoisonStrike"]
+}
