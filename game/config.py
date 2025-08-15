@@ -55,15 +55,15 @@ class SystemSettings:
 @dataclass
 class GameConfig:
     """Основной класс конфигурации игры."""
-    
+
     experience: ExperienceSettings = field(default_factory=ExperienceSettings)
     combat: CombatSettings = field(default_factory=CombatSettings)
     character: CharacterSettings = field(default_factory=CharacterSettings)
     ui: UISettings = field(default_factory=UISettings)
     system: SystemSettings = field(default_factory=SystemSettings)
-    
+
     config_file: str = "config.json"
-    
+
     def load_from_file(self, config_file: str = "") -> None:
         """Загрузить конфигурацию из файла."""
         file_path = config_file or self.config_file
@@ -74,7 +74,7 @@ class GameConfig:
                     self._update_from_dict(data)
         except Exception as e:
             print(f"Ошибка загрузки конфигурации: {e}")
-    
+
     def save_to_file(self, config_file: str = "") -> None:
         """Сохранить конфигурацию в файл."""
         file_path = config_file or self.config_file
@@ -84,7 +84,7 @@ class GameConfig:
                 json.dump(self._to_dict(), f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"Ошибка сохранения конфигурации: {e}")
-    
+
     def _to_dict(self) -> Dict[str, Any]:
         """Преобразовать конфигурацию в словарь."""
         return {
@@ -118,29 +118,29 @@ class GameConfig:
                 'player_classes_directory': self.system.player_classes_directory,
             }
         }
-    
+
     def _update_from_dict(self, data: Dict[str, Any]) -> None:
         """Обновить конфигурацию из словаря."""
         if 'experience' in data:
             for key, value in data['experience'].items():
                 if hasattr(self.experience, key):
                     setattr(self.experience, key, value)
-        
+
         if 'combat' in data:
             for key, value in data['combat'].items():
                 if hasattr(self.combat, key):
                     setattr(self.combat, key, value)
-        
+
         if 'character' in data:
             for key, value in data['character'].items():
                 if hasattr(self.character, key):
                     setattr(self.character, key, value)
-        
+
         if 'ui' in data:
             for key, value in data['ui'].items():
                 if hasattr(self.ui, key):
                     setattr(self.ui, key, value)
-        
+
         if 'system' in data:
             for key, value in data['system'].items():
                 if hasattr(self.system, key):

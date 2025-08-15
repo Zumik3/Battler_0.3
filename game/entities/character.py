@@ -15,8 +15,8 @@ from game.protocols import (
 if TYPE_CHECKING:
     from game.entities.character import Character as CharacterType
 
-# --- Основной класс персонажа ---
 
+# --- Основной класс персонажа ---
 class Character(ABC):
     """Абстрактный базовый класс, представляющий персонажа в игре."""
 
@@ -41,19 +41,19 @@ class Character(ABC):
         # Безопасная инициализация характеристик
         if stats_factory:
             self.stats: Stats = stats_factory()
-        
+
         if attributes_factory:
             self.attributes: Attributes = attributes_factory(self)
-        
+
         # Инициализируем hp и энергию
         self.hp = self.attributes.max_hp
         self.energy = self.attributes.max_energy
-        
+
         # Менеджеры (внедрение зависимостей)
         self._ability_manager: Optional[AbilityManagerProtocol] = None
         if ability_manager_factory:
             self._ability_manager = ability_manager_factory(self)
-            
+
         self._status_manager: Optional[StatusEffectManagerProtocol] = None
         if status_effect_manager_factory:
             self._status_manager = status_effect_manager_factory(self)
@@ -76,11 +76,11 @@ class Character(ABC):
         Возвращает список сообщений/результатов.
         """
         self.level += 1
-        
+
         # Сохраняем текущие проценты HP и энергии
         hp_ratio = self.hp / self.attributes.max_hp if self.attributes.max_hp > 0 else 1.0
         energy_ratio = self.energy / self.attributes.max_energy if self.attributes.max_energy > 0 else 1.0
-        
+
         # Пересчитываем характеристики и атрибуты через абстрактные методы
         try:
             self.stats = self.get_base_stats()
@@ -88,11 +88,11 @@ class Character(ABC):
         except NotImplementedError:
             # fallback если абстрактные методы не реализованы корректно
             pass
-        
+
         # Обновляем текущие значения с учетом новых максимумов
         self.hp = max(1, int(self.attributes.max_hp * hp_ratio))
         self.energy = int(self.attributes.max_energy * energy_ratio)
-        
+
         return [{"type": "level_up", "message": f"{self.name} достиг уровня {self.level}!"}]
 
     # ==================== Свойства ====================
@@ -121,12 +121,12 @@ class Character(ABC):
         Возвращает список сообщений/результатов.
         """
         results = []
-        
+
         # Очищаем все активные статус-эффекты
         if self._status_manager is not None:
             clear_results = self._status_manager.clear_all_effects()
             results.extend(clear_results)
-        
+
         # Добавляем сообщение о смерти
         results.append({"type": "death", "message": f"{self.name} погибает!"})
         return results
@@ -141,7 +141,7 @@ class Character(ABC):
         # Учитываем защиту из attributes.defense
         actual_damage = max(0, damage - self.attributes.defense // 2)  # Может быть 0 урон
         actual_damage = max(1, actual_damage) if damage > 0 else 0  # Минимум 1 урон если был урон
-        
+
         self.hp -= actual_damage
         results.append({
             "type": "damage_taken", 
@@ -149,14 +149,14 @@ class Character(ABC):
             "damage": actual_damage,
             "hp_left": self.hp
         })
-        
+
         if self.hp <= 0:
             self.hp = 0
             if self.alive:  # Проверяем, чтобы не вызывать on_death дважды
                 self.alive = False
                 death_results = self.on_death()
                 results.extend(death_results)
-                
+
         return results
 
     def take_heal(self, heal_amount: int) -> List[Dict[str, Any]]:
@@ -185,7 +185,7 @@ class Character(ABC):
         """
         results = []
         old_energy = self.energy
-        
+
         if percentage is not None:
             restore_amount = int(self.attributes.max_energy * (percentage / 100.0))
             self.energy = min(self.attributes.max_energy, self.energy + restore_amount)
@@ -193,7 +193,7 @@ class Character(ABC):
             self.energy = min(self.attributes.max_energy, self.energy + amount)
         else:
             self.energy = self.attributes.max_energy  # Полное восстановление
-            
+
         actual_restore = self.energy - old_energy
         if actual_restore > 0:
             results.append({
@@ -202,7 +202,7 @@ class Character(ABC):
                 "amount": actual_restore,
                 "energy_now": self.energy
             })
-            
+
         return results
 
     def spend_energy(self, amount: int) -> bool:

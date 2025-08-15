@@ -7,27 +7,28 @@ import json
 import os
 from typing import Dict, Any, Optional, TYPE_CHECKING
 
+from game.config import SystemSettings
+
 # Используем TYPE_CHECKING для аннотаций без циклического импорта на уровне модуля
 if TYPE_CHECKING:
     from game.entities.player import Player
 
-def load_player_class_data(
-    role: str, 
-    data_directory: str = "game/data/characters/player_classes"
-) -> Optional[Dict[str, Any]]:
+
+def load_player_class_data(role: str, 
+    data_directory: str = SystemSettings.player_classes_directory) -> Optional[Dict[str, Any]]:
     """
     Загружает данные класса игрока из JSON файла.
-    
+
     Args:
         role: Внутренний идентификатор класса (например, "berserker").
         data_directory: Путь к директории с JSON файлами.
-        
+
     Returns:
         Словарь с данными класса или None, если файл не найден.
     """
     filename = f"{role}.json"
     filepath = os.path.join(data_directory, filename)
-    
+
     # Проверяем, существует ли файл
     if not os.path.exists(filepath):
         # Пробуем относительный путь от корня проекта, если предыдущий не сработал
@@ -42,7 +43,7 @@ def load_player_class_data(
         except Exception as e:
             print(f"Ошибка при определении пути к файлу {filename}: {e}")
             return None
-        
+
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -54,6 +55,7 @@ def load_player_class_data(
         print(f"Неизвестная ошибка при загрузке {filepath}: {e}")
         return None
 
+
 def create_player(
     name: str, 
     role: str, 
@@ -63,13 +65,13 @@ def create_player(
     """
     Создает объект Player на основе данных из JSON файла.
     Упрощенный интерфейс для game.entities.player.create_player_from_data.
-    
+
     Args:
         name: Имя персонажа.
         role: Внутренний идентификатор класса.
         level: Начальный уровень.
         data_directory: Путь к директории с JSON файлами.
-        
+
     Returns:
         Объект Player или None, если данные не могут быть загружены.
     """
