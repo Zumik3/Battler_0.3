@@ -1,5 +1,5 @@
 Сборник исходных кодов и конфигурационных файлов
-Дата создания: 2025-08-16 15:36:47
+Дата создания: 2025-08-16 18:06:16
 ================================================================================
 
 ================================================================================
@@ -15,6 +15,7 @@
 
 ## Игровая логика & Менеджеры
 
+<!-- WIP: Создать масштабируемую систему имен монстров -->
 <!-- TODO: Интегрировать реальные данные монстров в BattleScreen. Связать EnemyGroupPanel с GameManager, чтобы панели отображали состояние объектов Character (монстров), созданных фабрикой. -->
 <!-- TODO: Добавить загрузку стартовых монстров в GameManager._initialize_game_entities (или аналогичный метод), используя monster_factory. -->
 <!-- DONE: Реализовать механизм обновления UI (HP/MP) в BattleScreen на основе текущего состояния объектов Player/Character. -->
@@ -22,6 +23,7 @@
 <!-- TODO: Создать JSON-файлы для классов монстров в `game/data/characters/monster_classes/`, если они еще не существуют. -->
 <!-- TODO: GameManager должен отвечать за хранение и предоставление данных о текущих игроках и монстрах для экранов UI. -->
 <!-- DONE: Описание задачи -->
+<!-- TODO: Сделать централихованный обработчик ошибок -->
 
 
 ## Пользовательский Интерфейс
@@ -69,146 +71,6 @@
 Файл: game/__init__.py
 ================================================================================
 
-
-
-================================================================================
-Файл: game/protocols.py
-================================================================================
-
-# game/protocols.py
-"""Протоколы, определяющие интерфейсы для различных компонентов игры."""
-
-import traceback
-from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Protocol, Optional
-
-# Импорты с TYPE_CHECKING для избежания циклических импортов
-# в аннотациях типов на уровне модуля
-# (импортируем только при аннотации типов, а не во время выполнения)
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from game.entities.character import Character as CharacterType
-
-
-class Stats(Protocol):
-    """Протокол для базовых характеристик персонажа."""
-    strength: int
-    agility: int
-    intelligence: int
-    vitality: int
-
-
-class Attributes(Protocol):
-    """Протокол для производных атрибутов персонажа."""
-    max_hp: int
-    max_energy: int
-    attack_power: int
-    defense: int
-
-    def recalculate(self, stats: Stats) -> None:
-        """Пересчитать атрибуты на основе базовых характеристик."""
-        ...
-
-
-class AbilityManagerProtocol(Protocol):
-    """Протокол для менеджера способностей."""
-    def use_ability(self, ability_name: str, target: 'CharacterType') -> List[Dict[str, Any]]:
-        """Использовать способность на цель."""
-        ...
-
-    def get_available_abilities(self) -> List[str]:
-        """Получить список доступных способностей."""
-        ...
-
-
-class StatusEffectManagerProtocol(Protocol):
-    """Протокол для менеджера статус-эффектов."""
-    def apply_effect(self, effect: 'StatusEffect') -> List[Dict[str, Any]]:
-        """Применить эффект к персонажу."""
-        ...
-
-    def remove_effect(self, effect_name: str) -> List[Dict[str, Any]]:
-        """Удалить эффект по имени."""
-        ...
-
-    def get_effect(self, effect_name: str) -> Optional['StatusEffect']:
-        """Получить эффект по имени."""
-        ...
-
-    def get_all_effects(self) -> List['StatusEffect']:
-        """Получить список всех активных эффектов."""
-        ...
-
-    def clear_all_effects(self) -> List[Dict[str, Any]]:
-        """Очистить все эффекты и вернуть список результатов."""
-        ...
-
-
-# Протоколы для системы уровней/опыта
-# Эти протоколы позволят нам в будущем легко подменить систему роста
-class ExperienceCalculatorProtocol(Protocol):
-    """Протокол для калькулятора опыта."""
-    def calculate_exp_for_next_level(self, current_level: int) -> int:
-        """Рассчитать опыт, необходимый для следующего уровня."""
-        ...
-
-    def calculate_stat_increase(self, base_stat: int, growth_rate: float, level: int) -> int:
-        """Рассчитать увеличение характеристики."""
-        ...
-
-
-class LevelUpHandlerProtocol(Protocol):
-    """Протокол для обработчика повышения уровня."""
-    def handle_level_up(self, character: 'CharacterType') -> List[Dict[str, Any]]:
-        """Обработать повышение уровня и вернуть список результатов."""
-        ...
-
-
-# Базовые абстрактные классы
-class Character(ABC):
-    """Абстрактный базовый класс, представляющий персонажа в игре."""
-    # (Определение класса находится в game/entities/character.py)
-    pass # fallback если абстрактные методы не реализованы корректно
-
-
-class Ability(ABC):
-    """Абстрактный базовый класс для способностей."""
-    def __init__(self, name: str, energy_cost: int, description: str = ""):
-        self.name = name
-        self.energy_cost = energy_cost
-        self.description = description
-
-    @abstractmethod
-    def activate(self, caster: 'CharacterType', target: 'CharacterType') -> List[Dict[str, Any]]:
-        """Активировать способность."""
-        ...
-
-
-class StatusEffect(ABC):
-    """Абстрактный базовый класс для статус-эффектов."""
-    def __init__(self, name: str, duration: int, description: str = ""):
-        self.name = name
-        self.duration = duration
-        self.description = description
-
-    @abstractmethod
-    def apply(self, target: 'CharacterType') -> List[Dict[str, Any]]:
-        """Применить эффект к цели."""
-        ...
-
-    @abstractmethod
-    def remove(self, target: 'CharacterType') -> List[Dict[str, Any]]:
-        """Удалить эффект с цели."""
-        ...
-
-    def tick(self, target: 'CharacterType') -> List[Dict[str, Any]]:
-        """Выполнить действие эффекта за ход (если применимо)."""
-        # По умолчанию эффект просто уменьшает свою длительность
-        self.duration -= 1
-        if self.duration <= 0:
-            return target.status_manager.remove_effect(self.name) # type: ignore
-        return []
 
 
 ================================================================================
@@ -408,14 +270,12 @@ from typing import List, Optional, TYPE_CHECKING
 import json
 import os
 
-# Импорты для создания сущностей
 from game.factories.player_factory import create_player
 from game.config import get_config
 
-# Используем TYPE_CHECKING для избежания циклических импортов на уровне модуля
 if TYPE_CHECKING:
     from game.entities.player import Player
-    # from game.entities.monster import Monster # Для будущего использования
+    from game.entities.monster import Monster
     # from game.inventory import Inventory # и т.д.
 
 
@@ -440,7 +300,7 @@ class GameManager:
 
         # --- Инициализация основных сущностей ---
         self.player_group: List['Player'] = []
-        # self.current_enemies: List['Monster'] = [] # Для будущего использования
+        self.current_enemies: List['Monster'] = []
         # self.global_inventory: 'Inventory' = ... # Для будущего использования
 
         self._initialize_game_entities()
@@ -467,7 +327,6 @@ class GameManager:
         )
         if berserker:
             self.player_group.append(berserker)
-            print(f"  Создан: {berserker.name} ({berserker.role})")
 
         # Создаем Лекаря
         healer = create_player(
@@ -478,13 +337,9 @@ class GameManager:
         )
         if healer:
             self.player_group.append(healer)
-            print(f"  Создан: {healer.name} ({healer.role})")
+
 
         # TODO: Добавить создание других стартовых игроков, если нужно
-
-        if not self.player_group:
-            print("  Предупреждение: Не создано ни одного игрока!")
-
         # --- Инициализация других сущностей ---
         # TODO: Инициализация инвентаря, глобального состояния и т.д.
 
@@ -506,145 +361,159 @@ def get_game_manager() -> GameManager:
 
 
 ================================================================================
-Файл: game/ui/screen_manager.py
+Файл: game/protocols.py
 ================================================================================
 
-# game/ui/screen_manager.py
-"""Управление экранами игры.
-Реализует паттерн Состояние для переключения между экранами."""
+# game/protocols.py
+"""Протоколы, определяющие интерфейсы для различных компонентов игры."""
 
-import curses
-from typing import Dict, Type, List, TYPE_CHECKING
+import traceback
+from abc import ABC, abstractmethod
+from typing import List, Dict, Any, Protocol, Optional
 
-from game.ui.base_screen import BaseScreen
-from game.ui.battle_screen import BattleScreen
-from game.ui.inventory_screen import InventoryScreen
-from game.ui.main_screen import MainScreen
-from game.ui.rendering.color_manager import ColorManager
-from game.ui.rendering.renderer import Renderer
+# Импорты с TYPE_CHECKING для избежания циклических импортов
+# в аннотациях типов на уровне модуля
+# (импортируем только при аннотации типов, а не во время выполнения)
+from typing import TYPE_CHECKING
 
-# Импортируем GameManager только для аннотаций типов, чтобы избежать циклических импортов
 if TYPE_CHECKING:
-    from game.game_manager import GameManager
+    from game.entities.character import Character as CharacterType
 
 
-class ScreenManager:
-    """Управление экранами игры с использованием паттерна состояние."""
+class Stats(Protocol):
+    """Протокол для базовых характеристик персонажа."""
+    strength: int
+    agility: int
+    intelligence: int
+    vitality: int
 
-    def __init__(self, stdscr: curses.window, game_manager: 'GameManager') -> None:
+
+class Attributes(Protocol):
+    """Протокол для производных атрибутов персонажа."""
+    max_hp: int
+    max_energy: int
+    attack_power: int
+    defense: int
+
+    def recalculate(self, stats: Stats) -> None:
+        """Пересчитать атрибуты на основе базовых характеристик."""
+        ...
+
+
+class AbilityManagerProtocol(Protocol):
+    """Протокол для менеджера способностей."""
+    def use_ability(self, ability_name: str, target: 'CharacterType') -> List[Dict[str, Any]]:
+        """Использовать способность на цель."""
+        ...
+
+    def get_available_abilities(self) -> List[str]:
+        """Получить список доступных способностей."""
+        ...
+
+
+class StatusEffectManagerProtocol(Protocol):
+    """Протокол для менеджера статус-эффектов."""
+    def apply_effect(self, effect: 'StatusEffect') -> List[Dict[str, Any]]:
+        """Применить эффект к персонажу."""
+        ...
+
+    def remove_effect(self, effect_name: str) -> List[Dict[str, Any]]:
+        """Удалить эффект по имени."""
+        ...
+
+    def get_effect(self, effect_name: str) -> Optional['StatusEffect']:
+        """Получить эффект по имени."""
+        ...
+
+    def get_all_effects(self) -> List['StatusEffect']:
+        """Получить список всех активных эффектов."""
+        ...
+
+    def clear_all_effects(self) -> List[Dict[str, Any]]:
+        """Очистить все эффекты и вернуть список результатов."""
+        ...
+
+
+# Протоколы для системы уровней/опыта
+# Эти протоколы позволят нам в будущем легко подменить систему роста
+class ExperienceCalculatorProtocol(Protocol):
+    """Протокол для калькулятора опыта."""
+    def calculate_exp_for_next_level(self, current_level: int) -> int:
+        """Рассчитать опыт, необходимый для следующего уровня."""
+        ...
+
+    def calculate_stat_increase(self, base_stat: int, growth_rate: float, level: int) -> int:
+        """Рассчитать увеличение характеристики."""
+        ...
+
+
+class LevelUpHandlerProtocol(Protocol):
+    """Протокол для обработчика повышения уровня."""
+    def handle_level_up(self, character: 'CharacterType') -> List[Dict[str, Any]]:
+        """Обработать повышение уровня и вернуть список результатов."""
+        ...
+
+
+# Базовые абстрактные классы
+class Character(ABC):
+    """Абстрактный базовый класс, представляющий персонажа в игре."""
+    # (Определение класса находится в game/entities/character.py)
+    pass # fallback если абстрактные методы не реализованы корректно
+
+
+class Ability(ABC):
+    """Абстрактный базовый класс для способностей."""
+    def __init__(self, name: str, energy_cost: int, description: str = ""):
+        self.name = name
+        self.energy_cost = energy_cost
+        self.description = description
+
+    @abstractmethod
+    def activate(self, caster: 'CharacterType', target: 'CharacterType') -> List[Dict[str, Any]]:
+        """Активировать способность."""
+        ...
+
+
+class StatusEffect(ABC):
+    """Абстрактный базовый класс для статус-эффектов."""
+    def __init__(self, name: str, duration: int, description: str = ""):
+        self.name = name
+        self.duration = duration
+        self.description = description
+
+    @abstractmethod
+    def apply(self, target: 'CharacterType') -> List[Dict[str, Any]]:
+        """Применить эффект к цели."""
+        ...
+
+    @abstractmethod
+    def remove(self, target: 'CharacterType') -> List[Dict[str, Any]]:
+        """Удалить эффект с цели."""
+        ...
+
+    def tick(self, target: 'CharacterType') -> List[Dict[str, Any]]:
+        """Выполнить действие эффекта за ход (если применимо)."""
+        # По умолчанию эффект просто уменьшает свою длительность
+        self.duration -= 1
+        if self.duration <= 0:
+            return target.status_manager.remove_effect(self.name) # type: ignore
+        return []
+
+# --- Протокол для генератора имен монстров ---
+class MonsterNamerProtocol(Protocol):
+    """Протокол для генератора имен монстров."""
+    
+    def generate_name(self, monster_role: str) -> str:
         """
-        Инициализация менеджера экранов.
+        Генерирует имя для монстра на основе его роли.
 
         Args:
-            stdscr: Окно curses.
-            game_manager: Экземпляр GameManager, содержащий все игровые сущности.
+            monster_role: Роль/тип монстра (например, 'goblin', 'dragon').
+
+        Returns:
+            Сгенерированное имя.
         """
-        self.stdscr = stdscr
-        self.game_manager = game_manager # Сохраняем ссылку на GameManager
-
-        self.color_manager = ColorManager()
-        self.color_manager.initialize(stdscr)
-
-        # Инициализируем renderer, он получит начальный размер
-        self.renderer = Renderer(stdscr, self.color_manager)
-
-        # Словарь доступных экранов (имя -> класс)
-        self.screens: Dict[str, Type[BaseScreen]] = {
-            "main": MainScreen,
-            "battle": BattleScreen,
-            "inventory": InventoryScreen,
-        }
-
-        # Стек экранов для управления историей переходов
-        self.screen_stack: List[BaseScreen] = []
-
-        # Начинаем с главного экрана, передаем ему ссылку на себя (manager)
-        initial_screen = self.screens["main"](self)
-        self.screen_stack.append(initial_screen)
-
-    @property
-    def current_screen(self) -> BaseScreen:
-        """Текущий экран - верхний элемент стека."""
-        return self.screen_stack[-1]
-
-    def change_screen(self, screen_name: str) -> None:
-        """Переход на новый экран (добавление в стек).
-
-        Args:
-            screen_name: Имя экрана для перехода.
-        """
-        if screen_name in self.screens:
-            # Создаем новый экран, передавая ему ссылку на ScreenManager (self)
-            new_screen = self.screens[screen_name](self)
-            self.screen_stack.append(new_screen)
-        else:
-            raise ValueError(f"Неизвестный экран: {screen_name}")
-
-    def go_back(self) -> None:
-        """Возврат к предыдущему экрану (выход из стека)."""
-        if len(self.screen_stack) > 1:
-            self.screen_stack.pop()
-        else:
-            # Если это последний экран - выходим из приложения
-            # TODO: Рассмотреть использование raise SystemExit() вместо exit()
-            exit()
-
-    def _update_renderer_for_all_screens(self) -> None:
-        """Обновляет renderer для всех экранов в стеке."""
-        # Создаём НОВЫЙ экземпляр renderer с текущими размерами stdscr
-        # curses.update_lines_cols() не всегда нужно, зависит от терминала
-        height, width = self.stdscr.getmaxyx()
-        
-        # ВАЖНО: Создаем новый экземпляр Renderer, а не пытаемся обновить старый
-        self.renderer = Renderer(self.stdscr, self.color_manager)
-        # Примечание: Вызов update_size(width, height) не нужен, так как
-        # конструктор Renderer уже должен получить размеры из stdscr.
-
-        # Передаём новый renderer всем экранам в стеке
-        for screen in self.screen_stack:
-            screen.renderer = self.renderer
-
-    def run(self) -> None:
-        """Основной цикл работы менеджера экранов."""
-        while True:
-            # Получаем текущий экран
-            current = self.current_screen
-
-            # Обновляем размеры renderer, если размер окна изменился
-            # curses.update_lines_cols() не всегда нужно, зависит от терминала
-            height, width = self.stdscr.getmaxyx()
-            # Сравниваем с размерами, которые знает renderer
-            # Предполагается, что у renderer есть атрибуты width и height,
-            # установленные в его __init__
-            if hasattr(self.renderer, 'height') and hasattr(self.renderer, 'width'):
-                 # Если эти атрибуты есть и отличаются
-                 if height != self.renderer.height or width != self.renderer.width:
-                     self._update_renderer_for_all_screens()
-            else:
-                 # Если атрибутов нет, обновляем на всякий случай
-                 # или предполагаем, что они устанавливаются в __init__
-                 # Возможно, нужно добавить их установку в __init__ Renderer
-                 self._update_renderer_for_all_screens()
-
-            # Отрисовываем текущий экран
-            current.render(self.stdscr)
-
-            # Обновляем экран
-            self.stdscr.refresh()
-
-            # Получаем ввод пользователя
-            try:
-                key = self.stdscr.getch()
-                # Обрабатываем ввод
-                current.handle_input(key)
-            except KeyboardInterrupt:
-                # Обработка Ctrl+C
-                exit()
-            except Exception as e:
-                # Логирование или обработка других исключений
-                # Пока просто выходим
-                print(f"Критическая ошибка: {e}")
-                exit()
+        ... # Тело метода в протоколе пустое, описывает интерфейс
 
 
 ================================================================================
@@ -812,6 +681,68 @@ __all__ = [
     'ScreenManager',
     'BaseScreen'
 ]
+
+================================================================================
+Файл: game/ui/inventory_screen.py
+================================================================================
+
+# game/ui/inventory_screen.py
+"""
+Экран инвентаря.
+Отображает содержимое инвентаря игрока.
+"""
+import curses
+# --- ДОБАВЛЯЕМ ИМПОРТ МИКСИНА ---
+from game.ui.mixins import StandardLayoutMixin
+# --------------------------------
+from game.ui.base_screen import BaseScreen
+from game.ui.rendering.renderable import Text, Separator
+from game.ui.rendering.color_manager import Color
+
+# --- НАСЛЕДУЕМСЯ ОТ StandardLayoutMixin ---
+class InventoryScreen(BaseScreen, StandardLayoutMixin):
+    """Экран инвентаря."""
+
+    def _setup_elements(self) -> None:
+        """Настройка элементов экрана."""
+        # УБИРАЕМ старый заголовок и разделитель
+        self.elements = [
+            # Предметы инвентаря (смещаем Y на +2)
+            Text("• Меч (+10 ATK)", 2, 2, color=Color.WHITE),           # Смещаем Y
+            Text("• Зелье лечения", 2, 3, color=Color.GREEN, dim=True), # Смещаем Y
+            Text("• Ключ от сундука", 2, 4, color=Color.CYAN, dim=True), # Смещаем Y
+            Text("• Свиток телепортации", 2, 5, color=Color.MAGENTA, dim=True), # Смещаем Y
+            # Separator(7, "-", 40, Color.WHITE, dim=True), # Убираем старый разделитель
+            # Статистика (смещаем Y)
+            Text("Всего предметов: 4", 2, 7, dim=True), # Смещаем Y
+            Text("Занято: 4/20", 2, 8, dim=True),       # Смещаем Y
+            # Separator(10, color=Color.YELLOW), # Убираем старый разделитель
+        ]
+
+    def _setup_commands(self) -> None:
+        """Настройка дополнительных команд экрана."""
+        # Команды из реестра добавятся автоматически!
+        # Здесь можно добавить специфичные для этого экрана команды
+        pass
+
+    # --- ОБНОВЛЯЕМ МЕТОД render ---
+    def render(self, stdscr: curses.window) -> None:
+        """Отрисовка экрана."""
+        self.renderer.clear()
+        
+        # Отрисовка стандартного макета
+        self.render_standard_layout("=== ИНВЕНТАРЬ ===")
+        
+        # Отрисовка основных элементов
+        for element in self.elements:
+            element.render(self.renderer)
+            
+        self.renderer.refresh() # Не забываем refresh
+
+    def _handle_unregistered_key(self, key: int) -> None:
+        """Обработка незарегистрированных клавиш."""
+        pass
+
 
 ================================================================================
 Файл: game/ui/battle_screen.py
@@ -1020,68 +951,6 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
 
 
 ================================================================================
-Файл: game/ui/inventory_screen.py
-================================================================================
-
-# game/ui/inventory_screen.py
-"""
-Экран инвентаря.
-Отображает содержимое инвентаря игрока.
-"""
-import curses
-# --- ДОБАВЛЯЕМ ИМПОРТ МИКСИНА ---
-from game.ui.mixins import StandardLayoutMixin
-# --------------------------------
-from game.ui.base_screen import BaseScreen
-from game.ui.rendering.renderable import Text, Separator
-from game.ui.rendering.color_manager import Color
-
-# --- НАСЛЕДУЕМСЯ ОТ StandardLayoutMixin ---
-class InventoryScreen(BaseScreen, StandardLayoutMixin):
-    """Экран инвентаря."""
-
-    def _setup_elements(self) -> None:
-        """Настройка элементов экрана."""
-        # УБИРАЕМ старый заголовок и разделитель
-        self.elements = [
-            # Предметы инвентаря (смещаем Y на +2)
-            Text("• Меч (+10 ATK)", 2, 2, color=Color.WHITE),           # Смещаем Y
-            Text("• Зелье лечения", 2, 3, color=Color.GREEN, dim=True), # Смещаем Y
-            Text("• Ключ от сундука", 2, 4, color=Color.CYAN, dim=True), # Смещаем Y
-            Text("• Свиток телепортации", 2, 5, color=Color.MAGENTA, dim=True), # Смещаем Y
-            # Separator(7, "-", 40, Color.WHITE, dim=True), # Убираем старый разделитель
-            # Статистика (смещаем Y)
-            Text("Всего предметов: 4", 2, 7, dim=True), # Смещаем Y
-            Text("Занято: 4/20", 2, 8, dim=True),       # Смещаем Y
-            # Separator(10, color=Color.YELLOW), # Убираем старый разделитель
-        ]
-
-    def _setup_commands(self) -> None:
-        """Настройка дополнительных команд экрана."""
-        # Команды из реестра добавятся автоматически!
-        # Здесь можно добавить специфичные для этого экрана команды
-        pass
-
-    # --- ОБНОВЛЯЕМ МЕТОД render ---
-    def render(self, stdscr: curses.window) -> None:
-        """Отрисовка экрана."""
-        self.renderer.clear()
-        
-        # Отрисовка стандартного макета
-        self.render_standard_layout("=== ИНВЕНТАРЬ ===")
-        
-        # Отрисовка основных элементов
-        for element in self.elements:
-            element.render(self.renderer)
-            
-        self.renderer.refresh() # Не забываем refresh
-
-    def _handle_unregistered_key(self, key: int) -> None:
-        """Обработка незарегистрированных клавиш."""
-        pass
-
-
-================================================================================
 Файл: game/ui/mixins.py
 ================================================================================
 
@@ -1178,266 +1047,146 @@ class StandardLayoutMixin(HeaderMixin, FooterMixin):
 
 
 ================================================================================
-Файл: game/entities/player.py
+Файл: game/ui/screen_manager.py
 ================================================================================
 
-# game/entities/player.py
-"""Класс игрока (персонажа, управляемого игроком)."""
-from typing import List, Dict, Any, Optional, Callable, TYPE_CHECKING
-from game.config import get_config
-from game.entities.character import Character
-from game.protocols import (
-    Stats,
-    Attributes,
-    AbilityManagerProtocol,
-    StatusEffectManagerProtocol,
-    ExperienceCalculatorProtocol,
-    LevelUpHandlerProtocol
-)
+# game/ui/screen_manager.py
+"""Управление экранами игры.
+Реализует паттерн Состояние для переключения между экранами."""
 
+import curses
+from typing import Dict, Type, List, TYPE_CHECKING
+
+from game.ui.base_screen import BaseScreen
+from game.ui.battle_screen import BattleScreen
+from game.ui.inventory_screen import InventoryScreen
+from game.ui.main_screen import MainScreen
+from game.ui.rendering.color_manager import ColorManager
+from game.ui.rendering.renderer import Renderer
+
+# Импортируем GameManager только для аннотаций типов, чтобы избежать циклических импортов
 if TYPE_CHECKING:
-    from game.entities.character import Character as CharacterType
+    from game.game_manager import GameManager
 
-# - Фабричная функция для создания игрока из JSON -
-def create_player_from_data(
-    name: str,
-    role: str,
-    level: int = 1,
-    data_directory: str = "game/data/characters/player_classes"
-) -> Optional['Player']:
-    """
-    Создает объект Player на основе данных из JSON файла.
 
-    Args:
-        name: Имя персонажа.
-        role: Внутренний идентификатор класса (должен совпадать с именем .json файла).
-        level: Начальный уровень.
-        data_directory: Путь к директории с JSON файлами.
+class ScreenManager:
+    """Управление экранами игры с использованием паттерна состояние."""
 
-    Returns:
-        Объект Player или None, если данные не могут быть загружены.
-    """
-    try:
-        from game.data.character_loader import load_player_class_data
-    except ImportError as e:
-        print(f"Ошибка импорта character_loader внутри create_player_from_data: {e}")
-        return None
-
-    data = load_player_class_data(role, data_directory)
-    if not data:
-        print(f"Не удалось загрузить данные для класса '{role}'")
-        return None
-
-    try:
-        player = Player(
-            name=name,
-            role=data['role'],
-            base_stats_dict=data['base_stats'],
-            growth_rates_dict=data['growth_rates'],
-            class_icon=data.get('class_icon', '?'),
-            class_icon_color=data.get('class_icon_color'),
-            level=level,
-        )
-        return player
-    except Exception as e:
-        print(f"Ошибка создания персонажа {name} класса {role}: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
-
-# --- Основной класс игрока ---
-
-class Player(Character):
-    """Класс для всех игроков (персонажей, управляемых игроком)."""
-
-    def __init__(
-        self, 
-        name: str, 
-        role: str,
-        # Параметры для системы уровней/опыта
-        base_stats_dict: Dict[str, int],
-        growth_rates_dict: Dict[str, float],
-        class_icon: str = "?",
-        class_icon_color: Optional[int] = None,
-        level: int = 1,
-        # Внедрение зависимостей через конструктор
-        stats_factory: Optional[Callable[[], Stats]] = None, 
-        attributes_factory: Optional[Callable[['CharacterType'], Attributes]] = None,
-        ability_manager_factory: Optional[Callable[['CharacterType'], AbilityManagerProtocol]] = None,
-        status_effect_manager_factory: Optional[Callable[['CharacterType'], StatusEffectManagerProtocol]] = None,
-        exp_calculator: Optional[ExperienceCalculatorProtocol] = None,
-        level_up_handler: Optional[LevelUpHandlerProtocol] = None,
-        is_player: bool = True,
-    ):
-        # Сохраняем данные класса
-        self.base_stats_dict = base_stats_dict
-        self.growth_rates_dict = growth_rates_dict
-        self.class_icon = class_icon
-        self.class_icon_color = class_icon_color if class_icon_color is not None else 0
-
-        # Инициализируем систему опыта
-        self.exp_calculator = exp_calculator if exp_calculator else SimpleExperienceCalculator()
-        self.level_up_handler = level_up_handler if level_up_handler else SimpleLevelUpHandler()
-        self.exp = 0
-        self.exp_to_next_level = 0
-
-        # Создаем фабрики по умолчанию если не предоставлены
-        if stats_factory is None:
-            stats_factory = self.get_base_stats
-        if attributes_factory is None:
-            attributes_factory = self._attributes_factory
-
-        # Вызываем конструктор родительского класса
-        super().__init__(
-            name=name,
-            role=role,
-            level=level,
-            is_player=is_player,
-            stats_factory=stats_factory,
-            attributes_factory=attributes_factory,
-            ability_manager_factory=ability_manager_factory,
-            status_effect_manager_factory=status_effect_manager_factory,
-        )
-        
-        # Рассчитываем опыт для следующего уровня
-        self.calculate_exp_for_next_level()
-
-    # ==================== Вспомогательные методы для фабрик ====================
-    def _attributes_factory(self, character: 'CharacterType') -> Attributes:
-        """Фабрика для создания атрибутов."""
-        return self.calculate_attributes()
-
-    # ==================== Абстрактные методы ====================
-    def get_base_stats(self) -> Stats:
-        """Возвращает базовые характеристики персонажа."""
-        stats = SimpleStats()
-        # Масштабируем базовые характеристики в соответствии с уровнем
-        level_multiplier = self.level * 0.1
-        stats.strength = int(self.base_stats_dict.get('strength', 10) * 
-                           (1 + level_multiplier * self.growth_rates_dict.get('strength', 1.0)))
-        stats.agility = int(self.base_stats_dict.get('agility', 10) * 
-                          (1 + level_multiplier * self.growth_rates_dict.get('agility', 1.0)))
-        stats.intelligence = int(self.base_stats_dict.get('intelligence', 10) * 
-                               (1 + level_multiplier * self.growth_rates_dict.get('intelligence', 1.0)))
-        stats.vitality = int(self.base_stats_dict.get('vitality', 10) * 
-                           (1 + level_multiplier * self.growth_rates_dict.get('vitality', 1.0)))
-        return stats
-
-    def calculate_attributes(self) -> Attributes:
-        """Вычисляет атрибуты персонажа на основе его характеристик и уровня."""
-        return SimpleAttributes(self, self.stats)
-
-    # ==================== Уровень и характеристики ====================
-    def level_up(self) -> List[Dict[str, Any]]:
+    def __init__(self, stdscr: curses.window, game_manager: 'GameManager') -> None:
         """
-        Повышает уровень персонажа.
-        Возвращает список сообщений/результатов.
-        """
-        # Вызываем родительский метод level_up
-        results = super().level_up()
-        
-        # Пересчитываем опыт для следующего уровня
-        self.calculate_exp_for_next_level()
-        
-        return results
+        Инициализация менеджера экранов.
 
-    # ==================== Свойства ====================
+        Args:
+            stdscr: Окно curses.
+            game_manager: Экземпляр GameManager, содержащий все игровые сущности.
+        """
+        self.stdscr = stdscr
+        self.game_manager = game_manager # Сохраняем ссылку на GameManager
+
+        self.color_manager = ColorManager()
+        self.color_manager.initialize(stdscr)
+
+        # Инициализируем renderer, он получит начальный размер
+        self.renderer = Renderer(stdscr, self.color_manager)
+
+        # Словарь доступных экранов (имя -> класс)
+        self.screens: Dict[str, Type[BaseScreen]] = {
+            "main": MainScreen,
+            "battle": BattleScreen,
+            "inventory": InventoryScreen,
+        }
+
+        # Стек экранов для управления историей переходов
+        self.screen_stack: List[BaseScreen] = []
+
+        # Начинаем с главного экрана, передаем ему ссылку на себя (manager)
+        initial_screen = self.screens["main"](self)
+        self.screen_stack.append(initial_screen)
+
     @property
-    def experience_to_next_level(self) -> int:
-        """Получение опыта, необходимого для следующего уровня."""
-        return self.exp_to_next_level
+    def current_screen(self) -> BaseScreen:
+        """Текущий экран - верхний элемент стека."""
+        return self.screen_stack[-1]
 
-    # ==================== Система опыта ====================
-    def calculate_exp_for_next_level(self) -> None:
+    def change_screen(self, screen_name: str) -> None:
+        """Переход на новый экран (добавление в стек).
+
+        Args:
+            screen_name: Имя экрана для перехода.
         """
-        Рассчитывает количество опыта, необходимого для следующего уровня.
-        """
-        self.exp_to_next_level = self.exp_calculator.calculate_exp_for_next_level(self.level)
+        if screen_name in self.screens:
+            # Создаем новый экран, передавая ему ссылку на ScreenManager (self)
+            new_screen = self.screens[screen_name](self)
+            self.screen_stack.append(new_screen)
+        else:
+            raise ValueError(f"Неизвестный экран: {screen_name}")
 
-    def gain_experience(self, exp_amount: int) -> List[Dict[str, Any]]:
-        """
-        Добавляет опыт игроку и проверяет на повышение уровня.
-        Возвращает список сообщений/результатов.
-        """
-        results = []
-        self.exp += exp_amount
-        results.append({
-            "type": "exp_gained",
-            "character": self.name,
-            "exp_amount": exp_amount,
-            "total_exp": self.exp
-        })
+    def go_back(self) -> None:
+        """Возврат к предыдущему экрану (выход из стека)."""
+        if len(self.screen_stack) > 1:
+            self.screen_stack.pop()
+        else:
+            # Если это последний экран - выходим из приложения
+            # TODO: Рассмотреть использование raise SystemExit() вместо exit()
+            exit()
 
-        # Проверяем, достаточно ли опыта для повышения уровня
-        while self.exp >= self.exp_to_next_level:
-            # Сбрасываем опыт, использованный для повышения уровня
-            self.exp -= self.exp_to_next_level
-            
-            # Повышаем уровень
-            level_up_results = self.level_up()
-            results.extend(level_up_results)
-            
-            # Дополнительная обработка повышения уровня
-            handler_results = self.level_up_handler.handle_level_up(self)
-            results.extend(handler_results)
-            
-            # Пересчитываем опыт для следующего уровня
-            self.calculate_exp_for_next_level()
-
-        return results
-
-# ==================== Вспомогательные классы ====================
-
-class SimpleStats:
-    """Простая реализация базовых характеристик."""
-    def __init__(self):
-        self.strength = 0
-        self.agility = 0
-        self.intelligence = 0
-        self.vitality = 0
-
-# game/entities/player.py (обновленный фрагмент)
-class SimpleAttributes:
-    """Простая реализация производных атрибутов."""
-    def __init__(self, character: 'Character', stats: Stats):
-        self.character = character
-        self.stats = stats
-        config = get_config()
+    def _update_renderer_for_all_screens(self) -> None:
+        """Обновляет renderer для всех экранов в стеке."""
+        # Создаём НОВЫЙ экземпляр renderer с текущими размерами stdscr
+        # curses.update_lines_cols() не всегда нужно, зависит от терминала
+        height, width = self.stdscr.getmaxyx()
         
-        # Расчет производных атрибутов с использованием настроек
-        self.max_hp = config.character.base_max_hp + (stats.vitality * config.character.hp_per_vitality)
-        self.max_energy = config.character.base_max_energy + (stats.intelligence * config.character.energy_per_intelligence)
-        self.attack_power = stats.strength * config.character.attack_per_strength
-        self.defense = int(stats.agility * config.character.defense_per_agility)
+        # ВАЖНО: Создаем новый экземпляр Renderer, а не пытаемся обновить старый
+        self.renderer = Renderer(self.stdscr, self.color_manager)
+        # Примечание: Вызов update_size(width, height) не нужен, так как
+        # конструктор Renderer уже должен получить размеры из stdscr.
 
-class SimpleExperienceCalculator:
-    """Простой калькулятор опыта для следующего уровня."""
-    def calculate_exp_for_next_level(self, current_level: int) -> int:
-        """Рассчитывает опыт, необходимый для достижения следующего уровня."""
-        config = get_config()
-        return int(config.experience.formula_base * (current_level ** config.experience.formula_multiplier))
+        # Передаём новый renderer всем экранам в стеке
+        for screen in self.screen_stack:
+            screen.renderer = self.renderer
 
-class SimpleLevelUpHandler:
-    """Простой обработчик повышения уровня."""
-    def handle_level_up(self, character: 'Character') -> List[Dict[str, Any]]:
-        """Обработать повышение уровня и вернуть список результатов."""
-        results = []
-        old_hp = character.hp
-        character.hp = character.attributes.max_hp
-        hp_restored = character.hp - old_hp
-        
-        old_energy = character.energy
-        character.energy = character.attributes.max_energy
-        energy_restored = character.energy - old_energy
-        
-        results.append({
-            "type": "level_up_heal",
-            "character": character.name,
-            "hp_restored": hp_restored,
-            "energy_restored": energy_restored
-        })
-        
-        return results
+    def run(self) -> None:
+        """Основной цикл работы менеджера экранов."""
+        while True:
+            # Получаем текущий экран
+            current = self.current_screen
+
+            # Обновляем размеры renderer, если размер окна изменился
+            # curses.update_lines_cols() не всегда нужно, зависит от терминала
+            height, width = self.stdscr.getmaxyx()
+            # Сравниваем с размерами, которые знает renderer
+            # Предполагается, что у renderer есть атрибуты width и height,
+            # установленные в его __init__
+            if hasattr(self.renderer, 'height') and hasattr(self.renderer, 'width'):
+                 # Если эти атрибуты есть и отличаются
+                 if height != self.renderer.height or width != self.renderer.width:
+                     self._update_renderer_for_all_screens()
+            else:
+                 # Если атрибутов нет, обновляем на всякий случай
+                 # или предполагаем, что они устанавливаются в __init__
+                 # Возможно, нужно добавить их установку в __init__ Renderer
+                 self._update_renderer_for_all_screens()
+
+            # Отрисовываем текущий экран
+            current.render(self.stdscr)
+
+            # Обновляем экран
+            self.stdscr.refresh()
+
+            # Получаем ввод пользователя
+            try:
+                key = self.stdscr.getch()
+                # Обрабатываем ввод
+                current.handle_input(key)
+            except KeyboardInterrupt:
+                # Обработка Ctrl+C
+                exit()
+            except Exception as e:
+                # Логирование или обработка других исключений
+                # Пока просто выходим
+                print(f"Критическая ошибка: {e}")
+                exit()
+
 
 ================================================================================
 Файл: game/entities/character.py
@@ -1456,10 +1205,48 @@ from game.protocols import (
     Ability,
     StatusEffect
 )
+from game.config import get_config # Импортируем get_config для SimpleAttributes
 
 if TYPE_CHECKING:
     from game.entities.character import Character as CharacterType
 
+# ==================== Вспомогательные классы ====================
+# Переносим их сюда, так как они используются как реализации по умолчанию
+
+class SimpleStats:
+    """Простая реализация базовых характеристик."""
+    def __init__(self):
+        self.strength = 0
+        self.agility = 0
+        self.intelligence = 0
+        self.vitality = 0
+
+class SimpleAttributes:
+    """Простая реализация производных атрибутов."""
+    def __init__(self, character: 'CharacterType', stats: Stats):
+        self.character = character
+        self.stats = stats
+        config = get_config() # Получаем конфигурацию
+        
+        # Расчет производных атрибутов с использованием настроек
+        self.max_hp = config.character.base_max_hp + (stats.vitality * config.character.hp_per_vitality)
+        self.max_energy = config.character.base_max_energy + (stats.intelligence * config.character.energy_per_intelligence)
+        self.attack_power = stats.strength * config.character.attack_per_strength
+        self.defense = int(stats.agility * config.character.defense_per_agility)
+
+    def recalculate(self, stats: Stats) -> None:
+        """
+        Пересчитать атрибуты на основе новых базовых характеристик.
+        Это реализация метода, требуемого протоколом Attributes.
+        """
+        config = get_config()
+        # Повторяем логику расчета из __init__
+        self.max_hp = config.character.base_max_hp + (stats.vitality * config.character.hp_per_vitality)
+        self.max_energy = config.character.base_max_energy + (stats.intelligence * config.character.energy_per_intelligence)
+        self.attack_power = stats.strength * config.character.attack_per_strength
+        self.defense = int(stats.agility * config.character.defense_per_agility)
+        # Обновляем ссылку на stats
+        self.stats = stats
 
 # --- Основной класс персонажа ---
 class Character(ABC):
@@ -1468,7 +1255,10 @@ class Character(ABC):
     def __init__(
         self, 
         name: str, 
-        role: str, 
+        role: str,
+        # Параметры для системы уровней/характеристик
+        base_stats_dict: Dict[str, int],
+        growth_rates_dict: Dict[str, float],
         level: int = 1,
         is_player: bool = False,
         # Внедрение зависимостей через конструктор
@@ -1483,12 +1273,19 @@ class Character(ABC):
         self.alive = True
         self.is_player = is_player
 
-        # Безопасная инициализация характеристик
-        if stats_factory:
-            self.stats: Stats = stats_factory()
+        self.base_stats_dict = base_stats_dict
+        self.growth_rates_dict = growth_rates_dict
 
-        if attributes_factory:
-            self.attributes: Attributes = attributes_factory(self)
+        # Создаем фабрики по умолчанию если не предоставлены
+        # Это позволяет подклассам переопределить их или использовать реализацию по умолчанию
+        if stats_factory is None:
+            stats_factory = self.get_base_stats # Используем реализацию по умолчанию
+        if attributes_factory is None:
+            attributes_factory = self._attributes_factory # Используем реализацию по умолчанию
+
+        # Инициализация характеристик
+        self.stats: Stats = stats_factory()
+        self.attributes: Attributes = attributes_factory(self)
 
         # Инициализируем hp и энергию
         self.hp = self.attributes.max_hp
@@ -1503,18 +1300,36 @@ class Character(ABC):
         if status_effect_manager_factory:
             self._status_manager = status_effect_manager_factory(self)
 
-    # ==================== Абстрактные методы ====================
-    @abstractmethod
-    def get_base_stats(self) -> Stats:
-        """Возвращает базовые характеристики персонажа."""
-        pass
+    # ==================== Вспомогательные методы для фабрик (по умолчанию) ====================
+    # Переносим из Player/Monster
+    def _attributes_factory(self, character: 'CharacterType') -> Attributes:
+        """Фабрика по умолчанию для создания атрибутов."""
+        return self.calculate_attributes()
 
-    @abstractmethod
+    # ==================== Абстрактные методы (частично реализованы) ====================
+    # Реализация по умолчанию перенесена из Player/Monster
+    def get_base_stats(self) -> Stats:
+        """Возвращает базовые характеристики персонажа. Реализация по умолчанию."""
+        stats = SimpleStats()
+        # Масштабируем базовые характеристики в соответствии с уровнем
+        level_multiplier = self.level * 0.1
+        stats.strength = int(self.base_stats_dict.get('strength', 10) * 
+                           (1 + level_multiplier * self.growth_rates_dict.get('strength', 1.0)))
+        stats.agility = int(self.base_stats_dict.get('agility', 10) * 
+                          (1 + level_multiplier * self.growth_rates_dict.get('agility', 1.0)))
+        stats.intelligence = int(self.base_stats_dict.get('intelligence', 10) * 
+                               (1 + level_multiplier * self.growth_rates_dict.get('intelligence', 1.0)))
+        stats.vitality = int(self.base_stats_dict.get('vitality', 10) * 
+                           (1 + level_multiplier * self.growth_rates_dict.get('vitality', 1.0)))
+        return stats
+
     def calculate_attributes(self) -> Attributes:
-        """Вычисляет атрибуты персонажа на основе его характеристик и уровня."""
-        pass
+        """Вычисляет атрибуты персонажа на основе его характеристик и уровня. Реализация по умолчанию."""
+        # Используем SimpleAttributes, который требует get_config()
+        return SimpleAttributes(self, self.stats)
 
     # ==================== Уровень и характеристики ====================
+    # Логика level_up остается здесь, но может быть расширена в подклассах
     def level_up(self) -> List[Dict[str, Any]]:
         """
         Повышает уровень персонажа.
@@ -1526,7 +1341,7 @@ class Character(ABC):
         hp_ratio = self.hp / self.attributes.max_hp if self.attributes.max_hp > 0 else 1.0
         energy_ratio = self.energy / self.attributes.max_energy if self.attributes.max_energy > 0 else 1.0
 
-        # Пересчитываем характеристики и атрибуты через абстрактные методы
+        # Пересчитываем характеристики и атрибуты через методы (которые могут быть переопределены)
         try:
             self.stats = self.get_base_stats()
             self.attributes = self.calculate_attributes()
@@ -1730,6 +1545,328 @@ class Character(ABC):
 
 
 ================================================================================
+Файл: game/entities/monster.py
+================================================================================
+
+# game/entities/monster.py
+"""Класс монстра (персонажа, НЕ управляемого игроком)."""
+from typing import Dict, Any, Optional, Callable, TYPE_CHECKING
+from game.entities.character import Character, SimpleStats, SimpleAttributes # Импортируем вспомогательные классы
+from game.protocols import (
+    Stats,
+    Attributes,
+    AbilityManagerProtocol,
+    StatusEffectManagerProtocol
+)
+
+if TYPE_CHECKING:
+    from game.entities.character import Character as CharacterType
+
+# - Фабричная функция для создания монстра из JSON -
+def create_monster_from_data(
+    name: str,
+    role: str,
+    level: int = 1,
+    data_directory: str = "game/data/characters/monster_classes"
+) -> Optional['Monster']:
+    """
+    Создает объект Monster на основе данных из JSON файла.
+
+    Args:
+        name: Имя монстра.
+        role: Внутренний идентификатор класса (должен совпадать с именем .json файла).
+        level: Начальный уровень.
+        data_directory: Путь к директории с JSON файлами.
+
+    Returns:
+        Объект Monster или None, если данные не могут быть загружены.
+    """
+    try:
+        from game.data.character_loader import load_monster_class_data
+    except ImportError as e:
+        print(f"Ошибка импорта character_loader внутри create_monster_from_data: {e}")
+        return None
+
+    data = load_monster_class_data(role, data_directory)
+    if not data:
+        print(f"Не удалось загрузить данные для класса монстра '{role}'")
+        return None
+
+    try:
+        monster = Monster(
+            name=name,
+            role=data['role'],
+            base_stats_dict=data['base_stats'],
+            growth_rates_dict=data.get('growth_rates', {}), # growth_rates может отсутствовать
+            class_icon=data.get('class_icon', '?'),
+            class_icon_color=data.get('class_icon_color'),
+            level=level,
+        )
+        return monster
+    except Exception as e:
+        print(f"Ошибка создания монстра {name} класса {role}: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+# --- Основной класс монстра ---
+
+class Monster(Character):
+    """Класс для всех монстров (персонажей, НЕ управляемых игроком)."""
+
+    def __init__(
+        self, 
+        name: str, 
+        role: str,
+        # Параметры для системы уровней (без опыта)
+        base_stats_dict: Dict[str, int],
+        growth_rates_dict: Dict[str, float],
+        class_icon: str = "?",
+        class_icon_color: Optional[int] = None,
+        level: int = 1,
+        # Внедрение зависимостей через конструктор
+        stats_factory: Optional[Callable[[], Stats]] = None, 
+        attributes_factory: Optional[Callable[['CharacterType'], Attributes]] = None,
+        ability_manager_factory: Optional[Callable[['CharacterType'], AbilityManagerProtocol]] = None,
+        status_effect_manager_factory: Optional[Callable[['CharacterType'], StatusEffectManagerProtocol]] = None
+    ):
+        # --- Атрибуты, специфичные для монстра (если будут) ---
+        self.class_icon = class_icon # Можно убрать, если не используется
+        self.class_icon_color = class_icon_color if class_icon_color is not None else 0 # Можно убрать, если не используется
+        # --- Конец специфичных атрибутов ---
+
+        # Вызываем конструктор родительского класса
+        # Передаем все необходимые данные, включая base_stats_dict и growth_rates_dict
+        # is_player принудительно устанавливаем в False
+        super().__init__(
+            name=name,
+            role=role,
+            base_stats_dict=base_stats_dict,
+            growth_rates_dict=growth_rates_dict,
+            level=level,
+            is_player=False, # Всегда False для монстра
+            stats_factory=stats_factory, # Может быть None, будет использована реализация по умолчанию из Character
+            attributes_factory=attributes_factory, # Может быть None, будет использована реализация по умолчанию из Character
+            ability_manager_factory=ability_manager_factory,
+            status_effect_manager_factory=status_effect_manager_factory,
+        )
+
+
+
+================================================================================
+Файл: game/entities/player.py
+================================================================================
+
+# game/entities/player.py
+"""Класс игрока (персонажа, управляемого игроком)."""
+from typing import List, Dict, Any, Optional, Callable, TYPE_CHECKING
+from game.entities.character import Character, SimpleStats, SimpleAttributes # Импортируем вспомогательные классы
+from game.protocols import (
+    Stats,
+    Attributes,
+    AbilityManagerProtocol,
+    StatusEffectManagerProtocol,
+    ExperienceCalculatorProtocol,
+    LevelUpHandlerProtocol
+)
+
+if TYPE_CHECKING:
+    from game.entities.character import Character as CharacterType
+
+# - Фабричная функция для создания игрока из JSON -
+def create_player_from_data(
+    name: str,
+    role: str,
+    level: int = 1,
+    data_directory: str = "game/data/characters/player_classes"
+) -> Optional['Player']:
+    """
+    Создает объект Player на основе данных из JSON файла.
+
+    Args:
+        name: Имя персонажа.
+        role: Внутренний идентификатор класса (должен совпадать с именем .json файла).
+        level: Начальный уровень.
+        data_directory: Путь к директории с JSON файлами.
+
+    Returns:
+        Объект Player или None, если данные не могут быть загружены.
+    """
+    try:
+        from game.data.character_loader import load_player_class_data
+    except ImportError as e:
+        print(f"Ошибка импорта character_loader внутри create_player_from_data: {e}")
+        return None
+
+    data = load_player_class_data(role, data_directory)
+    if not data:
+        print(f"Не удалось загрузить данные для класса '{role}'")
+        return None
+
+    try:
+        player = Player(
+            name=name,
+            role=data['role'],
+            base_stats_dict=data['base_stats'],
+            growth_rates_dict=data['growth_rates'],
+            class_icon=data.get('class_icon', '?'),
+            class_icon_color=data.get('class_icon_color'),
+            level=level,
+        )
+        return player
+    except Exception as e:
+        print(f"Ошибка создания персонажа {name} класса {role}: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+# --- Основной класс игрока ---
+
+class Player(Character):
+    """Класс для всех игроков (персонажей, управляемых игроком)."""
+
+    def __init__(
+        self, 
+        name: str, 
+        role: str,
+        # Параметры для системы уровней/опыта
+        base_stats_dict: Dict[str, int],
+        growth_rates_dict: Dict[str, float],
+        class_icon: str = "?",
+        class_icon_color: Optional[int] = None,
+        level: int = 1,
+        # Внедрение зависимостей через конструктор
+        stats_factory: Optional[Callable[[], Stats]] = None, 
+        attributes_factory: Optional[Callable[['CharacterType'], Attributes]] = None,
+        ability_manager_factory: Optional[Callable[['CharacterType'], AbilityManagerProtocol]] = None,
+        status_effect_manager_factory: Optional[Callable[['CharacterType'], StatusEffectManagerProtocol]] = None,
+        exp_calculator: Optional[ExperienceCalculatorProtocol] = None,
+        level_up_handler: Optional[LevelUpHandlerProtocol] = None,
+        # is_player: bool = True, # Устанавливается автоматически
+    ):
+        # --- Атрибуты, специфичные для игрока ---
+        self.class_icon = class_icon
+        self.class_icon_color = class_icon_color if class_icon_color is not None else 0
+
+        # Инициализируем систему опыта
+        self.exp_calculator = exp_calculator if exp_calculator else SimpleExperienceCalculator()
+        self.level_up_handler = level_up_handler if level_up_handler else SimpleLevelUpHandler()
+        self.exp = 0
+        self.exp_to_next_level = 0
+        # --- Конец специфичных атрибутов ---
+
+        # Вызываем конструктор родительского класса
+        # Передаем все необходимые данные, включая base_stats_dict и growth_rates_dict
+        super().__init__(
+            name=name,
+            role=role,
+            base_stats_dict=base_stats_dict,
+            growth_rates_dict=growth_rates_dict,
+            level=level,
+            is_player=True, # Всегда True для игрока
+            stats_factory=stats_factory, # Может быть None, будет использована реализация по умолчанию из Character
+            attributes_factory=attributes_factory, # Может быть None, будет использована реализация по умолчанию из Character
+            ability_manager_factory=ability_manager_factory,
+            status_effect_manager_factory=status_effect_manager_factory,
+        )
+        
+        # Рассчитываем опыт для следующего уровня
+        self.calculate_exp_for_next_level()
+
+    # ==================== Уровень и характеристики (расширение) ====================
+    # Переопределяем level_up, чтобы добавить логику опыта
+    def level_up(self) -> List[Dict[str, Any]]:
+        """
+        Повышает уровень персонажа (игрока).
+        Возвращает список сообщений/результатов.
+        """
+        # Вызываем родительский метод level_up
+        results = super().level_up()
+        
+        # Пересчитываем опыт для следующего уровня
+        self.calculate_exp_for_next_level()
+        
+        return results
+
+    # ==================== Свойства ====================
+    @property
+    def experience_to_next_level(self) -> int:
+        """Получение опыта, необходимого для следующего уровня."""
+        return self.exp_to_next_level
+
+    # ==================== Система опыта ====================
+    def calculate_exp_for_next_level(self) -> None:
+        """
+        Рассчитывает количество опыта, необходимого для следующего уровня.
+        """
+        self.exp_to_next_level = self.exp_calculator.calculate_exp_for_next_level(self.level)
+
+    def gain_experience(self, exp_amount: int) -> List[Dict[str, Any]]:
+        """
+        Добавляет опыт игроку и проверяет на повышение уровня.
+        Возвращает список сообщений/результатов.
+        """
+        results = []
+        self.exp += exp_amount
+        results.append({
+            "type": "exp_gained",
+            "character": self.name,
+            "exp_amount": exp_amount,
+            "total_exp": self.exp
+        })
+
+        # Проверяем, достаточно ли опыта для повышения уровня
+        while self.exp >= self.exp_to_next_level:
+            # Сбрасываем опыт, использованный для повышения уровня
+            self.exp -= self.exp_to_next_level
+            
+            # Повышаем уровень
+            level_up_results = self.level_up()
+            results.extend(level_up_results)
+            
+            # Дополнительная обработка повышения уровня
+            handler_results = self.level_up_handler.handle_level_up(self)
+            results.extend(handler_results)
+            
+            # Пересчитываем опыт для следующего уровня
+            self.calculate_exp_for_next_level()
+
+        return results
+
+# ==================== Вспомогательные классы (специфичные для игрока) ====================
+
+class SimpleExperienceCalculator:
+    """Простой калькулятор опыта для следующего уровня."""
+    def calculate_exp_for_next_level(self, current_level: int) -> int:
+        """Рассчитывает опыт, необходимый для достижения следующего уровня."""
+        from game.config import get_config # Локальный импорт для избежания циклических зависимостей на уровне модуля
+        config = get_config()
+        return int(config.experience.formula_base * (current_level ** config.experience.formula_multiplier))
+
+class SimpleLevelUpHandler:
+    """Простой обработчик повышения уровня."""
+    def handle_level_up(self, character: 'Character') -> List[Dict[str, Any]]:
+        """Обработать повышение уровня и вернуть список результатов."""
+        results = []
+        old_hp = character.hp
+        character.hp = character.attributes.max_hp
+        hp_restored = character.hp - old_hp
+        
+        old_energy = character.energy
+        character.energy = character.attributes.max_energy
+        energy_restored = character.energy - old_energy
+        
+        results.append({
+            "type": "level_up_heal",
+            "character": character.name,
+            "hp_restored": hp_restored,
+            "energy_restored": energy_restored
+        })
+        
+        return results
+
+
+================================================================================
 Файл: game/data/character_loader.py
 ================================================================================
 
@@ -1743,8 +1880,6 @@ from typing import Dict, Any, Optional, TYPE_CHECKING
 # Используем TYPE_CHECKING для аннотаций без циклического импорта на уровне модуля
 if TYPE_CHECKING:
     from game.config import GameConfig # Для аннотаций
-    from game.entities.player import Player # Для аннотаций
-    from game.entities.character import Character # Для аннотаций
 
 
 # --- Вспомогательные (приватные) функции ---
@@ -1765,17 +1900,13 @@ def _get_default_data_directory(is_player: bool) -> str:
     if is_player:
         return config.system.player_classes_directory
     else:
-        # Используем путь из конфигурации для монстров
         return config.system.monster_classes_directory
-        # Если по какой-то причине его нет, можно использовать запасной вариант:
-        # return getattr(config.system, 'monster_classes_directory',
-        #                os.path.join("game", "data", "characters", "monster_classes"))
 
 
 def _load_character_data_from_file(
     role: str, 
     data_directory: str
-) -> Optional[Dict[str, Any]]:
+    ) -> Optional[Dict[str, Any]]:
     """
     Загружает данные класса персонажа из JSON файла.
 
@@ -1821,7 +1952,7 @@ def _load_character_data_from_file(
 def load_player_class_data(
     role: str, 
     data_directory: Optional[str] = None
-) -> Optional[Dict[str, Any]]:
+    ) -> Optional[Dict[str, Any]]:
     """
     Загружает данные класса игрока из JSON файла.
 
@@ -1839,49 +1970,11 @@ def load_player_class_data(
     return _load_character_data_from_file(role, data_directory)
 
 
-def create_player(
-    name: str, 
-    role: str, 
-    level: int = 1,
-    data_directory: Optional[str] = None
-) -> Optional['Player']:
-    """
-    Создает объект Player на основе данных из JSON файла.
-    Упрощенный интерфейс для game.entities.player.create_player_from_data.
-
-    Args:
-        name: Имя персонажа.
-        role: Внутренний идентификатор класса.
-        level: Начальный уровень.
-        data_directory: Путь к директории с JSON файлами.
-                        Если None, используется путь из конфигурации.
-
-    Returns:
-        Объект Player или None, если данные не могут быть загружены.
-    """
-    if data_directory is None:
-        data_directory = _get_default_data_directory(is_player=True)
-
-    # Отложенная загрузка, чтобы избежать циклического импорта на уровне модуля
-    try:
-        # Импортируем внутри функции
-        from game.entities.player import create_player_from_data as _internal_create
-        return _internal_create(name, role, level, data_directory)
-    except ImportError as e:
-        print(f"Ошибка импорта при создании игрока: {e}")
-        return None
-    except Exception as e:
-        print(f"Неожиданная ошибка при создании игрока {name} класса {role}: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
-
-
 # --- Публичные функции для монстров ---
 def load_monster_class_data(
     role: str, 
     data_directory: Optional[str] = None
-) -> Optional[Dict[str, Any]]:
+    ) -> Optional[Dict[str, Any]]:
     """
     Загружает данные класса монстра из JSON файла.
 
@@ -1899,53 +1992,59 @@ def load_monster_class_data(
     return _load_character_data_from_file(role, data_directory)
 
 
-# --- Исправленная универсальная функция ---
-def create_character(
-    name: str,
-    role: str,
-    level: int = 1,
-    data_directory: Optional[str] = None,
-    is_player: bool = False
-) -> Optional['Character']:
-    """
-    Универсальная функция для создания объекта Character (игрока или монстра)
-    на основе данных из JSON файла.
-
-    Args:
-        name: Имя персонажа.
-        role: Внутренний идентификатор класса.
-        level: Начальный уровень.
-        data_directory: Путь к директории с JSON файлами.
-                        Если None, используется путь из конфигурации.
-        is_player: Флаг, указывающий, является ли персонаж игроком.
-
-    Returns:
-        Объект Character или None, если данные не могут быть загружены.
-    """
-    # Определяем директорию данных
-    if data_directory is None:
-        data_directory = _get_default_data_directory(is_player)
-
-    try:
-        if is_player:
-            # Импортируем фабрику игроков
-            from game.factories.player_factory import create_player
-            return create_player(name, role, level, data_directory)
-        else:
-            # Импортируем фабрику монстров (убедитесь, что monster_factory.py существует)
-            from game.factories.monster_factory import create_monster
-            return create_monster(name, role, level, data_directory)
-    except Exception as e:
-        print(f"Неожиданная ошибка при создании персонажа {name} класса {role}: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
-
-
 ================================================================================
 Файл: game/factories/__init__.py
 ================================================================================
 
+
+
+================================================================================
+Файл: game/factories/monster_factory.py
+================================================================================
+
+# game/factories/monster_factory.py
+"""Фабрика для создания монстров.
+
+Предоставляет функции для создания экземпляров класса Monster
+на основе данных из JSON файлов.
+"""
+
+from typing import TYPE_CHECKING, Optional, Union
+from game.naming.template_namer import generate_monster_name
+from game.data.character_loader import _get_default_data_directory
+
+if TYPE_CHECKING:
+    from game.entities.monster import Monster
+
+def create_monster(
+    role: str,
+    name: Optional[str] = None,
+    level: int = 1,
+    data_directory: Optional[str] = None
+) -> Union['Monster', None]:
+    """
+    Создает монстра по его роли (типу).
+
+    Args:
+        role: Внутренний идентификатор класса монстра (должен совпадать с именем .json файла).
+        name: Имя монстра. Если None или пустая строка, будет сгенерировано автоматически.
+        level: Уровень монстра.
+        data_directory: Путь к директории с JSON файлами классов монстров.
+
+    Returns:
+        Объект Character (Monster) или None, если данные не могут быть загружены.
+    """
+
+    if data_directory is None:
+        data_directory = _get_default_data_directory(is_player=False)
+
+    if not name or not name.strip():
+        name = generate_monster_name(role)
+
+
+    # Импортируем внутри функции
+    from game.entities.monster import create_monster_from_data as _internal_create
+    return _internal_create(name, role, level, data_directory)
 
 
 ================================================================================
@@ -1960,94 +2059,252 @@ def create_character(
 """
 
 from typing import Optional, TYPE_CHECKING
+from game.data.character_loader import _get_default_data_directory
 
-# Импортируем функцию создания игрока из загрузчика данных
-# Это предотвращает циклический импорт, так как сам Player импортирует из character_loader
-from game.data.character_loader import create_player as _internal_create_player
-
-# Импортируем Player только для аннотаций типов
 if TYPE_CHECKING:
     from game.entities.player import Player
 
 
 def create_player(
-    name: str,
     role: str,
+    name: str, 
     level: int = 1,
-    data_directory: str = "game/data/characters/player_classes"
-) -> Optional['Player']:
+    data_directory: Optional[str] = None
+    ) -> Optional['Player']:
     """
     Создает объект Player на основе данных из JSON файла.
+    Упрощенный интерфейс для game.entities.player.create_player_from_data.
 
     Args:
+        role: Внутренний идентификатор класса.
         name: Имя персонажа.
-        role: Внутренний идентификатор класса (должен совпадать с именем .json файла).
         level: Начальный уровень.
         data_directory: Путь к директории с JSON файлами.
+                        Если None, используется путь из конфигурации.
 
     Returns:
         Объект Player или None, если данные не могут быть загружены.
     """
-    # Просто переэкспортируем функцию из character_loader
-    # для соответствия структуре импортов (factories.player_factory)
-    return _internal_create_player(
-        name=name,
-        role=role,
-        level=level,
-        data_directory=data_directory
-    )
+    if data_directory is None:
+        data_directory = _get_default_data_directory(is_player=True)
+
+    from game.entities.player import create_player_from_data as _internal_create
+    return _internal_create(name, role, level, data_directory)
 
 
 ================================================================================
-Файл: game/factories/monster_factory.py
+Файл: game/naming/template_namer.py
 ================================================================================
 
-# game/factories/monster_factory.py
-"""Фабрика для создания монстров.
+# game/naming/template_namer.py
+"""Генератор имен монстров на основе шаблонов."""
 
-Предоставляет функции для создания экземпляров класса Character
-на основе данных из JSON файлов, помеченных как не-игроки.
-"""
-
+import random
+import json
 import os
-from typing import Optional, TYPE_CHECKING
+from typing import List, Dict
+from game.protocols import MonsterNamerProtocol
 
-# Импортируем функцию создания персонажа из загрузчика данных
-from game.data.character_loader import create_character as _internal_create_character
+class TemplateMonsterNamer(MonsterNamerProtocol):
+    """Простой генератор имен монстров, использующий шаблоны и списки слов."""
 
-# Импортируем Character только для аннотаций типов
-if TYPE_CHECKING:
-    from game.entities.character import Character
+    def __init__(self, data_directory: str = "game/data/names"):
+        """
+        Инициализирует генератор.
 
-# Путь по умолчанию к данным монстров
-DEFAULT_MONSTER_DATA_DIR = os.path.join("game", "data", "characters", "monster_classes")
+        Args:
+            data_directory: Путь к директории с JSON-файлами слов.
+        """
+        self.data_directory = data_directory
+        self.word_data: Dict[str, List[str]] = {}
+        self._load_word_data()
 
-def create_monster(
-    name: str,
-    role: str,
-    level: int = 1,
-    data_directory: str = DEFAULT_MONSTER_DATA_DIR
-) -> Optional['Character']:
+    def _load_word_data(self) -> None:
+        """Загружает данные слов из JSON-файлов."""
+        self.word_data = {}
+        if not os.path.exists(self.data_directory):
+            print(f"Предупреждение: Директория данных имен '{self.data_directory}' не найдена.")
+            return
+
+        try:
+            # Загружаем общие списки слов
+            common_files = {
+                "adjectives": "adjectives.json",
+                "nouns": "nouns.json",
+                "prefixes": "prefixes.json",
+                "suffixes": "suffixes.json",
+            }
+            for key, filename in common_files.items():
+                filepath = os.path.join(self.data_directory, filename)
+                if os.path.exists(filepath):
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        self.word_data[key] = json.load(f)
+                else:
+                    print(f"Предупреждение: Файл данных имен '{filepath}' не найден.")
+                    self.word_data[key] = [] # Пустой список по умолчанию
+
+            # Можно добавить загрузку специфичных для роли списков позже
+            # Например, monster_role_adjectives.json
+
+        except json.JSONDecodeError as e:
+            print(f"Ошибка: Некорректный JSON в файлах имен: {e}")
+            self.word_data = {k: [] for k in ["adjectives", "nouns", "prefixes", "suffixes"]}
+        except Exception as e:
+            print(f"Ошибка при загрузке данных имен: {e}")
+            self.word_data = {k: [] for k in ["adjectives", "nouns", "prefixes", "suffixes"]}
+
+    def _get_words(self, category: str) -> List[str]:
+        """Получает список слов по категории. Возвращает пустой список, если категория отсутствует."""
+        return self.word_data.get(category, [])
+
+    def generate_name(self, monster_role: str) -> str:
+        """
+        Генерирует имя для монстра на основе его роли.
+
+        Args:
+            monster_role: Роль/тип монстра (например, 'goblin', 'dragon').
+
+        Returns:
+            Сгенерированное имя.
+        """
+        # Простые шаблоны
+        templates = [
+            "{adjective} {noun}",
+            "{prefix}{noun}",
+            "{noun} {suffix}",
+            "{adjective} {prefix}{noun}",
+            "{prefix}{noun} {suffix}",
+            "{noun}", # Резервный вариант
+        ]
+
+        # Можно сделать шаблоны зависимыми от роли в будущем
+        # role_templates = self._load_role_templates(monster_role)
+        # if role_templates:
+        #     templates = role_templates
+
+        template = random.choice(templates)
+
+        # Получаем слова
+        adjectives = self._get_words("adjectives")
+        nouns = self._get_words("nouns")
+        prefixes = self._get_words("prefixes")
+        suffixes = self._get_words("suffixes")
+
+        # Словарь для подстановки в шаблон
+        replacements = {
+            "adjective": random.choice(adjectives) if adjectives else "",
+            "noun": random.choice(nouns) if nouns else "Монстр",
+            "prefix": random.choice(prefixes) if prefixes else "",
+            "suffix": random.choice(suffixes) if suffixes else "",
+        }
+
+        # Форматируем имя
+        try:
+            name = template.format(**replacements).strip()
+            # Убираем лишние пробелы, которые могли остаться
+            name = " ".join(name.split())
+            if not name:
+                name = f"{monster_role.capitalize()} {random.randint(1, 1000)}"
+            return name
+        except KeyError as e:
+            # На случай, если в шаблоне будет неизвестный ключ
+            print(f"Ошибка форматирования имени: неизвестный ключ {e} в шаблоне '{template}'. Используется резервное имя.")
+            return f"{monster_role.capitalize()} {random.randint(1, 1000)}"
+        except Exception as e:
+            print(f"Неожиданная ошибка при генерации имени: {e}. Используется резервное имя.")
+            return f"{monster_role.capitalize()} {random.randint(1, 1000)}"
+
+# --- Глобальный экземпляр для удобства ---
+_DEFAULT_NAMER: TemplateMonsterNamer = None # type: ignore
+
+def get_default_namer() -> TemplateMonsterNamer:
+    """Получить глобальный экземпляр генератора имен."""
+    global _DEFAULT_NAMER
+    if _DEFAULT_NAMER is None:
+        _DEFAULT_NAMER = TemplateMonsterNamer()
+    return _DEFAULT_NAMER
+
+def generate_monster_name(monster_role: str) -> str:
     """
-    Создает объект монстра (Character с is_player=False) на основе данных из JSON файла.
+    Удобная функция для генерации имени монстра с использованием
+    глобального экземпляра генератора.
 
     Args:
-        name: Имя монстра.
-        role: Внутренний идентификатор класса (должен совпадать с именем .json файла).
-        level: Начальный уровень.
-        data_directory: Путь к директории с JSON файлами.
+        monster_role: Роль/тип монстра.
 
     Returns:
-        Объект Character (с is_player=False) или None, если данные не могут быть загружены.
+        Сгенерированное имя.
     """
-    return _internal_create_character(
-        name=name,
-        role=role,
-        level=level,
-        data_directory=data_directory,
-        is_player=False # Явно указываем, что это не игрок
-    )
+    return get_default_namer().generate_name(monster_role)
 
+
+================================================================================
+Файл: game/data/names/adjectives.json
+================================================================================
+
+[
+    "Злобный",
+    "Коварный",
+    "Гнилой",
+    "Кровавый",
+    "Яростный",
+    "Хитрый",
+    "Мерзкий",
+    "Скользкий",
+    "Лютый",
+    "Мрачный"
+  ]
+
+================================================================================
+Файл: game/data/names/nouns.json
+================================================================================
+
+[
+    "Гоблин",
+    "Огр",
+    "Скелет",
+    "Зомби",
+    "Дракон",
+    "Демон",
+    "Призрак",
+    "Вампир",
+    "Оборотень",
+    "Бес"
+  ]
+
+================================================================================
+Файл: game/data/names/prefixes.json
+================================================================================
+
+[
+    "Супер",
+    "Мега",
+    "Ультра",
+    "Архи",
+    "Великий",
+    "Король",
+    "Лорд",
+    "Мастер",
+    "Профессор",
+    "Доктор"
+  ]
+
+================================================================================
+Файл: game/data/names/suffixes.json
+================================================================================
+
+[
+    "Младший",
+    "Старший",
+    "Великий",
+    "Ужасный",
+    "Несокрушимый",
+    "Из Тьмы",
+    "Из Бездны",
+    "Пожиратель",
+    "Разрушитель",
+    "Завоеватель"
+  ]
 
 ================================================================================
 Файл: game/data/characters/player_classes/archer.json
@@ -2334,121 +2591,79 @@ __all__ = [
 ]
 
 ================================================================================
-Файл: game/ui/rendering/renderer.py
+Файл: game/ui/rendering/color_manager.py
 ================================================================================
 
-# game/ui/rendering/renderer.py
-"""Рендерер для отрисовки элементов пользовательского интерфейса.
+# game/ui/rendering/color_manager.py
+"""Управление цветами для пользовательского интерфейса.
 
-Предоставляет абстракцию над библиотекой curses для упрощения отрисовки
-текста, шаблонов и других элементов интерфейса.
+Предоставляет систему цветов и управление цветовыми парами для curses.
 """
 
 import curses
-from typing import Dict, Tuple, Any
-
-from game.ui.rendering.color_manager import Color, ColorManager
-from game.ui.rendering.template_renderer import TemplateRenderer
+from enum import Enum
+from typing import Any  # Для аннотации stdscr
 
 
-class Renderer:
-    """Рендерер для отрисовки элементов на экране."""
+class Color(Enum):
+    """Перечисление доступных цветов."""
+    DEFAULT = 0
+    RED = 1
+    GREEN = 2
+    YELLOW = 3
+    BLUE = 4
+    MAGENTA = 5
+    CYAN = 6
+    WHITE = 7
+    # Примечание: GRAY (8) может не поддерживаться всеми терминалами
+    GRAY = 8
 
-    def __init__(self, stdscr: curses.window, color_manager: ColorManager) -> None:
+
+class ColorManager:
+    """Управление цветами для curses."""
+
+    def __init__(self) -> None:
+        """Инициализация менеджера цветов."""
+        self.color_pairs: dict = {}
+        self._initialized = False
+
+    def initialize(self, stdscr: Any) -> None:
         """
-        Инициализация рендерера.
+        Инициализация цветов.
 
         Args:
-            stdscr: Окно curses для отрисовки.
-            color_manager: Менеджер цветов.
+            stdscr: Окно curses для инициализации цветов.
         """
-        self.stdscr = stdscr
-        self.color_manager = color_manager
-        self.template_renderer = TemplateRenderer(color_manager)
-        self.height, self.width = stdscr.getmaxyx()
+        if not self._initialized and curses.has_colors():
+            curses.start_color()
+            curses.use_default_colors()
 
-    def clear(self) -> None:
-        """Очистка экрана."""
-        self.stdscr.clear()
+            # Определяем цветовые пары
+            curses.init_pair(Color.RED.value, curses.COLOR_RED, -1)
+            curses.init_pair(Color.GREEN.value, curses.COLOR_GREEN, -1)
+            curses.init_pair(Color.YELLOW.value, curses.COLOR_YELLOW, -1)
+            curses.init_pair(Color.BLUE.value, curses.COLOR_BLUE, -1)
+            curses.init_pair(Color.MAGENTA.value, curses.COLOR_MAGENTA, -1)
+            curses.init_pair(Color.CYAN.value, curses.COLOR_CYAN, -1)
+            curses.init_pair(Color.WHITE.value, curses.COLOR_WHITE, -1)
+            # TODO: Проверить поддержку цвета 8 (GRAY) в различных терминалах
+            curses.init_pair(Color.GRAY.value, 8, -1)
 
-    def draw_text(self, text: str, x: int, y: int,
-                  bold: bool = False, dim: bool = False, color: Color = Color.DEFAULT) -> None:
+            self._initialized = True
+
+    def get_color_pair(self, color: Color) -> int:
         """
-        Отрисовка текста на экране.
+        Получение цветовой пары.
 
         Args:
-            text: Текст для отрисовки.
-            x: Координата X.
-            y: Координата Y.
-            bold: Жирный шрифт.
-            dim: Тусклый шрифт.
-            color: Цвет текста.
+            color: Цвет из перечисления Color.
+
+        Returns:
+            Цветовая пара для curses.
         """
-        try:
-            # Проверяем границы экрана
-            if y >= self.height or x >= self.width or y < 0 or x < 0:
-                return
-
-            # Получаем атрибуты
-            attr = self.color_manager.get_color_pair(color)
-            if bold:
-                attr |= curses.A_BOLD
-            if dim:
-                attr |= curses.A_DIM
-
-            self.stdscr.addstr(y, x, text, attr)
-        except curses.error:
-            # Игнорируем ошибки выхода за границы экрана
-            pass
-
-    def draw_template(self, template: str, replacements: Dict[str, Tuple[str, Color, bool, bool]],
-                      x: int, y: int) -> None:
-        """
-        Отрисовка шаблонного текста.
-
-        Args:
-            template: Шаблон текста с плейсхолдерами %1, %2 и т.д.
-            replacements: Словарь замен {номер: (текст, цвет, жирный, тусклый)}.
-            x: Координата X.
-            y: Координата Y.
-        """
-        try:
-            # Проверяем границы экрана
-            if y < 0 or x < 0 or y >= self.height:
-                return
-
-            self.template_renderer.draw_template(self.stdscr, template, replacements, x, y)
-        except curses.error:
-            pass
-
-    def draw_box(self, x: int, y: int, width: int, height: int) -> None:
-        """
-        Отрисовка прямоугольника.
-
-        Args:
-            x: Координата X левого верхнего угла.
-            y: Координата Y левого верхнего угла.
-            width: Ширина прямоугольника.
-            height: Высота прямоугольника.
-        """
-        try:
-            # Верхняя и нижняя границы
-            if y < self.height and y + height - 1 < self.height:
-                self.stdscr.addstr(y, x, "+" + "-" * (width - 2) + "+")
-                self.stdscr.addstr(y + height - 1, x, "+" + "-" * (width - 2) + "+")
-
-            # Боковые границы
-            for i in range(1, min(height - 1, self.height - y)):
-                if y + i < self.height:
-                    self.stdscr.addstr(y + i, x, "|")
-                    if x + width - 1 < self.width:
-                        self.stdscr.addstr(y + i, x + width - 1, "|")
-        except curses.error:
-            pass
-
-    def refresh(self) -> None:
-        """Обновление экрана."""
-        self.stdscr.refresh()
+        if not self._initialized:
+            return curses.A_NORMAL
+        return curses.color_pair(color.value)
 
 
 ================================================================================
@@ -2607,79 +2822,121 @@ class Separator(Renderable):
 
 
 ================================================================================
-Файл: game/ui/rendering/color_manager.py
+Файл: game/ui/rendering/renderer.py
 ================================================================================
 
-# game/ui/rendering/color_manager.py
-"""Управление цветами для пользовательского интерфейса.
+# game/ui/rendering/renderer.py
+"""Рендерер для отрисовки элементов пользовательского интерфейса.
 
-Предоставляет систему цветов и управление цветовыми парами для curses.
+Предоставляет абстракцию над библиотекой curses для упрощения отрисовки
+текста, шаблонов и других элементов интерфейса.
 """
 
 import curses
-from enum import Enum
-from typing import Any  # Для аннотации stdscr
+from typing import Dict, Tuple, Any
+
+from game.ui.rendering.color_manager import Color, ColorManager
+from game.ui.rendering.template_renderer import TemplateRenderer
 
 
-class Color(Enum):
-    """Перечисление доступных цветов."""
-    DEFAULT = 0
-    RED = 1
-    GREEN = 2
-    YELLOW = 3
-    BLUE = 4
-    MAGENTA = 5
-    CYAN = 6
-    WHITE = 7
-    # Примечание: GRAY (8) может не поддерживаться всеми терминалами
-    GRAY = 8
+class Renderer:
+    """Рендерер для отрисовки элементов на экране."""
 
-
-class ColorManager:
-    """Управление цветами для curses."""
-
-    def __init__(self) -> None:
-        """Инициализация менеджера цветов."""
-        self.color_pairs: dict = {}
-        self._initialized = False
-
-    def initialize(self, stdscr: Any) -> None:
+    def __init__(self, stdscr: curses.window, color_manager: ColorManager) -> None:
         """
-        Инициализация цветов.
+        Инициализация рендерера.
 
         Args:
-            stdscr: Окно curses для инициализации цветов.
+            stdscr: Окно curses для отрисовки.
+            color_manager: Менеджер цветов.
         """
-        if not self._initialized and curses.has_colors():
-            curses.start_color()
-            curses.use_default_colors()
+        self.stdscr = stdscr
+        self.color_manager = color_manager
+        self.template_renderer = TemplateRenderer(color_manager)
+        self.height, self.width = stdscr.getmaxyx()
 
-            # Определяем цветовые пары
-            curses.init_pair(Color.RED.value, curses.COLOR_RED, -1)
-            curses.init_pair(Color.GREEN.value, curses.COLOR_GREEN, -1)
-            curses.init_pair(Color.YELLOW.value, curses.COLOR_YELLOW, -1)
-            curses.init_pair(Color.BLUE.value, curses.COLOR_BLUE, -1)
-            curses.init_pair(Color.MAGENTA.value, curses.COLOR_MAGENTA, -1)
-            curses.init_pair(Color.CYAN.value, curses.COLOR_CYAN, -1)
-            curses.init_pair(Color.WHITE.value, curses.COLOR_WHITE, -1)
-            # TODO: Проверить поддержку цвета 8 (GRAY) в различных терминалах
-            curses.init_pair(Color.GRAY.value, 8, -1)
+    def clear(self) -> None:
+        """Очистка экрана."""
+        self.stdscr.clear()
 
-            self._initialized = True
-
-    def get_color_pair(self, color: Color) -> int:
+    def draw_text(self, text: str, x: int, y: int,
+                  bold: bool = False, dim: bool = False, color: Color = Color.DEFAULT) -> None:
         """
-        Получение цветовой пары.
+        Отрисовка текста на экране.
 
         Args:
-            color: Цвет из перечисления Color.
-
-        Returns:
-            Цветовая пара для curses.
+            text: Текст для отрисовки.
+            x: Координата X.
+            y: Координата Y.
+            bold: Жирный шрифт.
+            dim: Тусклый шрифт.
+            color: Цвет текста.
         """
-        if not self._initialized:
-            return curses.A_NORMAL
-        return curses.color_pair(color.value)
+        try:
+            # Проверяем границы экрана
+            if y >= self.height or x >= self.width or y < 0 or x < 0:
+                return
+
+            # Получаем атрибуты
+            attr = self.color_manager.get_color_pair(color)
+            if bold:
+                attr |= curses.A_BOLD
+            if dim:
+                attr |= curses.A_DIM
+
+            self.stdscr.addstr(y, x, text, attr)
+        except curses.error:
+            # Игнорируем ошибки выхода за границы экрана
+            pass
+
+    def draw_template(self, template: str, replacements: Dict[str, Tuple[str, Color, bool, bool]],
+                      x: int, y: int) -> None:
+        """
+        Отрисовка шаблонного текста.
+
+        Args:
+            template: Шаблон текста с плейсхолдерами %1, %2 и т.д.
+            replacements: Словарь замен {номер: (текст, цвет, жирный, тусклый)}.
+            x: Координата X.
+            y: Координата Y.
+        """
+        try:
+            # Проверяем границы экрана
+            if y < 0 or x < 0 or y >= self.height:
+                return
+
+            self.template_renderer.draw_template(self.stdscr, template, replacements, x, y)
+        except curses.error:
+            pass
+
+    def draw_box(self, x: int, y: int, width: int, height: int) -> None:
+        """
+        Отрисовка прямоугольника.
+
+        Args:
+            x: Координата X левого верхнего угла.
+            y: Координата Y левого верхнего угла.
+            width: Ширина прямоугольника.
+            height: Высота прямоугольника.
+        """
+        try:
+            # Верхняя и нижняя границы
+            if y < self.height and y + height - 1 < self.height:
+                self.stdscr.addstr(y, x, "+" + "-" * (width - 2) + "+")
+                self.stdscr.addstr(y + height - 1, x, "+" + "-" * (width - 2) + "+")
+
+            # Боковые границы
+            for i in range(1, min(height - 1, self.height - y)):
+                if y + i < self.height:
+                    self.stdscr.addstr(y + i, x, "|")
+                    if x + width - 1 < self.width:
+                        self.stdscr.addstr(y + i, x + width - 1, "|")
+        except curses.error:
+            pass
+
+    def refresh(self) -> None:
+        """Обновление экрана."""
+        self.stdscr.refresh()
 
 
 ================================================================================
@@ -2806,63 +3063,34 @@ class TemplateRenderer:
 
 
 ================================================================================
-Файл: game/ui/command_system/screen_command_registry.py
+Файл: game/ui/command_system/__init__.py
 ================================================================================
 
-# game/ui/command_system/screen_command_registry.py
-"""Реестр команд для экранов.
+# game/ui/command_system/__init__.py
+"""
+Система команд пользовательского интерфейса.
 
-Реализует паттерн Registry для хранения связей между классами экранов и их командами.
+Содержит самодостаточные команды и систему их регистрации.
 """
 
-from typing import Dict, List, Type, TYPE_CHECKING
+from .command import Command, CommandRegistry
+from .screen_command_registry import (
+    register_screen_commands,
+    get_screen_commands,
+    get_all_registered_screens,
+    clear_registry
+)
+from .command_renderer import CommandRenderer  # ДОБАВИЛИ!
 
-if TYPE_CHECKING:
-    from game.ui.base_screen import BaseScreen
-    from game.ui.command_system.command import Command
-
-# Глобальный реестр: КлассЭкрана -> СписокКоманд
-SCREEN_COMMANDS: Dict[Type['BaseScreen'], List['Command']] = {}
-
-
-def register_screen_commands(screen_class: Type['BaseScreen'], commands: List['Command']) -> None:
-    """
-    Регистрация команд для конкретного экрана.
-
-    Args:
-        screen_class: Класс экрана.
-        commands: Список команд для этого экрана.
-    """
-    SCREEN_COMMANDS[screen_class] = commands
-
-
-def get_screen_commands(screen_class: Type['BaseScreen']) -> List['Command']:
-    """
-    Получение команд для конкретного экрана.
-
-    Args:
-        screen_class: Класс экрана.
-
-    Returns:
-        Список команд для экрана (пустой список если нет команд).
-    """
-    return SCREEN_COMMANDS.get(screen_class, [])
-
-
-def get_all_registered_screens() -> List[Type['BaseScreen']]:
-    """
-    Получение всех экранов с зарегистрированными командами.
-
-    Returns:
-        Список классов экранов.
-    """
-    return list(SCREEN_COMMANDS.keys())
-
-
-def clear_registry() -> None:
-    """Очистка реестра (для тестирования)."""
-    SCREEN_COMMANDS.clear()
-
+__all__ = [
+    'Command',
+    'CommandRegistry',
+    'CommandRenderer',  # ДОБАВИЛИ!
+    'register_screen_commands',
+    'get_screen_commands',
+    'get_all_registered_screens',
+    'clear_registry'
+]
 
 ================================================================================
 Файл: game/ui/command_system/command.py
@@ -2976,36 +3204,6 @@ class CommandRegistry:
 
 
 ================================================================================
-Файл: game/ui/command_system/__init__.py
-================================================================================
-
-# game/ui/command_system/__init__.py
-"""
-Система команд пользовательского интерфейса.
-
-Содержит самодостаточные команды и систему их регистрации.
-"""
-
-from .command import Command, CommandRegistry
-from .screen_command_registry import (
-    register_screen_commands,
-    get_screen_commands,
-    get_all_registered_screens,
-    clear_registry
-)
-from .command_renderer import CommandRenderer  # ДОБАВИЛИ!
-
-__all__ = [
-    'Command',
-    'CommandRegistry',
-    'CommandRenderer',  # ДОБАВИЛИ!
-    'register_screen_commands',
-    'get_screen_commands',
-    'get_all_registered_screens',
-    'clear_registry'
-]
-
-================================================================================
 Файл: game/ui/command_system/command_renderer.py
 ================================================================================
 
@@ -3064,69 +3262,62 @@ class CommandRenderer:
 
 
 ================================================================================
-Файл: game/ui/commands/__init__.py
+Файл: game/ui/command_system/screen_command_registry.py
 ================================================================================
 
-# game/ui/commands/__init__.py
-"""Пакет конкретных команд для разных экранов.
+# game/ui/command_system/screen_command_registry.py
+"""Реестр команд для экранов.
 
-Содержит реализации команд для конкретных экранов игры.
+Реализует паттерн Registry для хранения связей между классами экранов и их командами.
 """
 
-# ВАЖНО: Импортируем все команды, чтобы они зарегистрировались
-import game.ui.commands.common_commands
-import game.ui.commands.inventory_commands
-import game.ui.commands.battle_commands
-import game.ui.commands.main_screen_commands
+from typing import Dict, List, Type, TYPE_CHECKING
 
-# Экспортируем основные классы команд для удобства использования
-# Общие команды
-from .common_commands import (
-    GoBackCommand,
-    OpenInventoryCommand,
-    HelpCommand,
-    ExitCommand
-)
+if TYPE_CHECKING:
+    from game.ui.base_screen import BaseScreen
+    from game.ui.command_system.command import Command
 
-# Специфические команды инвентаря
-from .inventory_commands import (
-    UseItemCommand,
-    DropItemCommand
-)
+# Глобальный реестр: КлассЭкрана -> СписокКоманд
+SCREEN_COMMANDS: Dict[Type['BaseScreen'], List['Command']] = {}
 
-# Специфические команды боя
-from .battle_commands import (
-    AttackCommand,
-    DefendCommand,
-    MagicCommand as BattleMagicCommand
-)
 
-# Специфические команды главного экрана
-from .main_screen_commands import (
-    StartBattleCommand,
-    OpenSettingsCommand
-)
+def register_screen_commands(screen_class: Type['BaseScreen'], commands: List['Command']) -> None:
+    """
+    Регистрация команд для конкретного экрана.
 
-__all__ = [
-    # Общие команды
-    'GoBackCommand',
-    'OpenInventoryCommand',
-    'HelpCommand',
-    'ExitCommand',
+    Args:
+        screen_class: Класс экрана.
+        commands: Список команд для этого экрана.
+    """
+    SCREEN_COMMANDS[screen_class] = commands
 
-    # Команды инвентаря
-    'UseItemCommand',
-    'DropItemCommand',
 
-    # Команды боя
-    'AttackCommand',
-    'DefendCommand',
-    'BattleMagicCommand',
+def get_screen_commands(screen_class: Type['BaseScreen']) -> List['Command']:
+    """
+    Получение команд для конкретного экрана.
 
-    # Команды главного экрана
-    'StartBattleCommand',
-    'OpenSettingsCommand'
-]
+    Args:
+        screen_class: Класс экрана.
+
+    Returns:
+        Список команд для экрана (пустой список если нет команд).
+    """
+    return SCREEN_COMMANDS.get(screen_class, [])
+
+
+def get_all_registered_screens() -> List[Type['BaseScreen']]:
+    """
+    Получение всех экранов с зарегистрированными командами.
+
+    Returns:
+        Список классов экранов.
+    """
+    return list(SCREEN_COMMANDS.keys())
+
+
+def clear_registry() -> None:
+    """Очистка реестра (для тестирования)."""
+    SCREEN_COMMANDS.clear()
 
 
 ================================================================================
@@ -3268,64 +3459,69 @@ register_screen_commands(BattleScreen, [
 ])
 
 ================================================================================
-Файл: game/ui/commands/main_screen_commands.py
+Файл: game/ui/commands/__init__.py
 ================================================================================
 
-# game/ui/commands/main_screen_commands.py
-"""Специфические команды для главного экрана."""
+# game/ui/commands/__init__.py
+"""Пакет конкретных команд для разных экранов.
 
-from typing import Optional, Any
+Содержит реализации команд для конкретных экранов игры.
+"""
 
-from game.ui.command_system.command import Command
-from game.ui.command_system.screen_command_registry import register_screen_commands
-# Импортируем общие команды
-from game.ui.commands.common_commands import OpenInventoryCommand, ExitCommand
-# Импортируем экран для регистрации команд
-from game.ui.main_screen import MainScreen
+# ВАЖНО: Импортируем все команды, чтобы они зарегистрировались
+import game.ui.commands.common_commands
+import game.ui.commands.inventory_commands
+import game.ui.commands.battle_commands
+import game.ui.commands.main_screen_commands
 
+# Экспортируем основные классы команд для удобства использования
+# Общие команды
+from .common_commands import (
+    GoBackCommand,
+    OpenInventoryCommand,
+    HelpCommand,
+    ExitCommand
+)
 
-class StartBattleCommand(Command):
-    """Команда начала боя."""
+# Специфические команды инвентаря
+from .inventory_commands import (
+    UseItemCommand,
+    DropItemCommand
+)
 
-    def __init__(self):
-        super().__init__(
-            name="Бой",
-            description="Начать бой",
-            keys=[10],
-            display_key="Enter"
-        )
+# Специфические команды боя
+from .battle_commands import (
+    AttackCommand,
+    DefendCommand,
+    MagicCommand as BattleMagicCommand
+)
 
-    def execute(self, context: Optional[Any] = None) -> None:
-        """Выполнение команды начала боя."""
-        if context and hasattr(context, 'manager'):
-            context.manager.change_screen("battle")
+# Специфические команды главного экрана
+from .main_screen_commands import (
+    StartBattleCommand,
+    OpenSettingsCommand
+)
 
+__all__ = [
+    # Общие команды
+    'GoBackCommand',
+    'OpenInventoryCommand',
+    'HelpCommand',
+    'ExitCommand',
 
-class OpenSettingsCommand(Command):
-    """Команда открытия настроек."""
+    # Команды инвентаря
+    'UseItemCommand',
+    'DropItemCommand',
 
-    def __init__(self):
-        super().__init__(
-            name="Настройки",
-            description="Открыть настройки",
-            keys=['3'],
-            display_key="3"
-        )
+    # Команды боя
+    'AttackCommand',
+    'DefendCommand',
+    'BattleMagicCommand',
 
-    def execute(self, context: Optional[Any] = None) -> None:
-        """Выполнение команды открытия настроек."""
-        # TODO: Заменить print на отображение внутри curses UI
-        if context:
-            print("Открытие настроек")
-
-
-# Регистрируем команды для главного экрана
-register_screen_commands(MainScreen, [
-    StartBattleCommand(),
-    OpenInventoryCommand(),  # Переиспользуем общую команду
-    OpenSettingsCommand(),
-    ExitCommand()            # Переиспользуем общую команду
-])
+    # Команды главного экрана
+    'StartBattleCommand',
+    'OpenSettingsCommand'
+]
 
 
 ================================================================================
@@ -3407,6 +3603,67 @@ class ExitCommand(Command):
         """Выполнение команды выхода."""
         # TODO: Рассмотреть использование raise SystemExit() вместо exit()
         exit()
+
+
+================================================================================
+Файл: game/ui/commands/main_screen_commands.py
+================================================================================
+
+# game/ui/commands/main_screen_commands.py
+"""Специфические команды для главного экрана."""
+
+from typing import Optional, Any
+
+from game.ui.command_system.command import Command
+from game.ui.command_system.screen_command_registry import register_screen_commands
+# Импортируем общие команды
+from game.ui.commands.common_commands import OpenInventoryCommand, ExitCommand
+# Импортируем экран для регистрации команд
+from game.ui.main_screen import MainScreen
+
+
+class StartBattleCommand(Command):
+    """Команда начала боя."""
+
+    def __init__(self):
+        super().__init__(
+            name="Бой",
+            description="Начать бой",
+            keys=[10],
+            display_key="Enter"
+        )
+
+    def execute(self, context: Optional[Any] = None) -> None:
+        """Выполнение команды начала боя."""
+        if context and hasattr(context, 'manager'):
+            context.manager.change_screen("battle")
+
+
+class OpenSettingsCommand(Command):
+    """Команда открытия настроек."""
+
+    def __init__(self):
+        super().__init__(
+            name="Настройки",
+            description="Открыть настройки",
+            keys=['3'],
+            display_key="3"
+        )
+
+    def execute(self, context: Optional[Any] = None) -> None:
+        """Выполнение команды открытия настроек."""
+        # TODO: Заменить print на отображение внутри curses UI
+        if context:
+            print("Открытие настроек")
+
+
+# Регистрируем команды для главного экрана
+register_screen_commands(MainScreen, [
+    StartBattleCommand(),
+    OpenInventoryCommand(),  # Переиспользуем общую команду
+    OpenSettingsCommand(),
+    ExitCommand()            # Переиспользуем общую команду
+])
 
 
 ================================================================================
@@ -4571,6 +4828,219 @@ if __name__ == '__main__':
 
 
 ================================================================================
+Файл: tests/tests/test_template_namer.py
+================================================================================
+
+# tests/test_template_namer.py
+"""Тесты для генератора имен монстров."""
+
+import os
+import json
+import pytest
+from unittest.mock import patch, mock_open
+from game.naming.template_namer import TemplateMonsterNamer, generate_monster_name
+
+
+class TestTemplateMonsterNamer:
+    """Тесты для класса TemplateMonsterNamer."""
+
+    def test_init_with_default_directory(self):
+        """Тест инициализации с директорией по умолчанию."""
+        namer = TemplateMonsterNamer()
+        assert namer.data_directory == "game/data/names"
+        assert isinstance(namer.word_data, dict)
+
+    def test_init_with_custom_directory(self):
+        """Тест инициализации с пользовательской директорией."""
+        custom_dir = "custom/names"
+        namer = TemplateMonsterNamer(data_directory=custom_dir)
+        assert namer.data_directory == custom_dir
+
+    @patch('os.path.exists')
+    @patch('builtins.open', new_callable=mock_open, read_data='["страшный", "злой"]')
+    def test_load_word_data_success(self, mock_file, mock_exists):
+        """Тест успешной загрузки данных слов."""
+        mock_exists.return_value = True
+        
+        namer = TemplateMonsterNamer()
+        assert "adjectives" in namer.word_data
+        assert namer.word_data["adjectives"] == ["страшный", "злой"]
+
+    @patch('os.path.exists')
+    def test_load_word_data_directory_not_found(self, mock_exists):
+        """Тест загрузки данных при отсутствии директории."""
+        mock_exists.return_value = False
+        
+        with patch('builtins.print') as mock_print:
+            namer = TemplateMonsterNamer()
+            mock_print.assert_called_with(
+                "Предупреждение: Директория данных имен 'game/data/names' не найдена."
+            )
+            assert namer.word_data == {}
+
+    @patch('os.path.exists')
+    @patch('builtins.open')
+    def test_load_word_data_json_decode_error(self, mock_file, mock_exists):
+        """Тест загрузки данных при ошибке JSON."""
+        mock_exists.return_value = True
+        mock_file.side_effect = json.JSONDecodeError("Invalid JSON", "doc", 1)
+        
+        with patch('builtins.print') as mock_print:
+            namer = TemplateMonsterNamer()
+            mock_print.assert_called()
+            expected_keys = ["adjectives", "nouns", "prefixes", "suffixes"]
+            for key in expected_keys:
+                assert namer.word_data[key] == []
+
+    def test_get_words_existing_category(self):
+        """Тест получения слов для существующей категории."""
+        namer = TemplateMonsterNamer()
+        namer.word_data = {"adjectives": ["страшный", "мощный"]}
+        result = namer._get_words("adjectives")
+        assert result == ["страшный", "мощный"]
+
+    def test_get_words_non_existing_category(self):
+        """Тест получения слов для несуществующей категории."""
+        namer = TemplateMonsterNamer()
+        namer.word_data = {"adjectives": ["страшный"]}
+        result = namer._get_words("nouns")
+        assert result == []
+
+    @patch('random.choice')
+    def test_generate_name_success(self, mock_random_choice):
+        """Тест успешной генерации имени."""
+        mock_random_choice.side_effect = lambda x: x[0] if x else ""
+        
+        namer = TemplateMonsterNamer()
+        namer.word_data = {
+            "adjectives": ["страшный"],
+            "nouns": ["гоблин"],
+            "prefixes": ["супер"],
+            "suffixes": ["младший"]
+        }
+        
+        result = namer.generate_name("goblin")
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+    def test_generate_name_empty_word_data(self):
+        """Тест генерации имени с пустыми данными слов."""
+        namer = TemplateMonsterNamer()
+        namer.word_data = {
+            "adjectives": [],
+            "nouns": [],
+            "prefixes": [],
+            "suffixes": []
+        }
+        
+        result = namer.generate_name("test_role")
+        
+        # Проверяем что возвращается непустая строка (должно быть резервное имя)
+        assert isinstance(result, str)
+        assert len(result) > 0
+        # Проверяем что имя содержит осмысленный текст
+        assert "Монстр" in result or len(result) > 0
+
+    def test_generate_name_with_various_templates(self):
+        """Тест генерации имен с разными шаблонами."""
+        namer = TemplateMonsterNamer()
+        namer.word_data = {
+            "adjectives": ["страшный", "мощный"],
+            "nouns": ["гоблин", "дракон"],
+            "prefixes": ["супер", "мега"],
+            "suffixes": ["младший", "старший"]
+        }
+        
+        # Тестируем несколько раз для разных результатов
+        results = set()
+        for i in range(5):
+            with patch('random.choice') as mock_choice:
+                # Фиксируем выбор для воспроизводимости
+                mock_choice.side_effect = lambda x: x[i % len(x)] if x else ""
+                
+                result = namer.generate_name("goblin")
+                results.add(result)
+                assert isinstance(result, str)
+                assert len(result) > 0
+        
+        # Должно быть хотя бы одно уникальное имя
+        assert len(results) >= 1
+
+    def test_generate_name_fallback_on_template_error(self):
+        """Тест резервного имени при ошибке в шаблоне."""
+        namer = TemplateMonsterNamer()
+        namer.word_data = {
+            "adjectives": ["страшный"],
+            "nouns": ["гоблин"],
+            "prefixes": ["супер"],
+            "suffixes": ["младший"]
+        }
+        
+        # Создаем ситуацию с некорректным шаблоном
+        with patch('random.choice') as mock_choice:
+            def choice_side_effect(options):
+                # Возвращаем некорректный шаблон
+                if isinstance(options, list) and len(options) > 0:
+                    return "{nonexistent_key}"  # Несуществующий ключ
+                return "резерв"
+            mock_choice.side_effect = choice_side_effect
+            
+            result = namer.generate_name("test")
+            
+            # Должно вернуть резервное имя
+            assert isinstance(result, str)
+            assert len(result) > 0
+
+
+class TestGlobalFunctions:
+    """Тесты для глобальных функций модуля."""
+
+    def test_get_default_namer_singleton(self):
+        """Тест что get_default_namer возвращает один и тот же экземпляр."""
+        # Сбрасываем глобальную переменную
+        import game.naming.template_namer
+        game.naming.template_namer._DEFAULT_NAMER = None
+        
+        # Импортируем функцию напрямую
+        from game.naming.template_namer import get_default_namer
+        namer1 = get_default_namer()
+        namer2 = get_default_namer()
+        
+        assert namer1 is namer2
+        assert isinstance(namer1, TemplateMonsterNamer)
+
+    @patch('game.naming.template_namer.get_default_namer')
+    def test_generate_monster_name_function(self, mock_get_namer):
+        """Тест функции generate_monster_name."""
+        from unittest.mock import MagicMock
+        mock_namer = MagicMock()
+        mock_namer.generate_name.return_value = "Тестовый Монстр"
+        mock_get_namer.return_value = mock_namer
+        
+        result = generate_monster_name("goblin")
+        assert result == "Тестовый Монстр"
+        mock_get_namer.assert_called_once()
+        mock_namer.generate_name.assert_called_once_with("goblin")
+
+
+class TestIntegration:
+    """Интеграционные тесты."""
+
+    def test_basic_functionality(self):
+        """Тест базовой функциональности."""
+        namer = TemplateMonsterNamer()
+        assert isinstance(namer.word_data, dict)
+        
+        # Даже с пустыми данными должен возвращать имя
+        name = namer.generate_name("test_monster")
+        assert isinstance(name, str)
+        assert len(name) > 0
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])
+
+================================================================================
 Файл: main.py
 ================================================================================
 
@@ -4687,7 +5157,7 @@ except Exception as e:
 
 Тесты обеспечивают надежность и корректность кода. Для проекта Battler установлены следующие правила написания тестов с использованием `pytest`:
 
-* **Фреймворк:** Использовать `pytest` для написания тестов. Все тесты должны находиться в директории `tests/`.
+* **Фреймворк:** Использовать `pytest` для написания тестов. Все тесты должны находиться в директории `tests/`. Тесты должны быть простыми - и выдавать максимальное покрытие
 * **Структура файлов тестов:**
   * Файлы тестов должны называться `test_<имя_модуля>.py`, где `<имя_модуля>` соответствует тестируемому файлу в основном коде (например, тесты для `game/entities/character.py` находятся в `tests/test_character.py`).
   * Внутри файлов тестов классы тестов именуются как `Test<ИмяКласса>` или `Test<ОписаниеФункционала>`.

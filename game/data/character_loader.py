@@ -8,8 +8,6 @@ from typing import Dict, Any, Optional, TYPE_CHECKING
 # Используем TYPE_CHECKING для аннотаций без циклического импорта на уровне модуля
 if TYPE_CHECKING:
     from game.config import GameConfig # Для аннотаций
-    from game.entities.player import Player # Для аннотаций
-    from game.entities.character import Character # Для аннотаций
 
 
 # --- Вспомогательные (приватные) функции ---
@@ -30,17 +28,13 @@ def _get_default_data_directory(is_player: bool) -> str:
     if is_player:
         return config.system.player_classes_directory
     else:
-        # Используем путь из конфигурации для монстров
         return config.system.monster_classes_directory
-        # Если по какой-то причине его нет, можно использовать запасной вариант:
-        # return getattr(config.system, 'monster_classes_directory',
-        #                os.path.join("game", "data", "characters", "monster_classes"))
 
 
 def _load_character_data_from_file(
     role: str, 
     data_directory: str
-) -> Optional[Dict[str, Any]]:
+    ) -> Optional[Dict[str, Any]]:
     """
     Загружает данные класса персонажа из JSON файла.
 
@@ -86,7 +80,7 @@ def _load_character_data_from_file(
 def load_player_class_data(
     role: str, 
     data_directory: Optional[str] = None
-) -> Optional[Dict[str, Any]]:
+    ) -> Optional[Dict[str, Any]]:
     """
     Загружает данные класса игрока из JSON файла.
 
@@ -104,49 +98,11 @@ def load_player_class_data(
     return _load_character_data_from_file(role, data_directory)
 
 
-def create_player(
-    name: str, 
-    role: str, 
-    level: int = 1,
-    data_directory: Optional[str] = None
-) -> Optional['Player']:
-    """
-    Создает объект Player на основе данных из JSON файла.
-    Упрощенный интерфейс для game.entities.player.create_player_from_data.
-
-    Args:
-        name: Имя персонажа.
-        role: Внутренний идентификатор класса.
-        level: Начальный уровень.
-        data_directory: Путь к директории с JSON файлами.
-                        Если None, используется путь из конфигурации.
-
-    Returns:
-        Объект Player или None, если данные не могут быть загружены.
-    """
-    if data_directory is None:
-        data_directory = _get_default_data_directory(is_player=True)
-
-    # Отложенная загрузка, чтобы избежать циклического импорта на уровне модуля
-    try:
-        # Импортируем внутри функции
-        from game.entities.player import create_player_from_data as _internal_create
-        return _internal_create(name, role, level, data_directory)
-    except ImportError as e:
-        print(f"Ошибка импорта при создании игрока: {e}")
-        return None
-    except Exception as e:
-        print(f"Неожиданная ошибка при создании игрока {name} класса {role}: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
-
-
 # --- Публичные функции для монстров ---
 def load_monster_class_data(
     role: str, 
     data_directory: Optional[str] = None
-) -> Optional[Dict[str, Any]]:
+    ) -> Optional[Dict[str, Any]]:
     """
     Загружает данные класса монстра из JSON файла.
 
@@ -162,46 +118,3 @@ def load_monster_class_data(
         data_directory = _get_default_data_directory(is_player=False)
         
     return _load_character_data_from_file(role, data_directory)
-
-
-# --- Исправленная универсальная функция ---
-def create_character(
-    name: str,
-    role: str,
-    level: int = 1,
-    data_directory: Optional[str] = None,
-    is_player: bool = False
-) -> Optional['Character']:
-    """
-    Универсальная функция для создания объекта Character (игрока или монстра)
-    на основе данных из JSON файла.
-
-    Args:
-        name: Имя персонажа.
-        role: Внутренний идентификатор класса.
-        level: Начальный уровень.
-        data_directory: Путь к директории с JSON файлами.
-                        Если None, используется путь из конфигурации.
-        is_player: Флаг, указывающий, является ли персонаж игроком.
-
-    Returns:
-        Объект Character или None, если данные не могут быть загружены.
-    """
-    # Определяем директорию данных
-    if data_directory is None:
-        data_directory = _get_default_data_directory(is_player)
-
-    try:
-        if is_player:
-            # Импортируем фабрику игроков
-            from game.factories.player_factory import create_player
-            return create_player(name, role, level, data_directory)
-        else:
-            # Импортируем фабрику монстров (убедитесь, что monster_factory.py существует)
-            from game.factories.monster_factory import create_monster
-            return create_monster(name, role, level, data_directory)
-    except Exception as e:
-        print(f"Неожиданная ошибка при создании персонажа {name} класса {role}: {e}")
-        import traceback
-        traceback.print_exc()
-        return None

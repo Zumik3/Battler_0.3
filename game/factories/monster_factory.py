@@ -1,45 +1,43 @@
 # game/factories/monster_factory.py
 """Фабрика для создания монстров.
 
-Предоставляет функции для создания экземпляров класса Character
-на основе данных из JSON файлов, помеченных как не-игроки.
+Предоставляет функции для создания экземпляров класса Monster
+на основе данных из JSON файлов.
 """
 
-import os
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Union
+from game.naming.template_namer import generate_monster_name
+from game.data.character_loader import _get_default_data_directory
 
-# Импортируем функцию создания персонажа из загрузчика данных
-from game.data.character_loader import create_character as _internal_create_character
-
-# Импортируем Character только для аннотаций типов
 if TYPE_CHECKING:
-    from game.entities.character import Character
-
-# Путь по умолчанию к данным монстров
-DEFAULT_MONSTER_DATA_DIR = os.path.join("game", "data", "characters", "monster_classes")
+    from game.entities.monster import Monster
 
 def create_monster(
-    name: str,
     role: str,
+    name: Optional[str] = None,
     level: int = 1,
-    data_directory: str = DEFAULT_MONSTER_DATA_DIR
-) -> Optional['Character']:
+    data_directory: Optional[str] = None
+) -> Union['Monster', None]:
     """
-    Создает объект монстра (Character с is_player=False) на основе данных из JSON файла.
+    Создает монстра по его роли (типу).
 
     Args:
-        name: Имя монстра.
-        role: Внутренний идентификатор класса (должен совпадать с именем .json файла).
-        level: Начальный уровень.
-        data_directory: Путь к директории с JSON файлами.
+        role: Внутренний идентификатор класса монстра (должен совпадать с именем .json файла).
+        name: Имя монстра. Если None или пустая строка, будет сгенерировано автоматически.
+        level: Уровень монстра.
+        data_directory: Путь к директории с JSON файлами классов монстров.
 
     Returns:
-        Объект Character (с is_player=False) или None, если данные не могут быть загружены.
+        Объект Character (Monster) или None, если данные не могут быть загружены.
     """
-    return _internal_create_character(
-        name=name,
-        role=role,
-        level=level,
-        data_directory=data_directory,
-        is_player=False # Явно указываем, что это не игрок
-    )
+
+    if data_directory is None:
+        data_directory = _get_default_data_directory(is_player=False)
+
+    if not name or not name.strip():
+        name = generate_monster_name(role)
+
+
+    # Импортируем внутри функции
+    from game.entities.monster import create_monster_from_data as _internal_create
+    return _internal_create(name, role, level, data_directory)
