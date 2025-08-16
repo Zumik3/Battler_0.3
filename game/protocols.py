@@ -132,3 +132,19 @@ class StatusEffect(ABC):
         if self.duration <= 0:
             return target.status_manager.remove_effect(self.name) # type: ignore
         return []
+
+# --- Протокол для генератора имен монстров ---
+class MonsterNamerProtocol(Protocol):
+    """Протокол для генератора имен монстров."""
+    
+    def generate_name(self, monster_role: str) -> str:
+        """
+        Генерирует имя для монстра на основе его роли.
+
+        Args:
+            monster_role: Роль/тип монстра (например, 'goblin', 'dragon').
+
+        Returns:
+            Сгенерированное имя.
+        """
+        ... # Тело метода в протоколе пустое, описывает интерфейс
