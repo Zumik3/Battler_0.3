@@ -1,0 +1,20 @@
+{
+    "name": "Волшебник",
+    "role": "wizard",
+    "class_icon": "W",
+    "class_icon_color": 5,
+    "base_stats": {
+        "strength": 8,
+        "agility": 12,
+        "intelligence": 18,
+        "vitality": 9
+    },
+    "growth_rates": {
+        "strength": 0.05,
+        "agility": 0.07,
+        "intelligence": 0.10,
+        "vitality": 0.06
+    },
+    "description": "Магический враг с высоким уроном, который считает себя гением, потому что может зажечь спичку. Проводит годы в изучении древних заклинаний, чтобы в итоге случайно поджечь сам себя. По крайней мере, он всегда в центре внимания.",
+    "starting_abilities": []
+}

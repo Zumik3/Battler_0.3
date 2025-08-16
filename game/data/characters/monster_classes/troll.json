@@ -1,0 +1,20 @@
+{
+    "name": "Тролль",
+    "role": "troll",
+    "class_icon": "T",
+    "class_icon_color": 3,
+    "base_stats": {
+        "strength": 17,
+        "agility": 4,
+        "intelligence": 3,
+        "vitality": 18
+    },
+    "growth_rates": {
+        "strength": 0.09,
+        "agility": 0.02,
+        "intelligence": 0.01,
+        "vitality": 0.11
+    },
+    "description": "Очень крепкий враг, который настолько туп, что даже эхо от его голоса возвращается с извинениями. Мозг размером с вишню, но зато может выдержать прямое попадание метеорита. Смертельно опасен для всего живого... и мертвого тоже.",
+    "starting_abilities": []
+}

@@ -16,5 +16,7 @@
         "vitality": 0.08
     },
     "description": "Класс с высоким уроном, средней ловкостью и низкой защитой.",
-    "starting_abilities": ["Volley"]
+    "starting_abilities": [
+        "Volley"
+    ]
 }

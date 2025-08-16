@@ -16,5 +16,10 @@
         "vitality": 0.07
     },
     "description": "Класс с высокой ловкостью, умеренным уроном и низкой защитой.",
-    "starting_abilities": ["Backstab", "SlidingStrike", "CriticalStrike", "PoisonStrike"]
+    "starting_abilities": [
+        "Backstab",
+        "SlidingStrike",
+        "CriticalStrike",
+        "PoisonStrike"
+    ]
 }
