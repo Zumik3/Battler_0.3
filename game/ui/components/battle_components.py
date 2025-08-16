@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 class UnitPanel(Renderable):
-    """Базовая панель для отображения одного юнита (игрока или врага)."""
+    """Базовая панель для отображения одного юнита (игрока или врага) в одну строку без рамки."""
 
     def __init__(self, x: int, y: int, width: int, height: int) -> None:
         """Инициализация базовой панели юнита.
@@ -25,11 +25,11 @@ class UnitPanel(Renderable):
             x: Координата X.
             y: Координата Y.
             width: Ширина панели.
-            height: Высота панели.
+            height: Высота панели (должна быть 1 для соответствия новому дизайну).
         """
         super().__init__(x, y)
         self.width = width
-        self.height = height
+        self.height = height  # Ожидается 1
         # Эти атрибуты будут устанавливаться в подклассах или методах обновления
         self.name: str = "Unknown"
         self.max_hp: int = 1
@@ -39,44 +39,31 @@ class UnitPanel(Renderable):
         self.is_player: bool = False
 
     def render(self, renderer: Renderer) -> None:
-        """Отрисовка базовой панели юнита."""
-        # Отрисовка рамки
-        renderer.draw_box(self.x, self.y, self.width, self.height)
-
-        # Определение цвета в зависимости от типа юнита
+        """Отрисовка базовой панели юнита в одну строку без рамки."""
+        # Формат: [Имя] HP: текущее/максимум [MP: текущее/максимум]
+        # Цвет: синий для игроков, красный для монстров
+        
+        # Определяем цвет
         color = Color.CYAN if self.is_player else Color.RED
 
-        # Отрисовка содержимого (имя, HP/MP)
+        # Создаем текстовое представление
         hp_text = f"HP: {self.current_hp}/{self.max_hp}"
-        mp_text = f"MP: {self.current_mp}/{self.max_mp}" if self.max_mp > 0 else ""
-
-        # Позиции для текста внутри рамки
-        name_x = self.x + 1
-        name_y = self.y + 1
-        hp_x = self.x + 1
-        hp_y = self.y + 2
-        mp_x = self.x + 1
-        mp_y = self.y + 3
-
-        # Отрисовка имени
+        mp_text = ""
+        if self.max_mp > 0:
+            mp_text = f" MP: {self.current_mp}/{self.max_mp}"
+        
+        # Комбинируем текст
+        full_text = f"{self.name} {hp_text}{mp_text}"
+        
+        # Обрезаем или дополняем пробелами до ширины панели
+        display_text = full_text.ljust(self.width)[:self.width]
+        
+        # Отрисовка текста
         try:
-            renderer.draw_text(self.name, name_x, name_y, color=color, bold=True)
+            renderer.draw_text(display_text, self.x, self.y, color=color)
         except curses.error:
             # Игнорируем ошибки выхода за границы экрана
             pass
-
-        # Отрисовка HP
-        try:
-            renderer.draw_text(hp_text, hp_x, hp_y, color=color)
-        except curses.error:
-            pass
-
-        # Отрисовка MP, если применимо
-        if mp_text:
-            try:
-                renderer.draw_text(mp_text, mp_x, mp_y, color=color)
-            except curses.error:
-                pass
 
 
 class EnemyUnitPanel(UnitPanel):
@@ -88,10 +75,10 @@ class EnemyUnitPanel(UnitPanel):
             x: Координата X.
             y: Координата Y.
             width: Ширина панели.
-            height: Высота панели.
+            height: Высота панели (должна быть 1).
             monster: Объект Monster для отображения.
         """
-        # Инициализируем базовую панель с минимальными значениями
+        # Инициализируем базовую панель
         super().__init__(x, y, width, height)
         # Сохраняем ссылку на объект Monster
         self.monster = monster
@@ -110,7 +97,7 @@ class EnemyUnitPanel(UnitPanel):
         if attributes:
             self.max_hp = getattr(attributes, 'max_hp', 1)
         else:
-            # Если атрибутов нет, используем текущий HP как максимум (или другое значение по умолчанию)
+            # Если атрибутов нет, используем текущий HP как максимум
             self.max_hp = self.current_hp if self.current_hp > 0 else 1
 
         # MP
@@ -127,7 +114,7 @@ class EnemyUnitPanel(UnitPanel):
         """Отрисовка панели врага."""
         # Перед отрисовкой обновляем данные из объекта Monster
         self._update_data_from_monster()
-        # Вызываем родительский метод render, который использует обновленные self.name, self.current_hp и т.д.
+        # Вызываем родительский метод render
         super().render(renderer)
 
 
@@ -140,10 +127,10 @@ class PlayerUnitPanel(UnitPanel):
             x: Координата X.
             y: Координата Y.
             width: Ширина панели.
-            height: Высота панели.
+            height: Высота панели (должна быть 1).
             player: Объект Player для отображения.
         """
-        # Инициализируем базовую панель с минимальными значениями
+        # Инициализируем базовую панель
         super().__init__(x, y, width, height)
         # Сохраняем ссылку на объект Player
         self.player = player
@@ -184,7 +171,7 @@ class PlayerUnitPanel(UnitPanel):
 
 
 class GroupPanel(Renderable):
-    """Базовая панель для отображения группы юнитов."""
+    """Базовая панель для отображения группы юнитов без внешнего обрамления."""
 
     def __init__(self, x: int, y: int, width: int, height: int) -> None:
         """Инициализация базовой панели группы.
@@ -206,26 +193,22 @@ class GroupPanel(Renderable):
             max_width: Максимальная ширина экрана.
             max_height: Максимальная высота экрана.
         """
-        # Простое обновление размеров самой панели
-        self.width = max(10, max_width - 2) # Пример: занимает почти всю ширину
-        # Высота может быть фиксированной или рассчитываться динамически
-        # self.height = ... 
-
-        # Обновление размеров дочерних панелей (если нужно)
-        # Пока оставим базовую реализацию пустой, конкретная логика будет в подклассах
-        # Например, можно пересчитать ширину каждой UnitPanel в группе
+        # Обновление размеров дочерних панелей
         if self.panels:
+            # Рассчитываем ширину для каждой панели
             panel_count = len(self.panels)
-            new_panel_width = max(15, self.width // panel_count) if panel_count > 0 else 15
+            new_panel_width = max(10, self.width // panel_count) if panel_count > 0 else self.width
+
             for i, panel in enumerate(self.panels):
-                panel.width = new_panel_width - 1 # -1 для отступа
-                # Также можно обновить позицию X, если ширина изменилась
-                panel.x = self.x + i * new_panel_width
+                panel.width = new_panel_width
+                # Также обновляем позицию X, если ширина изменилась
+                # panel.x = self.x + i * new_panel_width # Не меняем X, т.к. он устанавливается в _update_panels
+                # Высота панели юнита должна быть 1
+                panel.height = 1
 
     def render(self, renderer: Renderer) -> None:
-        """Отрисовка панели группы."""
-        # Отрисовка рамки группы
-        renderer.draw_box(self.x, self.y, self.width, self.height)
+        """Отрисовка панели группы без внешнего обрамления."""
+        # НЕ отрисовываем рамку вокруг группы
         # Отрисовка каждой панели юнита
         for panel in self.panels:
             panel.render(renderer)
@@ -240,7 +223,7 @@ class EnemyGroupPanel(GroupPanel):
             x: Координата X.
             y: Координата Y.
             width: Ширина панели.
-            height: Высота панели.
+            height: Высота панели (ожидается 5).
             enemies: Список объектов Monster для отображения.
         """
         # Инициализируем базовую панель группы
@@ -253,15 +236,16 @@ class EnemyGroupPanel(GroupPanel):
     def _update_panels(self) -> None:
         """Обновление списка панелей на основе объектов врагов."""
         self.panels = []
-        # Рассчитываем ширину для каждой панели
-        panel_count = len(self.enemies) if self.enemies else 1 # Избегаем деления на 0
-        panel_width = max(15, self.width // panel_count)
-
+        
         for i, monster in enumerate(self.enemies):
-            panel_x = self.x + i * panel_width
-            panel_y = self.y + 1 # Отступ от верхней границы группы
+            # Каждая панель размещается на отдельной строке
+            panel_x = self.x
+            panel_y = self.y + i  # Одна строка на панель
+            panel_width = self.width
+            panel_height = 1  # Фиксированная высота 1 строка
+            
             # Создаем панель, передавая объект Monster
-            panel = EnemyUnitPanel(panel_x, panel_y, panel_width - 1, self.height - 2, monster)
+            panel = EnemyUnitPanel(panel_x, panel_y, panel_width, panel_height, monster)
             self.panels.append(panel)
 
 
@@ -274,7 +258,7 @@ class PlayerGroupPanel(GroupPanel):
             x: Координата X.
             y: Координата Y.
             width: Ширина панели.
-            height: Высота панели.
+            height: Высота панели (ожидается 5).
             players: Список объектов Player для отображения.
         """
         # Инициализируем базовую панель группы
@@ -287,20 +271,21 @@ class PlayerGroupPanel(GroupPanel):
     def _update_panels(self) -> None:
         """Обновление списка панелей на основе объектов игроков."""
         self.panels = []
-        # Рассчитываем ширину для каждой панели
-        panel_count = len(self.players) if self.players else 1 # Избегаем деления на 0
-        panel_width = max(15, self.width // panel_count)
-
+        
         for i, player in enumerate(self.players):
-            panel_x = self.x + i * panel_width
-            panel_y = self.y + 1 # Отступ от верхней границы группы
+            # Каждая панель размещается на отдельной строке
+            panel_x = self.x
+            panel_y = self.y + i  # Одна строка на панель
+            panel_width = self.width
+            panel_height = 1  # Фиксированная высота 1 строка
+            
             # Создаем панель, передавая объект Player
-            panel = PlayerUnitPanel(panel_x, panel_y, panel_width - 1, self.height - 2, player)
+            panel = PlayerUnitPanel(panel_x, panel_y, panel_width, panel_height, player)
             self.panels.append(panel)
 
 
 class BattleLog(Renderable):
-    """Лог боя в нижней части экрана с прокруткой."""
+    """Лог боя в нижней части экрана с прокруткой и обрамлением."""
 
     def __init__(self, x: int, y: int, width: int, height: int) -> None:
         super().__init__(x, y)
@@ -317,14 +302,11 @@ class BattleLog(Renderable):
             "Герой получает 15 урона.",
             "Герой использует зелье лечения.",
             "Герой восстанавливает 30 HP.",
-            "Дракон атакует Героя!",
-            "Герой увернулся!",
-            "Герой атакует Дракон!",
-            "Критический удар! Дракон получает 50 урона!",
-            "Дракон побежден!",
-            "Герой получает 100 опыта."
+            "Дракон готовится к мощной атаке!",
+            "Герой защищается.",
+            "Мощная атака Дракона отражена!",
         ]
-        self.scroll_offset: int = 0
+        self.scroll_offset = 0 # Смещение прокрутки (0 = последние сообщения внизу)
 
     def add_message(self, message: str) -> None:
         """Добавление сообщения в лог.
@@ -332,20 +314,20 @@ class BattleLog(Renderable):
             message: Текст сообщения.
         """
         self.messages.append(message)
-        # Автоматически прокручиваем вниз при добавлении нового сообщения
-        # (это можно настроить по-разному)
-        # self.scroll_offset = max(0, len(self.messages) - self.height)
+        # При добавлении нового сообщения сбрасываем прокрутку вниз
+        self.scroll_offset = 0
 
     def scroll_up(self) -> None:
         """Прокрутка лога вверх."""
+        # Максимальное смещение - это количество строк, которые не помещаются
+        max_offset = max(0, len(self.messages) - self.height)
         if self.messages:
-            self.scroll_offset = max(0, self.scroll_offset - 1)
+            self.scroll_offset = min(max_offset, self.scroll_offset + 1)
 
     def scroll_down(self) -> None:
         """Прокрутка лога вниз."""
         if self.messages:
-            max_offset = max(0, len(self.messages) - self.height)
-            self.scroll_offset = min(max_offset, self.scroll_offset + 1)
+            self.scroll_offset = max(0, self.scroll_offset - 1)
 
     def update_size(self, total_width: int, total_height: int) -> None:
         """Обновление размеров лога.
@@ -353,16 +335,26 @@ class BattleLog(Renderable):
             total_width: Общая ширина экрана.
             total_height: Общая высота экрана.
         """
-        # Занимает всю ширину экрана
+        # Занимает всю ширину экрана (с отступами)
         self.width = max(10, total_width - 2) # -2 для отступов
+        # Высота динамическая, устанавливается в BattleScreen._update_component_sizes
+        # Пока оставим пустую реализацию или базовую
+        pass
 
     def render(self, renderer: Renderer) -> None:
-        """Отрисовка лога боя."""
-        # Отрисовка рамки лога
-        renderer.draw_box(self.x, self.y, self.width, self.height)
+        """Отрисовка лога боя с обрамлением."""
+        # Отрисовка рамки лога (она остается)
+        try:
+            renderer.draw_box(self.x, self.y, self.width, self.height)
+        except curses.error:
+            # Игнорируем ошибки выхода за границы экрана
+            pass
 
         # Определяем, какие сообщения отображать с учетом прокрутки
-        visible_messages = self.messages[self.scroll_offset:self.scroll_offset + self.height]
+        # scroll_offset = 0 означает, что последние сообщения внизу
+        start_index = max(0, len(self.messages) - self.height - self.scroll_offset)
+        end_index = start_index + self.height
+        visible_messages = self.messages[start_index:end_index]
 
         # Отрисовка сообщений
         for i, message in enumerate(visible_messages):

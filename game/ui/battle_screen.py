@@ -18,6 +18,7 @@ from game.ui.components.battle_components import (
 # -
 from game.ui.base_screen import BaseScreen
 from game.ui.rendering.color_manager import Color
+# Импортируем get_game_manager для использования внутри _setup_elements
 from game.game_manager import get_game_manager
 
 # - ДОБАВЛЯЕМ ИМПОРТ ДЛЯ TYPE_CHECKING -
@@ -34,56 +35,69 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
 
     def __init__(self, manager: 'ScreenManager'):
         # Инициализируем атрибуты для компонентов
-        # Используем аннотации типов, так как присваивание будет позже
-        self.player_group: 'PlayerGroupPanel'
-        self.enemy_group: 'EnemyGroupPanel'
-        self.battle_log: 'BattleLog'
+        # Они будут инициализированы в _setup_elements
+        self.player_group: 'PlayerGroupPanel' = None # type: ignore
+        self.enemy_group: 'EnemyGroupPanel' = None # type: ignore
+        self.battle_log: 'BattleLog' = None # type: ignore
 
+        # Вызываем родительский конструктор
+        # _setup_elements будет вызван внутри него
         super().__init__(manager)
+
+        # После вызова super().__init__ все атрибуты уже инициализированы
+        # Дополнительная инициализация, если потребуется, может быть здесь
 
     def _setup_elements(self) -> None:
         """Настройка элементов экрана."""
         
         self.elements = [] # Очищаем список, так как компоненты будут отрисовываться напрямую
 
+        # --- ПОЛУЧАЕМ ДАННЫЕ ИЗ GameManager НЕПОСРЕДСТВЕННО В _setup_elements ---
+        # Это решает проблему порядка инициализации
+        game_manager = get_game_manager()
+        real_enemy_data = game_manager.get_current_enemies()
+        real_player_data = game_manager.get_player_group()
+        # ---
+
         # - НАСТРОЙКА КОМПОНЕНТОВ -
         # Инициализируем компоненты с начальными размерами
         # Они будут обновлены в render/update_size
         header_height = 2
-        initial_group_height = 6 # Примерная высота для группы (может быть динамической)
+        
+        # Начальные координаты для блоков юнитов
+        units_y = header_height + 1 # Блоки юнитов под заголовком
+        units_height = 5 # Фиксированная высота 5 строк
+        
+        # Ширины блоков
+        total_width = 80 # Начальное значение, будет пересчитано в update_size
+        player_group_width = total_width // 3
+        enemy_group_width = total_width - player_group_width - 1 # -1 для зазора
+        
+        # Координаты X
         player_group_x = 1
-        player_group_y = header_height
-        enemy_group_x = 1
-        enemy_group_y = player_group_y + initial_group_height + 1 # +1 для разделителя
-
-         # Получаем экземпляр GameManager
-        self.game_manager = get_game_manager()
-
-        # Получаем реальные данные из GameManager
-        self.real_enemy_data = self.game_manager.get_current_enemies()
-        self.real_player_data = self.game_manager.get_player_group()
+        enemy_group_x = player_group_x + player_group_width + 1 # +1 для зазора
 
         # Создаем панели с реальными объектами Character
         # EnemyGroupPanel и PlayerGroupPanel теперь принимают List[Monster] и List[Player]
-        self.enemy_group = EnemyGroupPanel(
-            x=enemy_group_x,
-            y=enemy_group_y,
-            width=50,  # Ширина будет обновлена в _update_component_sizes
-            height=initial_group_height,
-            enemies=self.real_enemy_data # Передаем список объектов Monster напрямую
-        )
-
         self.player_group = PlayerGroupPanel(
             x=player_group_x,
-            y=player_group_y,
-            width=50,  # Ширина будет обновлена в _update_component_sizes
-            height=initial_group_height,
-            players=self.real_player_data # Передаем список объектов Player напрямую
+            y=units_y,
+            width=player_group_width,
+            height=units_height,
+            players=real_player_data # Передаем список объектов Player напрямую
+        )
+
+        self.enemy_group = EnemyGroupPanel(
+            x=enemy_group_x,
+            y=units_y,
+            width=enemy_group_width,
+            height=units_height,
+            enemies=real_enemy_data # Передаем список объектов Monster напрямую
         )
 
         # Временные координаты для battle_log, будут обновлены в update_size
         log_x = 1
-        log_y = enemy_group_y + initial_group_height + 1
+        log_y = units_y + units_height + 1 # Под блоками юнитов
         log_width = 60
         log_height = 5
         self.battle_log = BattleLog(log_x, log_y, log_width, log_height)
@@ -97,39 +111,57 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
         if not self.renderer:
             return
 
+        # Получаем текущие размеры экрана
+        screen_width = self.renderer.width
+        screen_height = self.renderer.height
+        
         # Координаты и размеры
         header_height = 2
-        group_width = max(10, self.renderer.width - 2)
-        group_height = 6 # Примерная высота, можно сделать динамической
+        
+        # Блоки юнитов
+        units_y = header_height + 1
+        units_height = 5 # Фиксированная высота
+        
+        # Ширины блоков (1/3 для игроков, 2/3 для монстров)
+        player_group_width = max(10, screen_width // 3)
+        enemy_group_width = max(10, screen_width - player_group_width - 1) # -1 для зазора
+        
+        # Координаты X
+        player_group_x = 1
+        enemy_group_x = player_group_x + player_group_width + 1 # +1 для зазора
 
-        # Группы игроков и врагов
-        self.player_group.x = 1
-        self.player_group.y = header_height
-        self.player_group.width = group_width
-        self.player_group.height = group_height
+        # Обновляем размеры и позиции групп
+        self.player_group.x = player_group_x
+        self.player_group.y = units_y
+        self.player_group.width = player_group_width
+        self.player_group.height = units_height
 
-        self.enemy_group.x = 1
-        self.enemy_group.y = header_height + group_height + 1
-        self.enemy_group.width = group_width
-        self.enemy_group.height = group_height
+        self.enemy_group.x = enemy_group_x
+        self.enemy_group.y = units_y
+        self.enemy_group.width = enemy_group_width
+        self.enemy_group.height = units_height
 
-        # Обновляем размеры дочерних компонентов
-        self.player_group.update_size(self.renderer.width, self.renderer.height)
-        self.enemy_group.update_size(self.renderer.width, self.renderer.height)
+        # Обновляем размеры дочерних компонентов групп
+        # Для GroupPanel update_size принимает общие размеры экрана
+        self.player_group.update_size(screen_width, screen_height)
+        self.enemy_group.update_size(screen_width, screen_height)
 
         # Лог боя
         log_x = 1
-        log_y = header_height + 2 * group_height + 2
-        log_width = max(10, self.renderer.width - 2)
-        # Высота лога - всё оставшееся пространство минус отступы
-        available_height = self.renderer.height - log_y - 2 # -2 для подвала
+        log_y = units_y + units_height + 1 # Под блоками юнитов
+        log_width = max(10, screen_width - 2) # На всю ширину с отступами
+        
+        # Высота лога - всё оставшееся пространство минус отступы и подвал
+        available_height = screen_height - log_y - 2 # -2 для подвала
         log_height = max(3, available_height) # Минимальная высота 3
 
         self.battle_log.x = log_x
         self.battle_log.y = log_y
         self.battle_log.width = log_width
         self.battle_log.height = log_height
-        self.battle_log.update_size(self.renderer.width, self.renderer.height)
+        # Исправленный вызов update_size для BattleLog
+        # Сигнатура: update_size(self, total_width: int, total_height: int)
+        self.battle_log.update_size(screen_width, screen_height)
 
     def _setup_commands(self) -> None:
         """Настройка дополнительных команд экрана."""
