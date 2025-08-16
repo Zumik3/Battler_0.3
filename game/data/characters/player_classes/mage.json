@@ -1,20 +1,20 @@
 {
-    "name": "Маг",
-    "role": "mage",
-    "class_icon": "M",
-    "class_icon_color": 5,
-    "base_stats": {
-      "strength": 4,
-      "agility": 12,
-      "intelligence": 20,
-      "vitality": 6
-    },
-    "growth_rates": {
-      "strength": 0.03,
-      "agility": 0.06,
-      "intelligence": 0.12,
-      "vitality": 0.06
-    },
-    "description": "Мастер магии, наносящий огромный урон, но слабо защищенный.",
-    "starting_abilities": []
-  }
+  "name": "Маг",
+  "role": "mage",
+  "class_icon": "M",
+  "class_icon_color": 5,
+  "base_stats": {
+    "strength": 4,
+    "agility": 12,
+    "intelligence": 20,
+    "vitality": 6
+  },
+  "growth_rates": {
+    "strength": 0.03,
+    "agility": 0.06,
+    "intelligence": 0.12,
+    "vitality": 0.06
+  },
+  "description": "Мастер магии, наносящий огромный урон, но слабо защищенный.",
+  "starting_abilities": []
+}

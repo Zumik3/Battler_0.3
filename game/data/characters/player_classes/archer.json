@@ -1,0 +1,22 @@
+{
+    "name": "Лучник",
+    "role": "archer",
+    "class_icon": "A",
+    "class_icon_color": 6,
+    "base_stats": {
+        "strength": 8,
+        "agility": 14,
+        "intelligence": 10,
+        "vitality": 9
+    },
+    "growth_rates": {
+        "strength": 0.06,
+        "agility": 0.07,
+        "intelligence": 0.05,
+        "vitality": 0.08
+    },
+    "description": "Класс с высоким уроном, средней ловкостью и низкой защитой.",
+    "starting_abilities": [
+        "Volley"
+    ]
+}

@@ -1,20 +1,20 @@
 {
-    "name": "Берсерк",
-    "role": "berserker",
-    "class_icon": "B",
-    "class_icon_color":1,
-    "base_stats": {
-      "strength": 16,
-      "agility": 10,
-      "intelligence": 8,
-      "vitality": 12
-    },
-    "growth_rates": {
-      "strength": 0.10,
-      "agility": 0.05,
-      "intelligence": 0.03,
-      "vitality": 0.09
-    },
-    "description": "Сбалансированный класс с высокой силой и защитой.",
-    "starting_abilities": []
-  }
+  "name": "Берсерк",
+  "role": "berserker",
+  "class_icon": "B",
+  "class_icon_color": 1,
+  "base_stats": {
+    "strength": 16,
+    "agility": 10,
+    "intelligence": 8,
+    "vitality": 12
+  },
+  "growth_rates": {
+    "strength": 0.10,
+    "agility": 0.05,
+    "intelligence": 0.03,
+    "vitality": 0.09
+  },
+  "description": "Сбалансированный класс с высокой силой и защитой.",
+  "starting_abilities": []
+}
