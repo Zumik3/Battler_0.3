@@ -1,5 +1,5 @@
 Сборник исходных кодов и конфигурационных файлов
-Дата создания: 2025-08-16 18:06:16
+Дата создания: 2025-08-16 19:11:48
 ================================================================================
 
 ================================================================================
@@ -15,11 +15,11 @@
 
 ## Игровая логика & Менеджеры
 
-<!-- WIP: Создать масштабируемую систему имен монстров -->
-<!-- TODO: Интегрировать реальные данные монстров в BattleScreen. Связать EnemyGroupPanel с GameManager, чтобы панели отображали состояние объектов Character (монстров), созданных фабрикой. -->
-<!-- TODO: Добавить загрузку стартовых монстров в GameManager._initialize_game_entities (или аналогичный метод), используя monster_factory. -->
+<!-- DONE: Создать масштабируемую систему имен монстров -->
+<!-- WIP: Интегрировать реальные данные монстров в BattleScreen. Связать EnemyGroupPanel с GameManager, чтобы панели отображали состояние объектов Character (монстров), созданных фабрикой. -->
+<!-- WIP: Добавить загрузку стартовых монстров в GameManager._initialize_game_entities (или аналогичный метод), используя monster_factory. -->
 <!-- DONE: Реализовать механизм обновления UI (HP/MP) в BattleScreen на основе текущего состояния объектов Player/Character. -->
-<!-- TODO: Добавить в GameManager методы для управления текущими врагами (`get_current_enemies`, `set_current_enemies` и т.д.). -->
+<!-- DONE: Добавить в GameManager методы для управления текущими врагами (`get_current_enemies`, `set_current_enemies` и т.д.). -->
 <!-- TODO: Создать JSON-файлы для классов монстров в `game/data/characters/monster_classes/`, если они еще не существуют. -->
 <!-- TODO: GameManager должен отвечать за хранение и предоставление данных о текущих игроках и монстрах для экранов UI. -->
 <!-- DONE: Описание задачи -->
@@ -266,9 +266,7 @@ def get_config() -> GameConfig:
 игроков, глобального состояния, текущих врагов, инвентаря и т.д.
 Реализует паттерн Singleton для обеспечения единственного экземпляра менеджера."""
 
-from typing import List, Optional, TYPE_CHECKING
-import json
-import os
+from typing import Any, Dict, List, Optional, TYPE_CHECKING, Union
 
 from game.factories.player_factory import create_player
 from game.config import get_config
@@ -309,9 +307,6 @@ class GameManager:
 
     def _initialize_game_entities(self) -> None:
         """Создает и инициализирует стартовые сущности игры."""
-        # --- Создание стартовой группы игроков ---
-        print("Инициализация стартовой группы игроков...")
-        
         # Получаем пути из конфигурации
         player_data_dir = self.config.system.player_classes_directory
 
@@ -343,15 +338,73 @@ class GameManager:
         # --- Инициализация других сущностей ---
         # TODO: Инициализация инвентаря, глобального состояния и т.д.
 
+
     def get_player_group(self) -> List['Player']:
         """Получить текущую группу игроков."""
         return self.player_group
 
     # TODO: Добавить методы для управления другими сущностями
-    # def get_current_enemies(self) -> List['Monster']: ...
     # def get_global_inventory(self) -> 'Inventory': ...
     # def start_new_battle(self, enemies: List['Monster']) -> None: ...
     # и т.д.
+
+
+    def get_current_enemies(self) -> List['Monster']:
+        """
+        Получение списка текущих врагов (монстров) в бою.
+
+        Returns:
+            List[Monster]: Список объектов Monster, представляющих текущих врагов.
+                           Если врагов нет, возвращается пустой список.
+        """
+        return self.current_enemies.copy() # Возвращаем копию, чтобы предотвратить случайное изменение внутреннего списка извне
+
+
+    def create_enemies(self, enemy_data_list: List[Dict[str, Any]]) -> bool:
+        """
+        Создание новой группы врагов (монстров) и сохранение их в current_enemies.
+
+        Args:
+            enemy_data_list (List[Dict[str, Any]]): Список словарей с данными для создания монстров.
+                Каждый словарь может содержать ключи:
+                - 'role' (str, обязательный): Роль/тип монстра (например, 'goblin', 'dragon').
+                - 'level' (int, опциональный): Уровень монстра. По умолчанию 1.
+                - 'name' (str, опциональный): Имя монстра. Если не указано,
+                                             будет сгенерировано фабрикой.
+
+        Returns:
+            bool: Монстры созданы.
+
+        Example:
+            enemy_data = [
+                {'role': 'goblin', 'level': 2},
+                {'role': 'orc', 'name': 'Громила'},
+                {'role': 'dragon'} # Будет уровень 1
+            ]
+            new_enemies = game_manager.create_enemies(enemy_data)
+        """
+        # Очищаем список текущих врагов перед созданием новых
+        self.current_enemies.clear()
+        
+        # Импортируем фабрику внутри метода, чтобы избежать циклических импортов
+        from game.factories.monster_factory import create_monster
+
+        for enemy_data in enemy_data_list:
+            role = enemy_data.get('role')
+            if not role:
+                # Можно логировать ошибку или пропустить
+                print(f"Предупреждение: Пропущен монстр без 'role': {enemy_data}")
+                continue
+
+            level = enemy_data.get('level', 1) # Уровень по умолчанию 1
+            name = enemy_data.get('name') # Имя может быть None, тогда сгенерируется
+            
+            # Создаем монстра с помощью фабрики
+            monster = create_monster(name=name, role=role, level=level)
+            if monster:
+                self.current_enemies.append(monster)
+        
+        return True # Возвращаем список только что созданных врагов
 
 # Функция для удобного получения экземпляра GameManager
 def get_game_manager() -> GameManager:
@@ -806,47 +859,44 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
         self.player_group = GroupPanel(player_group_x, player_group_y, 50, initial_group_height, "Герои")
         self.enemy_group = GroupPanel(enemy_group_x, enemy_group_y, 50, initial_group_height, "Враги")
 
-        # --- СТАРОЕ: Создание тестовых панелей ---
-        # # Добавляем тестовые панели юнитов
-        # # В реальной игре это будет делаться на основе данных о бое
-        # player1 = PlayerUnitPanel(0, 0, 30, "Герой", 100, 100, 50, 50)
-        # player2 = PlayerUnitPanel(0, 0, 30, "Соратник", 80, 80, 30, 30)
-        # self.player_group.add_unit_panel(player1)
-        # self.player_group.add_unit_panel(player2)
-        # enemy1 = EnemyUnitPanel(0, 0, 30, "Дракон", 150, 150)
-        # enemy2 = EnemyUnitPanel(0, 0, 30, "Гоблин", 40, 40)
-        # self.enemy_group.add_unit_panel(enemy1)
-        # self.enemy_group.add_unit_panel(enemy2)
-        # --- КОНЕЦ СТАРОГО кода ---
+        # Получаем GameManager
+        game_manager = self.manager.game_manager
+        player_characters = game_manager.get_player_group()
+        monster_characters = game_manager.get_current_enemies()
 
-        # --- НОВОЕ: Создание панелей на основе данных из GameManager ---
-        # Получаем группу игроков из GameManager
-        if self.manager and hasattr(self.manager, 'game_manager'):
-            player_characters = self.manager.game_manager.get_player_group()
+        # Создаем панели для каждого игрока
+        for i, player_char in enumerate(player_characters):
+            # Создаем PlayerUnitPanel, используя данные реального персонажа
+            # Предполагаем, что player_char имеет атрибуты name, hp, energy, attributes
+            player_panel = PlayerUnitPanel(
+                x=0,  # Координаты будут обновлены в _update_component_sizes
+                y=0,  # Координаты будут обновлены в _update_component_sizes
+                width=30, # Ширина может быть скорректирована позже
+                name=player_char.name,
+                hp=player_char.hp,
+                max_hp=player_char.attributes.max_hp,
+                mp=player_char.energy, # Предполагаем, что энергия отображается как MP
+                max_mp=player_char.attributes.max_energy # Предполагаем, что макс. энергия отображается как макс. MP
+            )
+            # Добавляем панель в группу
+            self.player_group.add_unit_panel(player_panel)
 
-            # Создаем панели для каждого игрока
-            for i, player_char in enumerate(player_characters):
-                # Создаем PlayerUnitPanel, используя данные реального персонажа
-                # Предполагаем, что player_char имеет атрибуты name, hp, energy, attributes
-                player_panel = PlayerUnitPanel(
-                    x=0,  # Координаты будут обновлены в _update_component_sizes
-                    y=0,  # Координаты будут обновлены в _update_component_sizes
-                    width=30, # Ширина может быть скорректирована позже
-                    name=player_char.name,
-                    hp=player_char.hp,
-                    max_hp=player_char.attributes.max_hp,
-                    mp=player_char.energy, # Предполагаем, что энергия отображается как MP
-                    max_mp=player_char.attributes.max_energy # Предполагаем, что макс. энергия отображается как макс. MP
-                )
-                # Добавляем панель в группу
-                self.player_group.add_unit_panel(player_panel)
+        for i, monster_char in enumerate(monster_characters):
+            monster_panel = EnemyUnitPanel(
+                x=0,  # Координаты будут обновлены в _update_component_sizes
+                y=0,  # Координаты будут обновлены в _update_component_sizes
+                width=30, # Ширина может быть скорректирована позже
+                name=monster_char.name,
+                hp=monster_char.hp,
+                max_hp=monster_char.attributes.max_hp
+            )
 
         # (Пока) оставляем создание врагов как в оригинале, или можно также обновить
         # если будет фабрика монстров в GameManager
-        enemy1 = EnemyUnitPanel(0, 0, 30, "Дракон", 150, 150)
-        enemy2 = EnemyUnitPanel(0, 0, 30, "Гоблин", 40, 40)
-        self.enemy_group.add_unit_panel(enemy1)
-        self.enemy_group.add_unit_panel(enemy2)
+        #enemy1 = EnemyUnitPanel(0, 0, 30, "Дракон", 150, 150)
+        #enemy2 = EnemyUnitPanel(0, 0, 30, "Гоблин", 40, 40)
+        #self.enemy_group.add_unit_panel(enemy1)
+        #self.enemy_group.add_unit_panel(enemy2)
         # --- КОНЕЦ НОВОГО кода ---
 
         # Временные координаты для battle_log, будут обновлены в update_size
@@ -859,17 +909,6 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
         # Добавляем тестовые сообщения в лог
         # TODO: Заменить на реальные сообщения из игровой логики
         self.battle_log.add_message("Битва начинается!")
-        # self.battle_log.add_message("Герой вступает в бой с Драконом.")
-        # self.battle_log.add_message("Дракон издает грозный рык.")
-        # self.battle_log.add_message("Герой атакует Дракона!")
-        # self.battle_log.add_message("Дракон получает 25 урона.")
-        # self.battle_log.add_message("Дракон атакует Героя!")
-        # self.battle_log.add_message("Герой получает 15 урона.")
-        # self.battle_log.add_message("Герой использует зелье лечения.")
-        # self.battle_log.add_message("Герой восстанавливает 30 HP.")
-        # self.battle_log.add_message("Дракон готовится к мощной атаке!")
-        # self.battle_log.add_message("Герой защищается.")
-        # self.battle_log.add_message("Мощная атака Дракона отражена!")
 
     def _update_component_sizes(self) -> None:
         """Обновление размеров компонентов."""
