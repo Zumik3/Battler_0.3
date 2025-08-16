@@ -14,6 +14,10 @@ from .bars import (
     EnergyBar
 )
 
+from .character_card import (
+    CharacterInfoPanel
+)
+
 __all__ = [
     'TextLabel',
     'CharacterNameLabel',
@@ -22,4 +26,5 @@ __all__ = [
     'ProgressBar',
     'HealthBar',
     'EnergyBar',
+    'CharacterInfoPanel',
 ]
