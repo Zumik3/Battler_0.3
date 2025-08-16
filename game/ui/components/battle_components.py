@@ -3,11 +3,14 @@
 Содержит визуальные элементы для отображения игроков, врагов и лога боя."""
 
 import curses
-from typing import List, Dict, Any, TYPE_CHECKING
+from typing import List, Dict, Any, TYPE_CHECKING, Optional
 
 from game.ui.rendering.renderable import Renderable
-from game.ui.rendering.color_manager import Color
 from game.ui.rendering.renderer import Renderer
+from game.ui.rendering.color_manager import Color
+# Импортируем новые виджеты
+from game.ui.widgets.labels import CharacterNameLabel, CharacterLevelLabel, CharacterClassLabel, TextLabel
+from game.ui.widgets.bars import HealthBar, EnergyBar
 
 # Импорты для аннотаций типов, чтобы избежать циклических импортов на уровне выполнения
 if TYPE_CHECKING:
@@ -17,7 +20,22 @@ if TYPE_CHECKING:
 
 
 class UnitPanel(Renderable):
-    """Базовая панель для отображения одного юнита (игрока или врага) в одну строку без рамки."""
+    """Базовая панель для отображения одного юнита (игрока или врага) в одну строку."""
+    
+    # Константы для компоновки
+    DEFAULT_WIDGET_MAX_WIDTH = 10
+    MIN_NAME_WIDTH = 5
+    MIN_WIDGET_WIDTH = 3
+    WIDGET_SPACING = 1
+    
+    # Константы для оценки минимальной ширины элементов
+    ESTIMATED_LEVEL_WIDTH = 3
+    ESTIMATED_HP_WIDTH = 10  # Обновлено для прогресс-баров
+    ESTIMATED_ENERGY_WIDTH = 10  # Обновлено для прогресс-баров
+    
+    # Пороги для цветов HP
+    HP_CRITICAL_THRESHOLD = 0.25
+    HP_LOW_THRESHOLD = 0.5
 
     def __init__(self, x: int, y: int, width: int, height: int) -> None:
         """Инициализация базовой панели юнита.
@@ -30,40 +48,172 @@ class UnitPanel(Renderable):
         super().__init__(x, y)
         self.width = width
         self.height = height  # Ожидается 1
-        # Эти атрибуты будут устанавливаться в подклассах или методах обновления
-        self.name: str = "Unknown"
-        self.max_hp: int = 1
-        self.current_hp: int = 1
-        self.max_mp: int = 0
-        self.current_mp: int = 0
-        self.is_player: bool = False
+        
+        # Инициализируем виджеты
+        self.class_label = CharacterClassLabel(x=x, y=y)
+        self.name_label = CharacterNameLabel(x=x, y=y, max_width=self.DEFAULT_WIDGET_MAX_WIDTH)
+        self.level_label = CharacterLevelLabel(x=x, y=y)
+        
+        # Для HP и Energy в бою отображаем числовые значения, а не прогресс-бары
+        # Поэтому создаем специальные текстовые лейблы
+        self.hp_label = TextLabel(x=x, y=y)
+        self.energy_label = TextLabel(x=x, y=y)
+        
+        # Персонаж, отображаемый в панели
+        self.character: Optional['Character'] = None
+
+    def set_character(self, character: Optional['Character']) -> None:
+        """
+        Установить персонажа для отображения.
+        
+        Args:
+            character: Объект Character для отображения или None.
+        """
+        self.character = character
+        if character:
+            self.class_label.set_character(character)
+            self.name_label.set_character(character)
+            self.level_label.set_character(character)
+            # Для HP/Energy обновляем текст напрямую в render
+
+    def update_size(self, width: int, height: int) -> None:
+        """
+        Обновить размеры панели и пересчитать позиции виджетов.
+        
+        Args:
+            width: Новая ширина.
+            height: Новая высота (игнорируется, устанавливается в 1).
+        """
+        self.width = width
+        self.height = 1  # Фиксированная высота для однострочной панели
+        
+        # Пересчитываем позиции виджетов
+        self._update_widgets_positions()
+
+    def _update_widgets_positions(self) -> None:
+        """Обновить позиции и размеры виджетов в зависимости от ширины панели."""
+        if not self.character:
+            return
+            
+        current_x = self.x
+        
+        # 2. Имя
+        self.name_label.x = current_x
+        self.name_label.y = self.y
+        # Ограничиваем имя, чтобы оставить место для остальных элементов
+        estimated_other_elements_width = (
+            self.ESTIMATED_LEVEL_WIDTH + 
+            self.ESTIMATED_HP_WIDTH + 
+            self.ESTIMATED_ENERGY_WIDTH
+        )
+        available_width_for_name = max(
+            self.MIN_NAME_WIDTH, 
+            self.width - (current_x - self.x) - estimated_other_elements_width
+        )
+        self.name_label.max_width = available_width_for_name
+        name_width = min(len(self.name_label.text), available_width_for_name) if self.name_label.text else 5
+        current_x += name_width + self.WIDGET_SPACING
+
+        # 1. Класс/роль
+        self.class_label.x = current_x
+        self.class_label.y = self.y
+        class_width = 3  # Примерная ширина [R]
+        current_x += class_width + self.WIDGET_SPACING
+        
+        # 3. Уровень
+        self.level_label.x = current_x
+        self.level_label.y = self.y
+        level_width = 3  # Примерная ширина [1]
+        current_x += level_width + self.WIDGET_SPACING
+
+        # 4. HP
+        self.hp_label.x = current_x
+        self.hp_label.y = self.y
+        # Ширина будет обновлена в render на основе содержимого
+        
+        # 5. Energy
+        # Позиция будет рассчитана в render после определения ширины hp_label
 
     def render(self, renderer: Renderer) -> None:
-        """Отрисовка базовой панели юнита в одну строку без рамки."""
-        # Формат: [Имя] HP: текущее/максимум [MP: текущее/максимум]
-        # Цвет: синий для игроков, красный для монстров
-        
-        # Определяем цвет
-        color = Color.CYAN if self.is_player else Color.RED
+        """Отрисовка базовой панели юнита в одну строку."""
+        if not self.character:
+            # Если персонаж не установлен, отображаем заглушку
+            placeholder_text = "Нет данных"
+            display_text = placeholder_text.ljust(self.width)[:self.width]
+            try:
+                renderer.draw_text(display_text, self.x, self.y, color=Color.GRAY)
+            except curses.error:
+                pass
+            return
 
-        # Создаем текстовое представление
-        hp_text = f"HP: {self.current_hp}/{self.max_hp}"
-        mp_text = ""
-        if self.max_mp > 0:
-            mp_text = f" MP: {self.current_mp}/{self.max_mp}"
+        # Обновляем текстовые лейблы HP и Energy
+        hp = getattr(self.character, 'hp', 0)
+        attributes = getattr(self.character, 'attributes', None)
+        max_hp = 1
+        if attributes:
+            max_hp = getattr(attributes, 'max_hp', 1)
+        else:
+            max_hp = hp if hp > 0 else 1
+            
+        # Определяем цвет HP в зависимости от уровня
+        hp_ratio = hp / max_hp if max_hp > 0 else 0
+        hp_color = Color.GREEN
+        if hp_ratio <= self.HP_CRITICAL_THRESHOLD:
+            hp_color = Color.RED
+        elif hp_ratio <= self.HP_LOW_THRESHOLD:
+            hp_color = Color.YELLOW
+            
+        hp_text = f"HP:{hp}/{max_hp}"
+        self.hp_label.text = hp_text
+        self.hp_label.color = hp_color
         
-        # Комбинируем текст
-        full_text = f"{self.name} {hp_text}{mp_text}"
+        # Energy
+        energy = getattr(self.character, 'energy', 0)
+        max_energy = 0
+        if attributes:
+            max_energy = getattr(attributes, 'max_energy', 0)
+        else:
+            max_energy = energy
+            
+        if max_energy > 0:
+            energy_text = f"E:{energy}/{max_energy}"
+            self.energy_label.text = energy_text
+            self.energy_label.color = Color.BLUE
+        else:
+            self.energy_label.text = ""
+            
+        # Пересчитываем позиции виджетов перед отрисовкой
+        self._update_widgets_positions()
         
-        # Обрезаем или дополняем пробелами до ширины панели
-        display_text = full_text.ljust(self.width)[:self.width]
-        
-        # Отрисовка текста
-        try:
-            renderer.draw_text(display_text, self.x, self.y, color=color)
-        except curses.error:
-            # Игнорируем ошибки выхода за границы экрана
-            pass
+        # Отрисовываем все виджеты
+        self.class_label.render(renderer)
+        self.name_label.render(renderer)
+        self.level_label.render(renderer)
+        self.hp_label.render(renderer)
+        if self.energy_label.text:  # Отрисовываем energy label только если он не пуст
+            # Позиция energy label сразу после hp label
+            self.energy_label.x = self.hp_label.x + len(self.hp_label.text) + self.WIDGET_SPACING
+            self.energy_label.y = self.y
+            self.energy_label.render(renderer)
+            
+        # Заполняем оставшееся пространство пробелами для затирания предыдущего содержимого
+        last_widget_end_x = self.energy_label.x + len(self.energy_label.text) if self.energy_label.text else \
+                          (self.hp_label.x + len(self.hp_label.text))
+        if last_widget_end_x < self.x + self.width:
+            remaining_width = (self.x + self.width) - last_widget_end_x
+            try:
+                renderer.draw_text(" " * remaining_width, last_widget_end_x, self.y)
+            except curses.error:
+                pass
+
+    def _get_role_character(self) -> str:
+        """Получить символ роли/класса персонажа."""
+        if not self.character:
+            return "?"
+            
+        # Используем ту же логику, что и в CharacterClassLabel
+        from game.ui.widgets.labels import _get_character_role_icon
+        return _get_character_role_icon(self.character)
 
 
 class EnemyUnitPanel(UnitPanel):
@@ -78,44 +228,8 @@ class EnemyUnitPanel(UnitPanel):
             height: Высота панели (должна быть 1).
             monster: Объект Monster для отображения.
         """
-        # Инициализируем базовую панель
         super().__init__(x, y, width, height)
-        # Сохраняем ссылку на объект Monster
-        self.monster = monster
-        # Инициализируем данные из объекта Monster
-        self._update_data_from_monster()
-
-    def _update_data_from_monster(self) -> None:
-        """Обновить внутренние данные панели из объекта Monster."""
-        # Получаем актуальные данные из объекта Monster
-        self.name = getattr(self.monster, 'name', 'Unknown Enemy')
-        
-        # HP
-        self.current_hp = getattr(self.monster, 'hp', 0)
-        # Получаем max_hp из атрибутов, если они есть
-        attributes = getattr(self.monster, 'attributes', None)
-        if attributes:
-            self.max_hp = getattr(attributes, 'max_hp', 1)
-        else:
-            # Если атрибутов нет, используем текущий HP как максимум
-            self.max_hp = self.current_hp if self.current_hp > 0 else 1
-
-        # MP
-        self.current_mp = getattr(self.monster, 'mp', 0)
-        if attributes:
-            self.max_mp = getattr(attributes, 'max_mp', 0)
-        else:
-            self.max_mp = self.current_mp
-
-        # is_player всегда False для EnemyUnitPanel
-        self.is_player = False
-
-    def render(self, renderer: Renderer) -> None:
-        """Отрисовка панели врага."""
-        # Перед отрисовкой обновляем данные из объекта Monster
-        self._update_data_from_monster()
-        # Вызываем родительский метод render
-        super().render(renderer)
+        self.set_character(monster)
 
 
 class PlayerUnitPanel(UnitPanel):
@@ -130,44 +244,8 @@ class PlayerUnitPanel(UnitPanel):
             height: Высота панели (должна быть 1).
             player: Объект Player для отображения.
         """
-        # Инициализируем базовую панель
         super().__init__(x, y, width, height)
-        # Сохраняем ссылку на объект Player
-        self.player = player
-        # Инициализируем данные из объекта Player
-        self._update_data_from_player()
-
-    def _update_data_from_player(self) -> None:
-        """Обновить внутренние данные панели из объекта Player."""
-        # Получаем актуальные данные из объекта Player
-        self.name = getattr(self.player, 'name', 'Unknown Player')
-        
-        # HP
-        self.current_hp = getattr(self.player, 'hp', 0)
-        # Получаем max_hp из атрибутов, если они есть
-        attributes = getattr(self.player, 'attributes', None)
-        if attributes:
-            self.max_hp = getattr(attributes, 'max_hp', 1)
-        else:
-            # Если атрибутов нет, используем текущий HP как максимум
-            self.max_hp = self.current_hp if self.current_hp > 0 else 1
-
-        # MP
-        self.current_mp = getattr(self.player, 'mp', 0)
-        if attributes:
-            self.max_mp = getattr(attributes, 'max_mp', 0)
-        else:
-            self.max_mp = self.current_mp
-
-        # is_player всегда True для PlayerUnitPanel
-        self.is_player = True
-
-    def render(self, renderer: Renderer) -> None:
-        """Отрисовка панели игрока."""
-        # Перед отрисовкой обновляем данные из объекта Player
-        self._update_data_from_player()
-        # Вызываем родительский метод render
-        super().render(renderer)
+        self.set_character(player)
 
 
 class GroupPanel(Renderable):
@@ -188,28 +266,13 @@ class GroupPanel(Renderable):
         self.panels: List[UnitPanel] = []
 
     def update_size(self, max_width: int, max_height: int) -> None:
-        """Обновление размеров панели и её компонентов.
+        """
+        Обновление размеров панели и её компонентов.
         Args:
             max_width: Максимальная ширина экрана.
             max_height: Максимальная высота экрана.
         """
-               # Обновление размеров дочерних панелей
-        if self.panels:
-            # Рассчитываем ширину для каждой панели
-            # Используем self.width как ширину каждой панели (как в _update_panels)
-            new_panel_width = self.width
-
-            for i, panel in enumerate(self.panels):
-                panel.width = new_panel_width
-                # ВАЖНО: Обновляем позицию X каждой панели
-                # Это решает проблему "съезжания" при ресайзе
-                panel.x = self.x
-                # Позиция Y тоже может измениться, если координата группы изменилась
-                # Предполагаем, что панели расположены вертикально с шагом 1
-                panel.y = self.y + i
-                # Высота панели юнита должна быть 1
-                panel.height = 1
-        '''
+        # Обновление размеров дочерних панелей
         if self.panels:
             # Рассчитываем ширину для каждой панели
             panel_count = len(self.panels)
@@ -217,11 +280,8 @@ class GroupPanel(Renderable):
 
             for i, panel in enumerate(self.panels):
                 panel.width = new_panel_width
-                # Также обновляем позицию X, если ширина изменилась
-                # panel.x = self.x + i * new_panel_width # Не меняем X, т.к. он устанавливается в _update_panels
-                # Высота панели юнита должна быть 1
-                panel.height = 1
-        '''
+                panel.height = 1  # Высота панели юнита должна быть 1
+                panel.update_size(new_panel_width, 1)  # Обновляем размеры внутренних виджетов
 
     def render(self, renderer: Renderer) -> None:
         """Отрисовка панели группы без внешнего обрамления."""

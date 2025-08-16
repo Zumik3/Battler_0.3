@@ -29,8 +29,8 @@ class CharacterInfoPanel(Renderable):
         width: int = 30,
         height: int = 5,
         character: Optional['Character'] = None,
-        show_class: bool = True,
         show_name: bool = True,
+        show_class: bool = True,
         show_level: bool = True,
         show_health_bar: bool = True,
         show_energy_bar: bool = True
@@ -56,8 +56,8 @@ class CharacterInfoPanel(Renderable):
         self.character = character
         
         # Флаги отображения компонентов
-        self.show_class = show_class
         self.show_name = show_name
+        self.show_class = show_class
         self.show_level = show_level
         self.show_health_bar = show_health_bar
         self.show_energy_bar = show_energy_bar
@@ -78,15 +78,15 @@ class CharacterInfoPanel(Renderable):
 
     def _initialize_widgets(self) -> None:
         """Инициализировать дочерние виджеты в зависимости от флагов отображения."""
-        if self.show_class:
-            self.class_label = CharacterClassLabel(x=self.x + self.CLASS_LABEL_X_OFFSET, y=self.y)
-            
         if self.show_name:
             self.name_label = CharacterNameLabel(
                 x=self.x + self.NAME_LABEL_X_OFFSET, 
                 y=self.y, 
                 max_width=max(self.MIN_NAME_LABEL_WIDTH, self.width - self.NAME_LABEL_X_OFFSET + self.LEVEL_LABEL_X_OFFSET)
             )
+
+        if self.show_class:
+            self.class_label = CharacterClassLabel(x=self.x + self.CLASS_LABEL_X_OFFSET, y=self.y)
             
         if self.show_level:
             self.level_label = CharacterLevelLabel(x=self.x + self.width + self.LEVEL_LABEL_X_OFFSET, y=self.y)

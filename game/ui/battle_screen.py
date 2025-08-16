@@ -1,4 +1,4 @@
-# game/ui/battle_screen.py
+# game/ui/screens/battle_screen.py
 """Экран боя.
 Отображает боевую сцену с возможностью взаимодействия."""
 import curses
@@ -10,14 +10,21 @@ from game.ui.mixins import StandardLayoutMixin
 from game.ui.base_screen import BaseScreen
 from game.ui.rendering.color_manager import Color
 from game.ui.rendering.renderable import Text, Separator
-from game.ui.components.battle_components import PlayerGroupPanel, EnemyGroupPanel, BattleLog
-from game.game_manager import get_game_manager # Для получения данных игроков/врагов
+# - ИМПОРТИРУЕМ НОВЫЕ КОМПОНЕНТЫ -
+from game.ui.components.battle_components import (PlayerGroupPanel, EnemyGroupPanel, BattleLog)
+# -
+from game.ui.base_screen import BaseScreen
+from game.ui.rendering.color_manager import Color
+# Импортируем get_game_manager для использования внутри _setup_elements
+from game.game_manager import get_game_manager
 
+# - ДОБАВЛЯЕМ ИМПОРТ ДЛЯ TYPE_CHECKING -
 if TYPE_CHECKING:
     from game.ui.screen_manager import ScreenManager
     from game.entities.player import Player
     from game.entities.monster import Monster
     from game.ui.rendering.renderer import Renderer
+# ---
 
 
 class BattleScreen(BaseScreen, StandardLayoutMixin):
@@ -126,9 +133,9 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
             # Используем значения из конфигурации, если они доступны
             try:
                 from game.config import get_config
-                settings = get_config()
-                screen_width = settings.ui.screen_width
-                screen_height = settings.ui.screen_height
+                config = get_config()
+                screen_width = config.ui.screen_width
+                screen_height = config.ui.screen_height
             except Exception:
                 screen_width = 80
                 screen_height = 24
@@ -181,15 +188,21 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
         # Обновляем размеры и позиции панелей групп
         if self.player_group:
             self.player_group.x = layout['player_group']['x']
+            self.player_group.y = layout['player_group']['y'] # Обновляем Y тоже
             self.player_group.width = layout['player_group']['width']
+            self.player_group.height = layout['player_group']['height']
             # Обновляем размеры дочерних компонентов групп
-            self.player_group.update_size(screen_width, screen_height)
+            # _update_panels будет использовать новые self.x, self.width
+            self.player_group._update_panels() 
 
         if self.enemy_group:
             self.enemy_group.x = layout['enemy_group']['x']
+            self.enemy_group.y = layout['enemy_group']['y'] # Обновляем Y тоже
             self.enemy_group.width = layout['enemy_group']['width']
+            self.enemy_group.height = layout['enemy_group']['height']
             # Обновляем размеры дочерних компонентов групп
-            self.enemy_group.update_size(screen_width, screen_height)
+            # _update_panels будет использовать новые self.x, self.width
+            self.enemy_group._update_panels()
 
         # Обновляем размеры и позиции лога боя
         if self.battle_log:
@@ -197,9 +210,9 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
             self.battle_log.y = layout['battle_log']['y']
             self.battle_log.width = layout['battle_log']['width']
             self.battle_log.height = layout['battle_log']['height']
-            # Исправленный вызов update_size для BattleLog
-            # Сигнатура: update_size(self, total_width: int, total_height: int)
-            self.battle_log.update_size(screen_width, screen_height)
+            # BattleLog не имеет сложной внутренней структуры панелей,
+            # поэтому явный вызов update_size не требуется.
+            # Если бы требовался, нужно было бы проверить сигнатуру метода в BattleLog.
 
         # --- КОНЕЦ ОБНОВЛЕННОЙ ЛОГИКИ ---
 
@@ -240,6 +253,3 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
                 self.battle_log.scroll_down()
         # Можно добавить отладочный вывод
         # print(f"BattleScreen: Нажата незарегистрированная клавиша: {key}")
-
-# --- Компоненты боя ---
-# ... (остальной код battle_components.py остается без изменений) ...
