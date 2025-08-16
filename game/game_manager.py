@@ -50,30 +50,26 @@ class GameManager:
         # monster_data_dir = self.config.system.monster_classes_directory # Если понадобится напрямую
 
         # --- Инициализация игроков ---
-        # Пример создания игроков
         # В будущем это может загружаться из файла сохранения или профиля
         
-        # Создаем Берсерка
-        berserker = create_player(
-            name="Громила",
-            role="berserker",
-            level=1,
-            data_directory=player_data_dir
-        )
-        if berserker:
-            self.player_group.append(berserker)
-
-        # Создаем Лекаря
-        healer = create_player(
-            name="Целитель",
-            role="healer",
-            level=1,
-            data_directory=player_data_dir
-        )
-        if healer:
-            self.player_group.append(healer)
-
-        # TODO: Добавить создание других стартовых игроков, если нужно
+        # Словарь с именами и ролями стартовых игроков
+        starting_players = {
+            "Роланд": "berserker",
+            "Стайлс": "rogue"
+            #"Морган": "mage",
+            #"Дамиан": "healer"
+        }
+        
+        # Создаем каждого игрока из словаря
+        for name, role in starting_players.items():
+            player = create_player(
+                name=name,
+                role=role,
+                level=1,
+                data_directory=player_data_dir
+            )
+            if player:
+                self.player_group.append(player)
 
         # --- Инициализация стартовых врагов ---
         # Создаем начальную группу врагов для первого боя

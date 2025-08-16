@@ -193,7 +193,23 @@ class GroupPanel(Renderable):
             max_width: Максимальная ширина экрана.
             max_height: Максимальная высота экрана.
         """
-        # Обновление размеров дочерних панелей
+               # Обновление размеров дочерних панелей
+        if self.panels:
+            # Рассчитываем ширину для каждой панели
+            # Используем self.width как ширину каждой панели (как в _update_panels)
+            new_panel_width = self.width
+
+            for i, panel in enumerate(self.panels):
+                panel.width = new_panel_width
+                # ВАЖНО: Обновляем позицию X каждой панели
+                # Это решает проблему "съезжания" при ресайзе
+                panel.x = self.x
+                # Позиция Y тоже может измениться, если координата группы изменилась
+                # Предполагаем, что панели расположены вертикально с шагом 1
+                panel.y = self.y + i
+                # Высота панели юнита должна быть 1
+                panel.height = 1
+        '''
         if self.panels:
             # Рассчитываем ширину для каждой панели
             panel_count = len(self.panels)
@@ -205,6 +221,7 @@ class GroupPanel(Renderable):
                 # panel.x = self.x + i * new_panel_width # Не меняем X, т.к. он устанавливается в _update_panels
                 # Высота панели юнита должна быть 1
                 panel.height = 1
+        '''
 
     def render(self, renderer: Renderer) -> None:
         """Отрисовка панели группы без внешнего обрамления."""
