@@ -1,0 +1,4736 @@
+Сборник исходных кодов и конфигурационных файлов
+Дата создания: 2025-08-16 15:36:47
+================================================================================
+
+================================================================================
+Файл: PROJECT_TODO.md
+================================================================================
+
+# PROJECT TODO LIST
+
+## Общее
+
+<!-- DONE: Создать этот файл PROJECT_TODO.md и поместить в корень проекта -->
+<!-- DONE: Настроить в IDE отображение TODO из этого файла (если необходимо, добавить паттерн в настройки TODO) -->
+
+## Игровая логика & Менеджеры
+
+<!-- TODO: Интегрировать реальные данные монстров в BattleScreen. Связать EnemyGroupPanel с GameManager, чтобы панели отображали состояние объектов Character (монстров), созданных фабрикой. -->
+<!-- TODO: Добавить загрузку стартовых монстров в GameManager._initialize_game_entities (или аналогичный метод), используя monster_factory. -->
+<!-- DONE: Реализовать механизм обновления UI (HP/MP) в BattleScreen на основе текущего состояния объектов Player/Character. -->
+<!-- TODO: Добавить в GameManager методы для управления текущими врагами (`get_current_enemies`, `set_current_enemies` и т.д.). -->
+<!-- TODO: Создать JSON-файлы для классов монстров в `game/data/characters/monster_classes/`, если они еще не существуют. -->
+<!-- TODO: GameManager должен отвечать за хранение и предоставление данных о текущих игроках и монстрах для экранов UI. -->
+<!-- DONE: Описание задачи -->
+
+
+## Пользовательский Интерфейс
+
+<!-- TODO: Доработать BattleScreen.render, чтобы он обновлял содержимое UnitPanel (имя, HP, MP) на основе данных из GameManager перед отрисовкой панелей. -->
+<!-- TODO: Проверить/доработать логику `_update_component_sizes` в `BattleScreen` для корректного изменения размеров компонентов при ресайзе окна терминала. -->
+<!-- TODO: Реализовать отображение имен монстров/игроков в UnitPanel (сейчас в EnemyUnitPanel имя передается вручную, нужно брать из объекта Character). -->
+<!-- TODO: Возможно, унифицировать EnemyUnitPanel и PlayerUnitPanel, или создать базовый класс, если различий будет немного. -->
+
+## Компоненты UI
+
+<!-- TODO: Проверить корректность работы прокрутки BattleLog (scroll_up, scroll_down) и отображения большого количества сообщений. -->
+<!-- TODO: Добавить отображение дополнительной информации в UnitPanel (например, уровень, статусные эффекты, если будут). -->
+<!-- TODO: Убедиться, что отрисовка (render) всех компонентов корректно обрабатывает выход за границы экрана (curses.error). -->
+
+## Данные
+
+<!-- TODO: Убедиться, что все необходимые JSON-файлы (игроки, монстры) существуют и корректны. -->
+<!-- TODO: Проверить/доработать character_loader.py для корректной обработки всех полей из JSON (например, abilities, если структура сложнее). -->
+
+## Система Команд
+
+<!-- TODO: Завершить рефакторинг системы команд (Command System) согласно ранее обсужденным идеям (регистрация, контекст). -->
+<!-- TODO: Добавить команды для BattleScreen (например, выбор цели, использование атаки/зелья). -->
+
+## Тестирование
+
+<!-- TODO: Добавить тесты для BattleScreen (особенно логику обновления данных и отрисовки). -->
+<!-- TODO: Добавить тесты для интеграции GameManager с фабриками и UI. -->
+<!-- TODO: Проверить и дополнить существующие тесты для компонентов UI (UnitPanel, GroupPanel, BattleLog). -->
+
+## Документация/Кодстайл
+
+<!-- TODO: Добавить/проверить docstrings для новых/измененных классов и методов. -->
+<!-- TODO: Убедиться, что весь код соответствует PEP 8 и проходит flake8. -->
+
+## DONE (переносить сюда выполненные задачи)
+
+<!-- DONE: Реализовать фабрики для создания игроков и монстров. -->
+<!-- DONE: Создать базовую структуру BattleScreen с компонентами (UnitPanel, GroupPanel, BattleLog). -->
+<!-- DONE: Настроить базовую отрисовку BattleScreen с использованием Renderer. -->
+<!-- DONE: Реализовать базовую прокрутку BattleLog. -->
+
+================================================================================
+Файл: game/__init__.py
+================================================================================
+
+
+
+================================================================================
+Файл: game/protocols.py
+================================================================================
+
+# game/protocols.py
+"""Протоколы, определяющие интерфейсы для различных компонентов игры."""
+
+import traceback
+from abc import ABC, abstractmethod
+from typing import List, Dict, Any, Protocol, Optional
+
+# Импорты с TYPE_CHECKING для избежания циклических импортов
+# в аннотациях типов на уровне модуля
+# (импортируем только при аннотации типов, а не во время выполнения)
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from game.entities.character import Character as CharacterType
+
+
+class Stats(Protocol):
+    """Протокол для базовых характеристик персонажа."""
+    strength: int
+    agility: int
+    intelligence: int
+    vitality: int
+
+
+class Attributes(Protocol):
+    """Протокол для производных атрибутов персонажа."""
+    max_hp: int
+    max_energy: int
+    attack_power: int
+    defense: int
+
+    def recalculate(self, stats: Stats) -> None:
+        """Пересчитать атрибуты на основе базовых характеристик."""
+        ...
+
+
+class AbilityManagerProtocol(Protocol):
+    """Протокол для менеджера способностей."""
+    def use_ability(self, ability_name: str, target: 'CharacterType') -> List[Dict[str, Any]]:
+        """Использовать способность на цель."""
+        ...
+
+    def get_available_abilities(self) -> List[str]:
+        """Получить список доступных способностей."""
+        ...
+
+
+class StatusEffectManagerProtocol(Protocol):
+    """Протокол для менеджера статус-эффектов."""
+    def apply_effect(self, effect: 'StatusEffect') -> List[Dict[str, Any]]:
+        """Применить эффект к персонажу."""
+        ...
+
+    def remove_effect(self, effect_name: str) -> List[Dict[str, Any]]:
+        """Удалить эффект по имени."""
+        ...
+
+    def get_effect(self, effect_name: str) -> Optional['StatusEffect']:
+        """Получить эффект по имени."""
+        ...
+
+    def get_all_effects(self) -> List['StatusEffect']:
+        """Получить список всех активных эффектов."""
+        ...
+
+    def clear_all_effects(self) -> List[Dict[str, Any]]:
+        """Очистить все эффекты и вернуть список результатов."""
+        ...
+
+
+# Протоколы для системы уровней/опыта
+# Эти протоколы позволят нам в будущем легко подменить систему роста
+class ExperienceCalculatorProtocol(Protocol):
+    """Протокол для калькулятора опыта."""
+    def calculate_exp_for_next_level(self, current_level: int) -> int:
+        """Рассчитать опыт, необходимый для следующего уровня."""
+        ...
+
+    def calculate_stat_increase(self, base_stat: int, growth_rate: float, level: int) -> int:
+        """Рассчитать увеличение характеристики."""
+        ...
+
+
+class LevelUpHandlerProtocol(Protocol):
+    """Протокол для обработчика повышения уровня."""
+    def handle_level_up(self, character: 'CharacterType') -> List[Dict[str, Any]]:
+        """Обработать повышение уровня и вернуть список результатов."""
+        ...
+
+
+# Базовые абстрактные классы
+class Character(ABC):
+    """Абстрактный базовый класс, представляющий персонажа в игре."""
+    # (Определение класса находится в game/entities/character.py)
+    pass # fallback если абстрактные методы не реализованы корректно
+
+
+class Ability(ABC):
+    """Абстрактный базовый класс для способностей."""
+    def __init__(self, name: str, energy_cost: int, description: str = ""):
+        self.name = name
+        self.energy_cost = energy_cost
+        self.description = description
+
+    @abstractmethod
+    def activate(self, caster: 'CharacterType', target: 'CharacterType') -> List[Dict[str, Any]]:
+        """Активировать способность."""
+        ...
+
+
+class StatusEffect(ABC):
+    """Абстрактный базовый класс для статус-эффектов."""
+    def __init__(self, name: str, duration: int, description: str = ""):
+        self.name = name
+        self.duration = duration
+        self.description = description
+
+    @abstractmethod
+    def apply(self, target: 'CharacterType') -> List[Dict[str, Any]]:
+        """Применить эффект к цели."""
+        ...
+
+    @abstractmethod
+    def remove(self, target: 'CharacterType') -> List[Dict[str, Any]]:
+        """Удалить эффект с цели."""
+        ...
+
+    def tick(self, target: 'CharacterType') -> List[Dict[str, Any]]:
+        """Выполнить действие эффекта за ход (если применимо)."""
+        # По умолчанию эффект просто уменьшает свою длительность
+        self.duration -= 1
+        if self.duration <= 0:
+            return target.status_manager.remove_effect(self.name) # type: ignore
+        return []
+
+
+================================================================================
+Файл: game/config.py
+================================================================================
+
+# game/config.py
+"""Основные настройки игры."""
+
+from dataclasses import dataclass, field
+from pathlib import Path
+import json
+import os
+from typing import Any, Dict
+
+
+@dataclass
+class ExperienceSettings:
+    """Настройки системы опыта."""
+
+    formula_base: int = 100
+    formula_multiplier: float = 1.5
+
+
+@dataclass
+class CombatSettings:
+    """Настройки боевой системы."""
+
+    min_damage: int = 1
+    defense_reduction_factor: float = 0.5
+
+
+@dataclass
+class CharacterSettings:
+    """Настройки персонажей."""
+
+    base_max_hp: int = 50
+    base_max_energy: int = 20
+    hp_per_vitality: int = 5
+    energy_per_intelligence: int = 3
+    attack_per_strength: int = 2
+    defense_per_agility: float = 1.5
+
+
+@dataclass
+class UISettings:
+    """Настройки пользовательского интерфейса."""
+
+    screen_width: int = 80
+    screen_height: int = 24
+
+
+@dataclass
+class SystemSettings:
+    """Системные настройки."""
+
+    enable_debug_logging: bool = False
+    log_file: str = "game.log"
+    save_directory: str = "saves"
+    autosave_interval: int = 300
+    data_directory: str = "game/data"
+    characters_data_directory: str = "game/data/characters"
+    player_classes_directory: str = "game/data/characters/player_classes"
+    monster_classes_directory: str = "game/data/characters/monster_classes"
+
+
+@dataclass
+class GameConfig:
+    """Основной класс конфигурации игры."""
+
+    experience: ExperienceSettings = field(default_factory=ExperienceSettings)
+    combat: CombatSettings = field(default_factory=CombatSettings)
+    character: CharacterSettings = field(default_factory=CharacterSettings)
+    ui: UISettings = field(default_factory=UISettings)
+    system: SystemSettings = field(default_factory=SystemSettings)
+
+    config_file: str = "config.json"
+
+    def load_from_file(self, config_file: str = "") -> None:
+        """
+        Загрузить конфигурацию из файла.
+
+        Args:
+            config_file: Путь к файлу конфигурации. Если не указан, используется self.config_file.
+        """
+        file_path = config_file or self.config_file
+        try:
+            if os.path.exists(file_path):
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    self._update_from_dict(data)
+        except Exception as e:
+            print(f"Ошибка загрузки конфигурации: {e}")
+
+    def save_to_file(self, config_file: str = "") -> None:
+        """
+        Сохранить конфигурацию в файл.
+
+        Args:
+            config_file: Путь к файлу конфигурации. Если не указан, используется self.config_file.
+        """
+        file_path = config_file or self.config_file
+        try:
+            Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(self._to_dict(), f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"Ошибка сохранения конфигурации: {e}")
+
+    def _to_dict(self) -> Dict[str, Any]:
+        """Преобразовать конфигурацию в словарь."""
+        return {
+            'experience': {
+                'formula_base': self.experience.formula_base,
+                'formula_multiplier': self.experience.formula_multiplier,
+            },
+            'combat': {
+                'min_damage': self.combat.min_damage,
+                'defense_reduction_factor': self.combat.defense_reduction_factor,
+            },
+            'character': {
+                'base_max_hp': self.character.base_max_hp,
+                'base_max_energy': self.character.base_max_energy,
+                'hp_per_vitality': self.character.hp_per_vitality,
+                'energy_per_intelligence': self.character.energy_per_intelligence,
+                'attack_per_strength': self.character.attack_per_strength,
+                'defense_per_agility': self.character.defense_per_agility,
+            },
+            'ui': {
+                'screen_width': self.ui.screen_width,
+                'screen_height': self.ui.screen_height,
+            },
+            'system': {
+                'enable_debug_logging': self.system.enable_debug_logging,
+                'log_file': self.system.log_file,
+                'save_directory': self.system.save_directory,
+                'autosave_interval': self.system.autosave_interval,
+                'data_directory': self.system.data_directory,
+                'characters_data_directory': self.system.characters_data_directory,
+                'player_classes_directory': self.system.player_classes_directory,
+            }
+        }
+
+    def _update_from_dict(self, data: Dict[str, Any]) -> None:
+        """
+        Обновить конфигурацию из словаря.
+
+        Args:
+            data: Словарь с данными конфигурации.
+        """
+        if 'experience' in data:
+            for key, value in data['experience'].items():
+                if hasattr(self.experience, key):
+                    setattr(self.experience, key, value)
+
+        if 'combat' in data:
+            for key, value in data['combat'].items():
+                if hasattr(self.combat, key):
+                    setattr(self.combat, key, value)
+
+        if 'character' in data:
+            for key, value in data['character'].items():
+                if hasattr(self.character, key):
+                    setattr(self.character, key, value)
+
+        if 'ui' in data:
+            for key, value in data['ui'].items():
+                if hasattr(self.ui, key):
+                    setattr(self.ui, key, value)
+
+        if 'system' in data:
+            for key, value in data['system'].items():
+                if hasattr(self.system, key):
+                    setattr(self.system, key, value)
+
+
+# Глобальный экземпляр конфигурации
+game_config = GameConfig()
+
+
+def get_config() -> GameConfig:
+    """Получить глобальный экземпляр конфигурации."""
+    return game_config
+
+
+================================================================================
+Файл: game/game_manager.py
+================================================================================
+
+# game/game_manager.py
+"""Менеджер игрового состояния.
+Отвечает за инициализацию и хранение основных сущностей игры:
+игроков, глобального состояния, текущих врагов, инвентаря и т.д.
+Реализует паттерн Singleton для обеспечения единственного экземпляра менеджера."""
+
+from typing import List, Optional, TYPE_CHECKING
+import json
+import os
+
+# Импорты для создания сущностей
+from game.factories.player_factory import create_player
+from game.config import get_config
+
+# Используем TYPE_CHECKING для избежания циклических импортов на уровне модуля
+if TYPE_CHECKING:
+    from game.entities.player import Player
+    # from game.entities.monster import Monster # Для будущего использования
+    # from game.inventory import Inventory # и т.д.
+
+
+class GameManager:
+    """Менеджер игрового состояния."""
+    _instance: Optional['GameManager'] = None # Для реализации Singleton
+
+    def __new__(cls) -> 'GameManager':
+        """Реализация паттерна Singleton."""
+        if cls._instance is None:
+            cls._instance = super(GameManager, cls).__new__(cls)
+        return cls._instance
+
+    def __init__(self) -> None:
+        """Инициализирует менеджер игры и загружает начальное состояние."""
+        # Проверка, инициализирован ли уже объект, чтобы избежать повторной инициализации
+        # при повторном вызове __init__ на том же экземпляре из-за Singleton
+        if hasattr(self, 'initialized'):
+            return
+
+        self.config = get_config() # Получаем глобальную конфигурацию
+
+        # --- Инициализация основных сущностей ---
+        self.player_group: List['Player'] = []
+        # self.current_enemies: List['Monster'] = [] # Для будущего использования
+        # self.global_inventory: 'Inventory' = ... # Для будущего использования
+
+        self._initialize_game_entities()
+
+        self.initialized = True # Флаг, что инициализация прошла
+
+    def _initialize_game_entities(self) -> None:
+        """Создает и инициализирует стартовые сущности игры."""
+        # --- Создание стартовой группы игроков ---
+        print("Инициализация стартовой группы игроков...")
+        
+        # Получаем пути из конфигурации
+        player_data_dir = self.config.system.player_classes_directory
+
+        # Пример создания игроков
+        # В будущем это может загружаться из файла сохранения или профиля
+        
+        # Создаем Берсерка
+        berserker = create_player(
+            name="Громила",
+            role="berserker",
+            level=1,
+            data_directory=player_data_dir
+        )
+        if berserker:
+            self.player_group.append(berserker)
+            print(f"  Создан: {berserker.name} ({berserker.role})")
+
+        # Создаем Лекаря
+        healer = create_player(
+            name="Целитель",
+            role="healer",
+            level=1,
+            data_directory=player_data_dir
+        )
+        if healer:
+            self.player_group.append(healer)
+            print(f"  Создан: {healer.name} ({healer.role})")
+
+        # TODO: Добавить создание других стартовых игроков, если нужно
+
+        if not self.player_group:
+            print("  Предупреждение: Не создано ни одного игрока!")
+
+        # --- Инициализация других сущностей ---
+        # TODO: Инициализация инвентаря, глобального состояния и т.д.
+
+    def get_player_group(self) -> List['Player']:
+        """Получить текущую группу игроков."""
+        return self.player_group
+
+    # TODO: Добавить методы для управления другими сущностями
+    # def get_current_enemies(self) -> List['Monster']: ...
+    # def get_global_inventory(self) -> 'Inventory': ...
+    # def start_new_battle(self, enemies: List['Monster']) -> None: ...
+    # и т.д.
+
+# Функция для удобного получения экземпляра GameManager
+def get_game_manager() -> GameManager:
+    """Получить глобальный экземпляр GameManager."""
+    # Это гарантирует, что экземпляр будет создан при первом вызове
+    return GameManager()
+
+
+================================================================================
+Файл: game/ui/screen_manager.py
+================================================================================
+
+# game/ui/screen_manager.py
+"""Управление экранами игры.
+Реализует паттерн Состояние для переключения между экранами."""
+
+import curses
+from typing import Dict, Type, List, TYPE_CHECKING
+
+from game.ui.base_screen import BaseScreen
+from game.ui.battle_screen import BattleScreen
+from game.ui.inventory_screen import InventoryScreen
+from game.ui.main_screen import MainScreen
+from game.ui.rendering.color_manager import ColorManager
+from game.ui.rendering.renderer import Renderer
+
+# Импортируем GameManager только для аннотаций типов, чтобы избежать циклических импортов
+if TYPE_CHECKING:
+    from game.game_manager import GameManager
+
+
+class ScreenManager:
+    """Управление экранами игры с использованием паттерна состояние."""
+
+    def __init__(self, stdscr: curses.window, game_manager: 'GameManager') -> None:
+        """
+        Инициализация менеджера экранов.
+
+        Args:
+            stdscr: Окно curses.
+            game_manager: Экземпляр GameManager, содержащий все игровые сущности.
+        """
+        self.stdscr = stdscr
+        self.game_manager = game_manager # Сохраняем ссылку на GameManager
+
+        self.color_manager = ColorManager()
+        self.color_manager.initialize(stdscr)
+
+        # Инициализируем renderer, он получит начальный размер
+        self.renderer = Renderer(stdscr, self.color_manager)
+
+        # Словарь доступных экранов (имя -> класс)
+        self.screens: Dict[str, Type[BaseScreen]] = {
+            "main": MainScreen,
+            "battle": BattleScreen,
+            "inventory": InventoryScreen,
+        }
+
+        # Стек экранов для управления историей переходов
+        self.screen_stack: List[BaseScreen] = []
+
+        # Начинаем с главного экрана, передаем ему ссылку на себя (manager)
+        initial_screen = self.screens["main"](self)
+        self.screen_stack.append(initial_screen)
+
+    @property
+    def current_screen(self) -> BaseScreen:
+        """Текущий экран - верхний элемент стека."""
+        return self.screen_stack[-1]
+
+    def change_screen(self, screen_name: str) -> None:
+        """Переход на новый экран (добавление в стек).
+
+        Args:
+            screen_name: Имя экрана для перехода.
+        """
+        if screen_name in self.screens:
+            # Создаем новый экран, передавая ему ссылку на ScreenManager (self)
+            new_screen = self.screens[screen_name](self)
+            self.screen_stack.append(new_screen)
+        else:
+            raise ValueError(f"Неизвестный экран: {screen_name}")
+
+    def go_back(self) -> None:
+        """Возврат к предыдущему экрану (выход из стека)."""
+        if len(self.screen_stack) > 1:
+            self.screen_stack.pop()
+        else:
+            # Если это последний экран - выходим из приложения
+            # TODO: Рассмотреть использование raise SystemExit() вместо exit()
+            exit()
+
+    def _update_renderer_for_all_screens(self) -> None:
+        """Обновляет renderer для всех экранов в стеке."""
+        # Создаём НОВЫЙ экземпляр renderer с текущими размерами stdscr
+        # curses.update_lines_cols() не всегда нужно, зависит от терминала
+        height, width = self.stdscr.getmaxyx()
+        
+        # ВАЖНО: Создаем новый экземпляр Renderer, а не пытаемся обновить старый
+        self.renderer = Renderer(self.stdscr, self.color_manager)
+        # Примечание: Вызов update_size(width, height) не нужен, так как
+        # конструктор Renderer уже должен получить размеры из stdscr.
+
+        # Передаём новый renderer всем экранам в стеке
+        for screen in self.screen_stack:
+            screen.renderer = self.renderer
+
+    def run(self) -> None:
+        """Основной цикл работы менеджера экранов."""
+        while True:
+            # Получаем текущий экран
+            current = self.current_screen
+
+            # Обновляем размеры renderer, если размер окна изменился
+            # curses.update_lines_cols() не всегда нужно, зависит от терминала
+            height, width = self.stdscr.getmaxyx()
+            # Сравниваем с размерами, которые знает renderer
+            # Предполагается, что у renderer есть атрибуты width и height,
+            # установленные в его __init__
+            if hasattr(self.renderer, 'height') and hasattr(self.renderer, 'width'):
+                 # Если эти атрибуты есть и отличаются
+                 if height != self.renderer.height or width != self.renderer.width:
+                     self._update_renderer_for_all_screens()
+            else:
+                 # Если атрибутов нет, обновляем на всякий случай
+                 # или предполагаем, что они устанавливаются в __init__
+                 # Возможно, нужно добавить их установку в __init__ Renderer
+                 self._update_renderer_for_all_screens()
+
+            # Отрисовываем текущий экран
+            current.render(self.stdscr)
+
+            # Обновляем экран
+            self.stdscr.refresh()
+
+            # Получаем ввод пользователя
+            try:
+                key = self.stdscr.getch()
+                # Обрабатываем ввод
+                current.handle_input(key)
+            except KeyboardInterrupt:
+                # Обработка Ctrl+C
+                exit()
+            except Exception as e:
+                # Логирование или обработка других исключений
+                # Пока просто выходим
+                print(f"Критическая ошибка: {e}")
+                exit()
+
+
+================================================================================
+Файл: game/ui/base_screen.py
+================================================================================
+
+# game/ui/base_screen.py
+import curses
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, List
+from game.ui.rendering.renderable import Renderable
+from game.ui.rendering.renderer import Renderer
+from game.ui.command_system import CommandRegistry
+from game.ui.command_system.screen_command_registry import get_screen_commands
+
+if TYPE_CHECKING:
+    from game.ui.screen_manager import ScreenManager
+    from game.ui.command_system.command import Command # Импортируем Command для аннотаций
+
+class BaseScreen(ABC):
+    """Абстрактный базовый класс для всех экранов."""
+    def __init__(self, manager: 'ScreenManager'):
+        self.manager = manager
+        self.elements: List[Renderable] = []
+        self.renderer: Renderer = manager.renderer
+        self.command_registry = CommandRegistry()
+        self._setup_elements()
+        self._setup_commands()
+        self._setup_auto_commands()
+
+    @abstractmethod
+    def _setup_elements(self) -> None:
+        """Настройка элементов экрана."""
+        pass
+
+    @abstractmethod
+    def _setup_commands(self) -> None:
+        """Настройка дополнительных команд экрана."""
+        pass
+
+    def _setup_auto_commands(self) -> None:
+        """Автоматическая регистрация команд из реестра."""
+        # Явно аннотируем тип возвращаемого значения get_screen_commands
+        commands: List['Command'] = get_screen_commands(self.__class__)
+        # Явно аннотируем тип переменной command в цикле
+        command: 'Command'
+        for command in commands:
+            self.add_command(command) # <-- Эта строка вызывала ошибку mypy
+
+    def add_command(self, command: 'Command') -> None: # <-- Убедитесь, что тип команды аннотирован здесь
+        """
+        Добавление команды на экран.
+        Args:
+            command: Команда для добавления
+        """
+        self.command_registry.register_command(command)
+
+    def render(self, stdscr: curses.window) -> None:
+        """Отрисовка экрана."""
+        self.renderer.clear()
+        # Отрисовка основных элементов
+        for element in self.elements:
+            element.render(self.renderer)
+        # Базовый класс НЕ отрисовывает команды.
+        # Это responsibility конкретных экранов или миксинов.
+        # Отрисовка команд убрана отсюда.
+
+    def handle_input(self, key: int) -> None:
+        """
+        Обработка ввода пользователя.
+        Args:
+            key: Нажатая клавиша
+        """
+        # Пытаемся выполнить команду, если не удалось - вызываем обработчик по умолчанию
+        if not self.command_registry.execute_command(key, self):
+            self._handle_unregistered_key(key)
+
+    def _handle_unregistered_key(self, key: int) -> None:
+        """
+        Обработка назарегистрированных клавиш.
+        Может быть переопределен в подклассах.
+        """
+        pass
+
+================================================================================
+Файл: game/ui/main_screen.py
+================================================================================
+
+# game/ui/main_screen.py
+"""
+Главный экран игры.
+Отображает главное меню с возможностью перехода в бой или инвентарь,
+а также выход из игры.
+"""
+import curses
+# --- ДОБАВЛЯЕМ ИМПОРТ МИКСИНА ---
+from game.ui.mixins import StandardLayoutMixin
+# --------------------------------
+from game.ui.base_screen import BaseScreen
+from game.ui.rendering.renderable import Text, Separator
+from game.ui.rendering.color_manager import Color
+
+# --- НАСЛЕДУЕМСЯ ОТ StandardLayoutMixin ---
+class MainScreen(BaseScreen, StandardLayoutMixin):
+    """Главный экран игры."""
+
+    def _setup_elements(self) -> None:
+        """Настройка элементов экрана."""
+        # УБИРАЕМ старый заголовок и разделитель, так как они теперь в миксине
+        self.elements = [
+            # Основные кнопки (визуальное отображение)
+            # Смещаем Y на +2, так как шапка занимает первые 2 строки
+            Text("[1] Начать бой", 5, 2, color=Color.GREEN, bold=True),
+            Text("[2] Инвентарь", 5, 3, color=Color.YELLOW),
+            Text("[3] Настройки", 5, 4, color=Color.MAGENTA, dim=True),
+            # Separator(6, color=Color.BLUE), # Убираем старый разделитель
+            # Кнопка выхода
+            Text("[q] Выйти из игры", 20, 6, color=Color.RED, dim=True),
+            # Информационное сообщение
+            Text("Используйте клавиши 1, 2, 3 для навигации", 2, 8, dim=True),
+            Text("Нажмите 'q' для выхода", 2, 9, dim=True)
+            # Нижний разделитель и команды теперь тоже из миксина
+        ]
+
+    def _setup_commands(self) -> None:
+        """Настройка дополнительных команд экрана."""
+        # Все команды добавятся автоматически из реестра!
+        pass
+
+    # --- ОБНОВЛЯЕМ МЕТОД render ---
+    def render(self, stdscr: curses.window) -> None:
+        """Отрисовка экрана."""
+        self.renderer.clear()
+        
+        # Отрисовка стандартного макета (шапка + подвал)
+        self.render_standard_layout("=== ГЛАВНОЕ МЕНЮ ===")
+        
+        # Отрисовка основных элементов
+        for element in self.elements:
+            element.render(self.renderer)
+            
+        self.renderer.refresh() # Не забываем refresh в конце конкретного render
+
+    def _handle_unregistered_key(self, key: int) -> None:
+        """Обработка незарегистрированных клавиш."""
+        pass
+
+
+================================================================================
+Файл: game/ui/__init__.py
+================================================================================
+
+# game/ui/__init__.py
+"""
+Пакет пользовательского интерфейса игры.
+
+Содержит все компоненты для отображения и взаимодействия с пользователем.
+"""
+
+# Импортируем основные компоненты для удобства
+from .screen_manager import ScreenManager
+from .base_screen import BaseScreen
+
+__all__ = [
+    'ScreenManager',
+    'BaseScreen'
+]
+
+================================================================================
+Файл: game/ui/battle_screen.py
+================================================================================
+
+# game/ui/battle_screen.py
+"""Экран боя.
+Отображает боевую сцену с возможностью взаимодействия."""
+
+import curses
+from typing import TYPE_CHECKING
+
+# - ДОБАВЛЯЕМ ИМПОРТ МИКСИНА -
+from game.ui.mixins import StandardLayoutMixin
+# -
+
+# - ИМПОРТИРУЕМ НОВЫЕ КОМПОНЕНТЫ -
+from game.ui.components.battle_components import (
+    PlayerUnitPanel,
+    EnemyUnitPanel,
+    GroupPanel,
+    BattleLog
+)
+# -
+from game.ui.base_screen import BaseScreen
+from game.ui.rendering.color_manager import Color
+
+# - ДОБАВЛЯЕМ ИМПОРТ ДЛЯ TYPE_CHECKING -
+if TYPE_CHECKING:
+    from game.ui.screen_manager import ScreenManager
+    from game.entities.player import Player # Для аннотаций
+# -
+
+
+# - НАСЛЕДУЕМСЯ ОТ StandardLayoutMixin -
+class BattleScreen(BaseScreen, StandardLayoutMixin):
+    """Экран боя."""
+
+    def __init__(self, manager: 'ScreenManager'):
+        # Инициализируем атрибуты для компонентов
+        self.player_group: GroupPanel = None # type: ignore # Будет инициализирован в _setup_elements
+        self.enemy_group: GroupPanel = None # type: ignore
+        self.battle_log: BattleLog = None # type: ignore
+        super().__init__(manager)
+
+    def _setup_elements(self) -> None:
+        """Настройка элементов экрана."""
+        # УБИРАЕМ старый заголовок и разделитель, так как они теперь в миксине
+        self.elements = [] # Очищаем список, так как компоненты будут отрисовываться напрямую
+
+        # - НАСТРОЙКА КОМПОНЕНТОВ -
+        # Инициализируем компоненты с начальными размерами
+        # Они будут обновлены в render/update_size
+        header_height = 2
+        initial_group_height = 6 # Примерная высота для группы (может быть динамической)
+        player_group_x = 1
+        player_group_y = header_height
+        enemy_group_x = 1
+        enemy_group_y = player_group_y + initial_group_height + 1 # +1 для разделителя
+
+        self.player_group = GroupPanel(player_group_x, player_group_y, 50, initial_group_height, "Герои")
+        self.enemy_group = GroupPanel(enemy_group_x, enemy_group_y, 50, initial_group_height, "Враги")
+
+        # --- СТАРОЕ: Создание тестовых панелей ---
+        # # Добавляем тестовые панели юнитов
+        # # В реальной игре это будет делаться на основе данных о бое
+        # player1 = PlayerUnitPanel(0, 0, 30, "Герой", 100, 100, 50, 50)
+        # player2 = PlayerUnitPanel(0, 0, 30, "Соратник", 80, 80, 30, 30)
+        # self.player_group.add_unit_panel(player1)
+        # self.player_group.add_unit_panel(player2)
+        # enemy1 = EnemyUnitPanel(0, 0, 30, "Дракон", 150, 150)
+        # enemy2 = EnemyUnitPanel(0, 0, 30, "Гоблин", 40, 40)
+        # self.enemy_group.add_unit_panel(enemy1)
+        # self.enemy_group.add_unit_panel(enemy2)
+        # --- КОНЕЦ СТАРОГО кода ---
+
+        # --- НОВОЕ: Создание панелей на основе данных из GameManager ---
+        # Получаем группу игроков из GameManager
+        if self.manager and hasattr(self.manager, 'game_manager'):
+            player_characters = self.manager.game_manager.get_player_group()
+
+            # Создаем панели для каждого игрока
+            for i, player_char in enumerate(player_characters):
+                # Создаем PlayerUnitPanel, используя данные реального персонажа
+                # Предполагаем, что player_char имеет атрибуты name, hp, energy, attributes
+                player_panel = PlayerUnitPanel(
+                    x=0,  # Координаты будут обновлены в _update_component_sizes
+                    y=0,  # Координаты будут обновлены в _update_component_sizes
+                    width=30, # Ширина может быть скорректирована позже
+                    name=player_char.name,
+                    hp=player_char.hp,
+                    max_hp=player_char.attributes.max_hp,
+                    mp=player_char.energy, # Предполагаем, что энергия отображается как MP
+                    max_mp=player_char.attributes.max_energy # Предполагаем, что макс. энергия отображается как макс. MP
+                )
+                # Добавляем панель в группу
+                self.player_group.add_unit_panel(player_panel)
+
+        # (Пока) оставляем создание врагов как в оригинале, или можно также обновить
+        # если будет фабрика монстров в GameManager
+        enemy1 = EnemyUnitPanel(0, 0, 30, "Дракон", 150, 150)
+        enemy2 = EnemyUnitPanel(0, 0, 30, "Гоблин", 40, 40)
+        self.enemy_group.add_unit_panel(enemy1)
+        self.enemy_group.add_unit_panel(enemy2)
+        # --- КОНЕЦ НОВОГО кода ---
+
+        # Временные координаты для battle_log, будут обновлены в update_size
+        log_x = 1
+        log_y = enemy_group_y + initial_group_height + 1
+        log_width = 60
+        log_height = 5
+        self.battle_log = BattleLog(log_x, log_y, log_width, log_height)
+
+        # Добавляем тестовые сообщения в лог
+        # TODO: Заменить на реальные сообщения из игровой логики
+        self.battle_log.add_message("Битва начинается!")
+        # self.battle_log.add_message("Герой вступает в бой с Драконом.")
+        # self.battle_log.add_message("Дракон издает грозный рык.")
+        # self.battle_log.add_message("Герой атакует Дракона!")
+        # self.battle_log.add_message("Дракон получает 25 урона.")
+        # self.battle_log.add_message("Дракон атакует Героя!")
+        # self.battle_log.add_message("Герой получает 15 урона.")
+        # self.battle_log.add_message("Герой использует зелье лечения.")
+        # self.battle_log.add_message("Герой восстанавливает 30 HP.")
+        # self.battle_log.add_message("Дракон готовится к мощной атаке!")
+        # self.battle_log.add_message("Герой защищается.")
+        # self.battle_log.add_message("Мощная атака Дракона отражена!")
+
+    def _update_component_sizes(self) -> None:
+        """Обновление размеров компонентов."""
+        if not self.renderer:
+            return
+
+        # Координаты и размеры
+        header_height = 2
+        group_width = max(10, self.renderer.width - 2)
+        group_height = 6 # Примерная высота, можно сделать динамической
+
+        # Группы игроков и врагов
+        self.player_group.x = 1
+        self.player_group.y = header_height
+        self.player_group.width = group_width
+        self.player_group.height = group_height
+
+        self.enemy_group.x = 1
+        self.enemy_group.y = header_height + group_height + 1
+        self.enemy_group.width = group_width
+        self.enemy_group.height = group_height
+
+        # Обновляем размеры дочерних компонентов
+        self.player_group.update_size(self.renderer.width, self.renderer.height)
+        self.enemy_group.update_size(self.renderer.width, self.renderer.height)
+
+        # Лог боя
+        log_x = 1
+        log_y = header_height + 2 * group_height + 2
+        log_width = max(10, self.renderer.width - 2)
+        # Высота лога - всё оставшееся пространство минус отступы
+        available_height = self.renderer.height - log_y - 2 # -2 для подвала
+        log_height = max(3, available_height) # Минимальная высота 3
+
+        self.battle_log.x = log_x
+        self.battle_log.y = log_y
+        self.battle_log.width = log_width
+        self.battle_log.height = log_height
+        self.battle_log.update_size(self.renderer.width, self.renderer.height)
+
+    def _setup_commands(self) -> None:
+        """Настройка дополнительных команд экрана."""
+        # Все команды добавятся автоматически из реестра!
+        pass
+
+    # - ОБНОВЛЯЕМ МЕТОД render -
+    def render(self, stdscr: curses.window) -> None:
+        """Отрисовка экрана."""
+        # Обновляем размеры компонентов перед отрисовкой
+        self._update_component_sizes()
+
+        self.renderer.clear()
+        # Отрисовка стандартного макета (шапка + подвал)
+        self.render_standard_layout("=== БОЙ ===")
+
+        # - ОТРИСОВКА НОВЫХ КОМПОНЕНТОВ -
+        # Отрисовываем компоненты напрямую
+        if self.player_group:
+            self.player_group.render(self.renderer)
+        if self.enemy_group:
+            self.enemy_group.render(self.renderer)
+        if self.battle_log:
+            self.battle_log.render(self.renderer)
+        # -
+
+        self.renderer.refresh() # Не забываем refresh
+
+    def _handle_unregistered_key(self, key: int) -> None:
+        """Обработка незарегистрированных клавиш."""
+        # Обработка прокрутки лога
+        if key == curses.KEY_UP:
+            if self.battle_log:
+                self.battle_log.scroll_up()
+        elif key == curses.KEY_DOWN:
+            if self.battle_log:
+                self.battle_log.scroll_down()
+        # Можно добавить отладочный вывод
+        # print(f"BattleScreen: Нажата незарегистрированная клавиша: {key}")
+
+
+================================================================================
+Файл: game/ui/inventory_screen.py
+================================================================================
+
+# game/ui/inventory_screen.py
+"""
+Экран инвентаря.
+Отображает содержимое инвентаря игрока.
+"""
+import curses
+# --- ДОБАВЛЯЕМ ИМПОРТ МИКСИНА ---
+from game.ui.mixins import StandardLayoutMixin
+# --------------------------------
+from game.ui.base_screen import BaseScreen
+from game.ui.rendering.renderable import Text, Separator
+from game.ui.rendering.color_manager import Color
+
+# --- НАСЛЕДУЕМСЯ ОТ StandardLayoutMixin ---
+class InventoryScreen(BaseScreen, StandardLayoutMixin):
+    """Экран инвентаря."""
+
+    def _setup_elements(self) -> None:
+        """Настройка элементов экрана."""
+        # УБИРАЕМ старый заголовок и разделитель
+        self.elements = [
+            # Предметы инвентаря (смещаем Y на +2)
+            Text("• Меч (+10 ATK)", 2, 2, color=Color.WHITE),           # Смещаем Y
+            Text("• Зелье лечения", 2, 3, color=Color.GREEN, dim=True), # Смещаем Y
+            Text("• Ключ от сундука", 2, 4, color=Color.CYAN, dim=True), # Смещаем Y
+            Text("• Свиток телепортации", 2, 5, color=Color.MAGENTA, dim=True), # Смещаем Y
+            # Separator(7, "-", 40, Color.WHITE, dim=True), # Убираем старый разделитель
+            # Статистика (смещаем Y)
+            Text("Всего предметов: 4", 2, 7, dim=True), # Смещаем Y
+            Text("Занято: 4/20", 2, 8, dim=True),       # Смещаем Y
+            # Separator(10, color=Color.YELLOW), # Убираем старый разделитель
+        ]
+
+    def _setup_commands(self) -> None:
+        """Настройка дополнительных команд экрана."""
+        # Команды из реестра добавятся автоматически!
+        # Здесь можно добавить специфичные для этого экрана команды
+        pass
+
+    # --- ОБНОВЛЯЕМ МЕТОД render ---
+    def render(self, stdscr: curses.window) -> None:
+        """Отрисовка экрана."""
+        self.renderer.clear()
+        
+        # Отрисовка стандартного макета
+        self.render_standard_layout("=== ИНВЕНТАРЬ ===")
+        
+        # Отрисовка основных элементов
+        for element in self.elements:
+            element.render(self.renderer)
+            
+        self.renderer.refresh() # Не забываем refresh
+
+    def _handle_unregistered_key(self, key: int) -> None:
+        """Обработка незарегистрированных клавиш."""
+        pass
+
+
+================================================================================
+Файл: game/ui/mixins.py
+================================================================================
+
+# game/ui/mixins.py
+"""Миксины для повторно используемой функциональности экранов."""
+
+from typing import TYPE_CHECKING, Protocol
+
+from game.ui.command_system import CommandRenderer
+from game.ui.rendering.color_manager import Color
+from game.ui.rendering.renderable import Separator, Text
+
+if TYPE_CHECKING:
+    from game.ui.base_screen import BaseScreen
+    from game.ui.command_system.command import CommandRegistry
+    from game.ui.rendering.renderer import Renderer
+
+
+# Протокол, описывающий интерфейс для классов, использующих миксины
+class LayoutProtocol(Protocol):
+    """Протокол для классов с методами отрисовки шапки и подвала."""
+
+    renderer: 'Renderer'  # type: ignore # Будет определен в BaseScreen
+    command_registry: 'CommandRegistry'  # type: ignore # Будет определен в BaseScreen
+
+    def render_header(self, title: str) -> None: ...
+    def render_footer(self) -> None: ...
+
+
+class HeaderMixin:
+    """Миксин для отрисовки стандартной шапки экрана."""
+
+    def render_header(self: LayoutProtocol, title: str) -> None:
+        """
+        Отрисовка стандартной шапки экрана.
+
+        Args:
+            title: Текст заголовка.
+        """
+        # Центрируем заголовок
+        # Используем getattr для доступа к атрибутам через протокол
+        renderer = getattr(self, 'renderer')
+        title_x = max(0, (renderer.width - len(title)) // 2)
+        header_text = Text(title, title_x, 0, bold=True, color=Color.CYAN)
+        header_text.render(renderer)
+
+        # Рисуем разделитель под заголовком
+        header_separator = Separator(1, color=Color.DEFAULT)
+        header_separator.render(renderer)
+
+
+class FooterMixin:
+    """Миксин для отрисовки стандартного подвала экрана."""
+
+    def render_footer(self: LayoutProtocol) -> None:
+        """
+        Отрисовка стандартного подвала экрана.
+        Получает команды из command_registry и отрисовывает их.
+        """
+        # Получаем команды для отрисовки
+        command_registry = getattr(self, 'command_registry')
+        renderer = getattr(self, 'renderer')
+        commands = command_registry.get_all_commands()
+
+        # Рассчитываем позиции подвала
+        footer_separator_y = max(0, renderer.height - 2)
+        commands_y = max(0, renderer.height - 1)
+
+        # Отрисовка разделителя подвала
+        footer_separator = Separator(footer_separator_y, color=Color.GRAY)
+        footer_separator.render(renderer)
+
+        # Отрисовка команд в последней строке
+        footer_command_renderer = CommandRenderer(y=commands_y)
+        command_elements = footer_command_renderer.render_commands(commands)
+        for element in command_elements:
+            element.render(renderer)
+
+
+# Можно также создать комбинированный миксин для удобства
+class StandardLayoutMixin(HeaderMixin, FooterMixin):
+    """Миксин, объединяющий стандартную шапку и подвал."""
+
+    def render_standard_layout(self: LayoutProtocol, title: str) -> None:
+        """
+        Отрисовка стандартного макета экрана (шапка + подвал).
+
+        Args:
+            title: Текст заголовка.
+        """
+        # Теперь mypy знает, что у self есть эти методы благодаря LayoutProtocol
+        self.render_header(title)
+        self.render_footer()
+
+
+================================================================================
+Файл: game/entities/player.py
+================================================================================
+
+# game/entities/player.py
+"""Класс игрока (персонажа, управляемого игроком)."""
+from typing import List, Dict, Any, Optional, Callable, TYPE_CHECKING
+from game.config import get_config
+from game.entities.character import Character
+from game.protocols import (
+    Stats,
+    Attributes,
+    AbilityManagerProtocol,
+    StatusEffectManagerProtocol,
+    ExperienceCalculatorProtocol,
+    LevelUpHandlerProtocol
+)
+
+if TYPE_CHECKING:
+    from game.entities.character import Character as CharacterType
+
+# - Фабричная функция для создания игрока из JSON -
+def create_player_from_data(
+    name: str,
+    role: str,
+    level: int = 1,
+    data_directory: str = "game/data/characters/player_classes"
+) -> Optional['Player']:
+    """
+    Создает объект Player на основе данных из JSON файла.
+
+    Args:
+        name: Имя персонажа.
+        role: Внутренний идентификатор класса (должен совпадать с именем .json файла).
+        level: Начальный уровень.
+        data_directory: Путь к директории с JSON файлами.
+
+    Returns:
+        Объект Player или None, если данные не могут быть загружены.
+    """
+    try:
+        from game.data.character_loader import load_player_class_data
+    except ImportError as e:
+        print(f"Ошибка импорта character_loader внутри create_player_from_data: {e}")
+        return None
+
+    data = load_player_class_data(role, data_directory)
+    if not data:
+        print(f"Не удалось загрузить данные для класса '{role}'")
+        return None
+
+    try:
+        player = Player(
+            name=name,
+            role=data['role'],
+            base_stats_dict=data['base_stats'],
+            growth_rates_dict=data['growth_rates'],
+            class_icon=data.get('class_icon', '?'),
+            class_icon_color=data.get('class_icon_color'),
+            level=level,
+        )
+        return player
+    except Exception as e:
+        print(f"Ошибка создания персонажа {name} класса {role}: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+# --- Основной класс игрока ---
+
+class Player(Character):
+    """Класс для всех игроков (персонажей, управляемых игроком)."""
+
+    def __init__(
+        self, 
+        name: str, 
+        role: str,
+        # Параметры для системы уровней/опыта
+        base_stats_dict: Dict[str, int],
+        growth_rates_dict: Dict[str, float],
+        class_icon: str = "?",
+        class_icon_color: Optional[int] = None,
+        level: int = 1,
+        # Внедрение зависимостей через конструктор
+        stats_factory: Optional[Callable[[], Stats]] = None, 
+        attributes_factory: Optional[Callable[['CharacterType'], Attributes]] = None,
+        ability_manager_factory: Optional[Callable[['CharacterType'], AbilityManagerProtocol]] = None,
+        status_effect_manager_factory: Optional[Callable[['CharacterType'], StatusEffectManagerProtocol]] = None,
+        exp_calculator: Optional[ExperienceCalculatorProtocol] = None,
+        level_up_handler: Optional[LevelUpHandlerProtocol] = None,
+        is_player: bool = True,
+    ):
+        # Сохраняем данные класса
+        self.base_stats_dict = base_stats_dict
+        self.growth_rates_dict = growth_rates_dict
+        self.class_icon = class_icon
+        self.class_icon_color = class_icon_color if class_icon_color is not None else 0
+
+        # Инициализируем систему опыта
+        self.exp_calculator = exp_calculator if exp_calculator else SimpleExperienceCalculator()
+        self.level_up_handler = level_up_handler if level_up_handler else SimpleLevelUpHandler()
+        self.exp = 0
+        self.exp_to_next_level = 0
+
+        # Создаем фабрики по умолчанию если не предоставлены
+        if stats_factory is None:
+            stats_factory = self.get_base_stats
+        if attributes_factory is None:
+            attributes_factory = self._attributes_factory
+
+        # Вызываем конструктор родительского класса
+        super().__init__(
+            name=name,
+            role=role,
+            level=level,
+            is_player=is_player,
+            stats_factory=stats_factory,
+            attributes_factory=attributes_factory,
+            ability_manager_factory=ability_manager_factory,
+            status_effect_manager_factory=status_effect_manager_factory,
+        )
+        
+        # Рассчитываем опыт для следующего уровня
+        self.calculate_exp_for_next_level()
+
+    # ==================== Вспомогательные методы для фабрик ====================
+    def _attributes_factory(self, character: 'CharacterType') -> Attributes:
+        """Фабрика для создания атрибутов."""
+        return self.calculate_attributes()
+
+    # ==================== Абстрактные методы ====================
+    def get_base_stats(self) -> Stats:
+        """Возвращает базовые характеристики персонажа."""
+        stats = SimpleStats()
+        # Масштабируем базовые характеристики в соответствии с уровнем
+        level_multiplier = self.level * 0.1
+        stats.strength = int(self.base_stats_dict.get('strength', 10) * 
+                           (1 + level_multiplier * self.growth_rates_dict.get('strength', 1.0)))
+        stats.agility = int(self.base_stats_dict.get('agility', 10) * 
+                          (1 + level_multiplier * self.growth_rates_dict.get('agility', 1.0)))
+        stats.intelligence = int(self.base_stats_dict.get('intelligence', 10) * 
+                               (1 + level_multiplier * self.growth_rates_dict.get('intelligence', 1.0)))
+        stats.vitality = int(self.base_stats_dict.get('vitality', 10) * 
+                           (1 + level_multiplier * self.growth_rates_dict.get('vitality', 1.0)))
+        return stats
+
+    def calculate_attributes(self) -> Attributes:
+        """Вычисляет атрибуты персонажа на основе его характеристик и уровня."""
+        return SimpleAttributes(self, self.stats)
+
+    # ==================== Уровень и характеристики ====================
+    def level_up(self) -> List[Dict[str, Any]]:
+        """
+        Повышает уровень персонажа.
+        Возвращает список сообщений/результатов.
+        """
+        # Вызываем родительский метод level_up
+        results = super().level_up()
+        
+        # Пересчитываем опыт для следующего уровня
+        self.calculate_exp_for_next_level()
+        
+        return results
+
+    # ==================== Свойства ====================
+    @property
+    def experience_to_next_level(self) -> int:
+        """Получение опыта, необходимого для следующего уровня."""
+        return self.exp_to_next_level
+
+    # ==================== Система опыта ====================
+    def calculate_exp_for_next_level(self) -> None:
+        """
+        Рассчитывает количество опыта, необходимого для следующего уровня.
+        """
+        self.exp_to_next_level = self.exp_calculator.calculate_exp_for_next_level(self.level)
+
+    def gain_experience(self, exp_amount: int) -> List[Dict[str, Any]]:
+        """
+        Добавляет опыт игроку и проверяет на повышение уровня.
+        Возвращает список сообщений/результатов.
+        """
+        results = []
+        self.exp += exp_amount
+        results.append({
+            "type": "exp_gained",
+            "character": self.name,
+            "exp_amount": exp_amount,
+            "total_exp": self.exp
+        })
+
+        # Проверяем, достаточно ли опыта для повышения уровня
+        while self.exp >= self.exp_to_next_level:
+            # Сбрасываем опыт, использованный для повышения уровня
+            self.exp -= self.exp_to_next_level
+            
+            # Повышаем уровень
+            level_up_results = self.level_up()
+            results.extend(level_up_results)
+            
+            # Дополнительная обработка повышения уровня
+            handler_results = self.level_up_handler.handle_level_up(self)
+            results.extend(handler_results)
+            
+            # Пересчитываем опыт для следующего уровня
+            self.calculate_exp_for_next_level()
+
+        return results
+
+# ==================== Вспомогательные классы ====================
+
+class SimpleStats:
+    """Простая реализация базовых характеристик."""
+    def __init__(self):
+        self.strength = 0
+        self.agility = 0
+        self.intelligence = 0
+        self.vitality = 0
+
+# game/entities/player.py (обновленный фрагмент)
+class SimpleAttributes:
+    """Простая реализация производных атрибутов."""
+    def __init__(self, character: 'Character', stats: Stats):
+        self.character = character
+        self.stats = stats
+        config = get_config()
+        
+        # Расчет производных атрибутов с использованием настроек
+        self.max_hp = config.character.base_max_hp + (stats.vitality * config.character.hp_per_vitality)
+        self.max_energy = config.character.base_max_energy + (stats.intelligence * config.character.energy_per_intelligence)
+        self.attack_power = stats.strength * config.character.attack_per_strength
+        self.defense = int(stats.agility * config.character.defense_per_agility)
+
+class SimpleExperienceCalculator:
+    """Простой калькулятор опыта для следующего уровня."""
+    def calculate_exp_for_next_level(self, current_level: int) -> int:
+        """Рассчитывает опыт, необходимый для достижения следующего уровня."""
+        config = get_config()
+        return int(config.experience.formula_base * (current_level ** config.experience.formula_multiplier))
+
+class SimpleLevelUpHandler:
+    """Простой обработчик повышения уровня."""
+    def handle_level_up(self, character: 'Character') -> List[Dict[str, Any]]:
+        """Обработать повышение уровня и вернуть список результатов."""
+        results = []
+        old_hp = character.hp
+        character.hp = character.attributes.max_hp
+        hp_restored = character.hp - old_hp
+        
+        old_energy = character.energy
+        character.energy = character.attributes.max_energy
+        energy_restored = character.energy - old_energy
+        
+        results.append({
+            "type": "level_up_heal",
+            "character": character.name,
+            "hp_restored": hp_restored,
+            "energy_restored": energy_restored
+        })
+        
+        return results
+
+================================================================================
+Файл: game/entities/character.py
+================================================================================
+
+# game/entities/character.py
+"""Базовый класс персонажа в игре."""
+
+from abc import ABC, abstractmethod
+from typing import List, Dict, Any, Optional, Callable, TYPE_CHECKING
+from game.protocols import (
+    Stats, 
+    Attributes,
+    AbilityManagerProtocol, 
+    StatusEffectManagerProtocol,
+    Ability,
+    StatusEffect
+)
+
+if TYPE_CHECKING:
+    from game.entities.character import Character as CharacterType
+
+
+# --- Основной класс персонажа ---
+class Character(ABC):
+    """Абстрактный базовый класс, представляющий персонажа в игре."""
+
+    def __init__(
+        self, 
+        name: str, 
+        role: str, 
+        level: int = 1,
+        is_player: bool = False,
+        # Внедрение зависимостей через конструктор
+        stats_factory: Optional[Callable[[], Stats]] = None, 
+        attributes_factory: Optional[Callable[['CharacterType'], Attributes]] = None,
+        ability_manager_factory: Optional[Callable[['CharacterType'], AbilityManagerProtocol]] = None,
+        status_effect_manager_factory: Optional[Callable[['CharacterType'], StatusEffectManagerProtocol]] = None,
+    ):
+        self.name = name
+        self.role = role
+        self.level = level
+        self.alive = True
+        self.is_player = is_player
+
+        # Безопасная инициализация характеристик
+        if stats_factory:
+            self.stats: Stats = stats_factory()
+
+        if attributes_factory:
+            self.attributes: Attributes = attributes_factory(self)
+
+        # Инициализируем hp и энергию
+        self.hp = self.attributes.max_hp
+        self.energy = self.attributes.max_energy
+
+        # Менеджеры (внедрение зависимостей)
+        self._ability_manager: Optional[AbilityManagerProtocol] = None
+        if ability_manager_factory:
+            self._ability_manager = ability_manager_factory(self)
+
+        self._status_manager: Optional[StatusEffectManagerProtocol] = None
+        if status_effect_manager_factory:
+            self._status_manager = status_effect_manager_factory(self)
+
+    # ==================== Абстрактные методы ====================
+    @abstractmethod
+    def get_base_stats(self) -> Stats:
+        """Возвращает базовые характеристики персонажа."""
+        pass
+
+    @abstractmethod
+    def calculate_attributes(self) -> Attributes:
+        """Вычисляет атрибуты персонажа на основе его характеристик и уровня."""
+        pass
+
+    # ==================== Уровень и характеристики ====================
+    def level_up(self) -> List[Dict[str, Any]]:
+        """
+        Повышает уровень персонажа.
+        Возвращает список сообщений/результатов.
+        """
+        self.level += 1
+
+        # Сохраняем текущие проценты HP и энергии
+        hp_ratio = self.hp / self.attributes.max_hp if self.attributes.max_hp > 0 else 1.0
+        energy_ratio = self.energy / self.attributes.max_energy if self.attributes.max_energy > 0 else 1.0
+
+        # Пересчитываем характеристики и атрибуты через абстрактные методы
+        try:
+            self.stats = self.get_base_stats()
+            self.attributes = self.calculate_attributes()
+        except NotImplementedError:
+            # fallback если абстрактные методы не реализованы корректно
+            pass
+
+        # Обновляем текущие значения с учетом новых максимумов
+        self.hp = max(1, int(self.attributes.max_hp * hp_ratio))
+        self.energy = int(self.attributes.max_energy * energy_ratio)
+
+        return [{"type": "level_up", "message": f"{self.name} достиг уровня {self.level}!"}]
+
+    # ==================== Свойства ====================
+    @property
+    def ability_manager(self) -> Optional[AbilityManagerProtocol]:
+        """Получение менеджера способностей."""
+        return self._ability_manager
+
+    @property
+    def status_manager(self) -> Optional[StatusEffectManagerProtocol]:
+        """Получение менеджера статус-эффектов."""
+        return self._status_manager
+
+    # ==================== Основные методы персонажа ====================
+    def is_alive(self) -> bool:
+        """Проверяет, жив ли персонаж."""
+        return self.alive
+
+    def get_level(self) -> int:
+        """Возвращает уровень персонажа."""
+        return self.level
+
+    def on_death(self) -> List[Dict[str, Any]]:
+        """
+        Вызывается при смерти персонажа. 
+        Возвращает список сообщений/результатов.
+        """
+        results = []
+
+        # Очищаем все активные статус-эффекты
+        if self._status_manager is not None:
+            clear_results = self._status_manager.clear_all_effects()
+            results.extend(clear_results)
+
+        # Добавляем сообщение о смерти
+        results.append({"type": "death", "message": f"{self.name} погибает!"})
+        return results
+
+    # ==================== Боевые методы ====================
+    def take_damage(self, damage: int) -> List[Dict[str, Any]]:
+        """
+        Наносит урон персонажу, учитывая защиту.
+        Возвращает список сообщений/результатов.
+        """
+        results = []
+        # Учитываем защиту из attributes.defense
+        actual_damage = max(0, damage - self.attributes.defense // 2)  # Может быть 0 урон
+        actual_damage = max(1, actual_damage) if damage > 0 else 0  # Минимум 1 урон если был урон
+
+        self.hp -= actual_damage
+        results.append({
+            "type": "damage_taken", 
+            "target": self.name, 
+            "damage": actual_damage,
+            "hp_left": self.hp
+        })
+
+        if self.hp <= 0:
+            self.hp = 0
+            if self.alive:  # Проверяем, чтобы не вызывать on_death дважды
+                self.alive = False
+                death_results = self.on_death()
+                results.extend(death_results)
+
+        return results
+
+    def take_heal(self, heal_amount: int) -> List[Dict[str, Any]]:
+        """
+        Исцеляет персонажа и возвращает список сообщений/результатов.
+        """
+        results = []
+        old_hp = self.hp
+        self.hp = min(self.attributes.max_hp, self.hp + heal_amount)
+        actual_heal = self.hp - old_hp
+        results.append({
+            "type": "healed", 
+            "target": self.name, 
+            "heal_amount": actual_heal,
+            "hp_now": self.hp
+        })
+        return results
+
+    # ==================== Энергия ====================
+    def restore_energy(self, amount: Optional[int] = None, percentage: Optional[float] = None) -> List[Dict[str, Any]]:
+        """
+        Восстанавливает энергию персонажа.
+        :param amount: конкретное количество энергии для восстановления
+        :param percentage: процент от максимальной энергии для восстановления
+        Возвращает список сообщений/результатов.
+        """
+        results = []
+        old_energy = self.energy
+
+        if percentage is not None:
+            restore_amount = int(self.attributes.max_energy * (percentage / 100.0))
+            self.energy = min(self.attributes.max_energy, self.energy + restore_amount)
+        elif amount is not None:
+            self.energy = min(self.attributes.max_energy, self.energy + amount)
+        else:
+            self.energy = self.attributes.max_energy  # Полное восстановление
+
+        actual_restore = self.energy - old_energy
+        if actual_restore > 0:
+            results.append({
+                "type": "energy_restored", 
+                "target": self.name, 
+                "amount": actual_restore,
+                "energy_now": self.energy
+            })
+
+        return results
+
+    def spend_energy(self, amount: int) -> bool:
+        """
+        Тратит энергию персонажа.
+        Возвращает True, если энергия была потрачена, иначе False.
+        """
+        if self.energy >= amount:
+            self.energy -= amount
+            return True
+        return False
+
+    # ==================== Способности ====================
+    def add_ability(self, name: str, ability: Ability) -> None:
+        """Добавляет способность персонажу."""
+        if self._ability_manager:
+            self._ability_manager.add_ability(name, ability)
+
+    def get_available_abilities(self) -> List[str]:
+        """Получает список доступных способностей."""
+        if self._ability_manager:
+            return self._ability_manager.get_available_abilities(self)
+        return []
+
+    def use_ability(self, name: str, targets: List['CharacterType'], **kwargs) -> List[Dict[str, Any]]:
+        """
+        Использует способность по имени.
+        Возвращает список сообщений/результатов от способности и менеджера.
+        """
+        results = []
+        if self._ability_manager:
+            ability_result = self._ability_manager.use_ability(name, self, targets, **kwargs)
+            if ability_result:
+                if isinstance(ability_result, list):
+                    results.extend(ability_result)
+                else:
+                    results.append(ability_result)
+        return results
+
+    def update_ability_cooldowns(self) -> None:
+        """Обновляет кулдауны способностей в конце раунда."""
+        if self._ability_manager:
+            self._ability_manager.update_cooldowns()
+
+    # ==================== Статус-эффекты ====================
+    def add_status_effect(self, effect: StatusEffect) -> List[Dict[str, Any]]:
+        """Добавляет статус-эффект персонажу. Возвращает результат от менеджера."""
+        if self._status_manager:
+            return [self._status_manager.add_effect(effect)]
+        return []
+
+    def remove_status_effect(self, effect_name: str) -> List[Dict[str, Any]]:
+        """Удаляет статус-эффект по имени. Возвращает результат."""
+        results = []
+        if self._status_manager:
+            success = self._status_manager.remove_effect(effect_name)
+            if success:
+                results.append({"type": "effect_removed", "effect": effect_name, "target": self.name})
+            else:
+                results.append({"type": "error", "message": f"Эффект {effect_name} не найден у {self.name}"})
+        return results
+
+    def update_status_effects(self) -> List[Dict[str, Any]]:
+        """Обновляет все активные статус-эффекты. Возвращает список результатов."""
+        if self._status_manager:
+            return self._status_manager.update_effects()
+        return []
+
+    def has_status_effect(self, effect_name: str) -> bool:
+        """Проверяет, есть ли у персонажа определенный статус-эффект."""
+        if self._status_manager:
+            return self._status_manager.has_effect(effect_name)
+        return False
+
+    def get_active_status_effects(self) -> List[StatusEffect]:
+        """Возвращает список всех активных статус-эффектов."""
+        if self._status_manager:
+            return self._status_manager.get_all_effects()
+        return []
+
+
+================================================================================
+Файл: game/data/character_loader.py
+================================================================================
+
+# game/data/character_loader.py
+"""Загрузчик данных персонажей из JSON файлов."""
+
+import json
+import os
+from typing import Dict, Any, Optional, TYPE_CHECKING
+
+# Используем TYPE_CHECKING для аннотаций без циклического импорта на уровне модуля
+if TYPE_CHECKING:
+    from game.config import GameConfig # Для аннотаций
+    from game.entities.player import Player # Для аннотаций
+    from game.entities.character import Character # Для аннотаций
+
+
+# --- Вспомогательные (приватные) функции ---
+def _get_default_data_directory(is_player: bool) -> str:
+    """
+    Получает путь к директории данных по умолчанию из конфигурации.
+
+    Args:
+        is_player: Если True, возвращает путь для игроков.
+                   Если False, возвращает путь для монстров.
+
+    Returns:
+        Путь к директории данных.
+    """
+    from game.config import get_config # Локальный импорт
+    config: 'GameConfig' = get_config()
+
+    if is_player:
+        return config.system.player_classes_directory
+    else:
+        # Используем путь из конфигурации для монстров
+        return config.system.monster_classes_directory
+        # Если по какой-то причине его нет, можно использовать запасной вариант:
+        # return getattr(config.system, 'monster_classes_directory',
+        #                os.path.join("game", "data", "characters", "monster_classes"))
+
+
+def _load_character_data_from_file(
+    role: str, 
+    data_directory: str
+) -> Optional[Dict[str, Any]]:
+    """
+    Загружает данные класса персонажа из JSON файла.
+
+    Args:
+        role: Внутренний идентификатор класса (например, "berserker", "goblin").
+        data_directory: Путь к директории с JSON файлами.
+
+    Returns:
+        Словарь с данными класса или None, если файл не найден или произошла ошибка.
+    """
+    filename = f"{role}.json"
+    filepath = os.path.join(data_directory, filename)
+
+    # Проверяем, существует ли файл
+    if not os.path.exists(filepath):
+        # Пробуем относительный путь от корня проекта, если предыдущий не сработал
+        # Это может помочь, если скрипт запускается не из корня проекта
+        try:
+            # Получаем путь к корню проекта (предполагаем, что loader.py находится в game/data/)
+            # os.path.abspath(__file__) дает полный путь к этому файлу
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+            filepath = os.path.join(project_root, data_directory, filename)
+            if not os.path.exists(filepath):
+                print(f"Файл данных для класса '{role}' не найден: {filepath}")
+                return None
+        except Exception as e:
+            print(f"Ошибка при определении пути к файлу {filename}: {e}")
+            return None
+
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return data
+    except json.JSONDecodeError as e:
+        print(f"Ошибка декодирования JSON в файле {filepath}: {e}")
+        return None
+    except Exception as e:
+        print(f"Неизвестная ошибка при загрузке {filepath}: {e}")
+        return None
+
+
+# --- Публичные функции для игроков ---
+def load_player_class_data(
+    role: str, 
+    data_directory: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
+    """
+    Загружает данные класса игрока из JSON файла.
+
+    Args:
+        role: Внутренний идентификатор класса (например, "berserker").
+        data_directory: Путь к директории с JSON файлами.
+                        Если None, используется путь из конфигурации.
+
+    Returns:
+        Словарь с данными класса или None, если файл не найден.
+    """
+    if data_directory is None:
+        data_directory = _get_default_data_directory(is_player=True)
+        
+    return _load_character_data_from_file(role, data_directory)
+
+
+def create_player(
+    name: str, 
+    role: str, 
+    level: int = 1,
+    data_directory: Optional[str] = None
+) -> Optional['Player']:
+    """
+    Создает объект Player на основе данных из JSON файла.
+    Упрощенный интерфейс для game.entities.player.create_player_from_data.
+
+    Args:
+        name: Имя персонажа.
+        role: Внутренний идентификатор класса.
+        level: Начальный уровень.
+        data_directory: Путь к директории с JSON файлами.
+                        Если None, используется путь из конфигурации.
+
+    Returns:
+        Объект Player или None, если данные не могут быть загружены.
+    """
+    if data_directory is None:
+        data_directory = _get_default_data_directory(is_player=True)
+
+    # Отложенная загрузка, чтобы избежать циклического импорта на уровне модуля
+    try:
+        # Импортируем внутри функции
+        from game.entities.player import create_player_from_data as _internal_create
+        return _internal_create(name, role, level, data_directory)
+    except ImportError as e:
+        print(f"Ошибка импорта при создании игрока: {e}")
+        return None
+    except Exception as e:
+        print(f"Неожиданная ошибка при создании игрока {name} класса {role}: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+# --- Публичные функции для монстров ---
+def load_monster_class_data(
+    role: str, 
+    data_directory: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
+    """
+    Загружает данные класса монстра из JSON файла.
+
+    Args:
+        role: Внутренний идентификатор класса монстра (например, "goblin").
+        data_directory: Путь к директории с JSON файлами.
+                        Если None, используется путь из конфигурации.
+
+    Returns:
+        Словарь с данными класса или None, если файл не найден.
+    """
+    if data_directory is None:
+        data_directory = _get_default_data_directory(is_player=False)
+        
+    return _load_character_data_from_file(role, data_directory)
+
+
+# --- Исправленная универсальная функция ---
+def create_character(
+    name: str,
+    role: str,
+    level: int = 1,
+    data_directory: Optional[str] = None,
+    is_player: bool = False
+) -> Optional['Character']:
+    """
+    Универсальная функция для создания объекта Character (игрока или монстра)
+    на основе данных из JSON файла.
+
+    Args:
+        name: Имя персонажа.
+        role: Внутренний идентификатор класса.
+        level: Начальный уровень.
+        data_directory: Путь к директории с JSON файлами.
+                        Если None, используется путь из конфигурации.
+        is_player: Флаг, указывающий, является ли персонаж игроком.
+
+    Returns:
+        Объект Character или None, если данные не могут быть загружены.
+    """
+    # Определяем директорию данных
+    if data_directory is None:
+        data_directory = _get_default_data_directory(is_player)
+
+    try:
+        if is_player:
+            # Импортируем фабрику игроков
+            from game.factories.player_factory import create_player
+            return create_player(name, role, level, data_directory)
+        else:
+            # Импортируем фабрику монстров (убедитесь, что monster_factory.py существует)
+            from game.factories.monster_factory import create_monster
+            return create_monster(name, role, level, data_directory)
+    except Exception as e:
+        print(f"Неожиданная ошибка при создании персонажа {name} класса {role}: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+================================================================================
+Файл: game/factories/__init__.py
+================================================================================
+
+
+
+================================================================================
+Файл: game/factories/player_factory.py
+================================================================================
+
+# game/factories/player_factory.py
+"""Фабрика для создания персонажей-игроков.
+
+Предоставляет функции для создания экземпляров класса Player
+на основе данных из JSON файлов.
+"""
+
+from typing import Optional, TYPE_CHECKING
+
+# Импортируем функцию создания игрока из загрузчика данных
+# Это предотвращает циклический импорт, так как сам Player импортирует из character_loader
+from game.data.character_loader import create_player as _internal_create_player
+
+# Импортируем Player только для аннотаций типов
+if TYPE_CHECKING:
+    from game.entities.player import Player
+
+
+def create_player(
+    name: str,
+    role: str,
+    level: int = 1,
+    data_directory: str = "game/data/characters/player_classes"
+) -> Optional['Player']:
+    """
+    Создает объект Player на основе данных из JSON файла.
+
+    Args:
+        name: Имя персонажа.
+        role: Внутренний идентификатор класса (должен совпадать с именем .json файла).
+        level: Начальный уровень.
+        data_directory: Путь к директории с JSON файлами.
+
+    Returns:
+        Объект Player или None, если данные не могут быть загружены.
+    """
+    # Просто переэкспортируем функцию из character_loader
+    # для соответствия структуре импортов (factories.player_factory)
+    return _internal_create_player(
+        name=name,
+        role=role,
+        level=level,
+        data_directory=data_directory
+    )
+
+
+================================================================================
+Файл: game/factories/monster_factory.py
+================================================================================
+
+# game/factories/monster_factory.py
+"""Фабрика для создания монстров.
+
+Предоставляет функции для создания экземпляров класса Character
+на основе данных из JSON файлов, помеченных как не-игроки.
+"""
+
+import os
+from typing import Optional, TYPE_CHECKING
+
+# Импортируем функцию создания персонажа из загрузчика данных
+from game.data.character_loader import create_character as _internal_create_character
+
+# Импортируем Character только для аннотаций типов
+if TYPE_CHECKING:
+    from game.entities.character import Character
+
+# Путь по умолчанию к данным монстров
+DEFAULT_MONSTER_DATA_DIR = os.path.join("game", "data", "characters", "monster_classes")
+
+def create_monster(
+    name: str,
+    role: str,
+    level: int = 1,
+    data_directory: str = DEFAULT_MONSTER_DATA_DIR
+) -> Optional['Character']:
+    """
+    Создает объект монстра (Character с is_player=False) на основе данных из JSON файла.
+
+    Args:
+        name: Имя монстра.
+        role: Внутренний идентификатор класса (должен совпадать с именем .json файла).
+        level: Начальный уровень.
+        data_directory: Путь к директории с JSON файлами.
+
+    Returns:
+        Объект Character (с is_player=False) или None, если данные не могут быть загружены.
+    """
+    return _internal_create_character(
+        name=name,
+        role=role,
+        level=level,
+        data_directory=data_directory,
+        is_player=False # Явно указываем, что это не игрок
+    )
+
+
+================================================================================
+Файл: game/data/characters/player_classes/archer.json
+================================================================================
+
+{
+    "name": "Лучник",
+    "role": "archer",
+    "class_icon": "A",
+    "class_icon_color": 6,
+    "base_stats": {
+        "strength": 8,
+        "agility": 14,
+        "intelligence": 10,
+        "vitality": 9
+    },
+    "growth_rates": {
+        "strength": 0.06,
+        "agility": 0.07,
+        "intelligence": 0.05,
+        "vitality": 0.08
+    },
+    "description": "Класс с высоким уроном, средней ловкостью и низкой защитой.",
+    "starting_abilities": [
+        "Volley"
+    ]
+}
+
+================================================================================
+Файл: game/data/characters/player_classes/berserker.json
+================================================================================
+
+{
+  "name": "Берсерк",
+  "role": "berserker",
+  "class_icon": "B",
+  "class_icon_color": 1,
+  "base_stats": {
+    "strength": 16,
+    "agility": 10,
+    "intelligence": 8,
+    "vitality": 12
+  },
+  "growth_rates": {
+    "strength": 0.10,
+    "agility": 0.05,
+    "intelligence": 0.03,
+    "vitality": 0.09
+  },
+  "description": "Сбалансированный класс с высокой силой и защитой.",
+  "starting_abilities": []
+}
+
+================================================================================
+Файл: game/data/characters/player_classes/healer.json
+================================================================================
+
+{
+    "name": "Лекарь",
+    "role": "healer",
+    "class_icon": "H",
+    "class_icon_color": 6,
+    "base_stats": {
+        "strength": 5,
+        "agility": 12,
+        "intelligence": 16,
+        "vitality": 10
+    },
+    "growth_rates": {
+        "strength": 0.04,
+        "agility": 0.08,
+        "intelligence": 0.09,
+        "vitality": 0.08
+    },
+    "description": "Класс с низким уроном, средними защитой и здоровьем, способностью лечить.",
+    "starting_abilities": [
+        "Heal",
+        "MassHeal"
+    ]
+}
+
+================================================================================
+Файл: game/data/characters/player_classes/mage.json
+================================================================================
+
+{
+  "name": "Маг",
+  "role": "mage",
+  "class_icon": "M",
+  "class_icon_color": 5,
+  "base_stats": {
+    "strength": 4,
+    "agility": 12,
+    "intelligence": 20,
+    "vitality": 6
+  },
+  "growth_rates": {
+    "strength": 0.03,
+    "agility": 0.06,
+    "intelligence": 0.12,
+    "vitality": 0.06
+  },
+  "description": "Мастер магии, наносящий огромный урон, но слабо защищенный.",
+  "starting_abilities": []
+}
+
+================================================================================
+Файл: game/data/characters/player_classes/rogue.json
+================================================================================
+
+{
+    "name": "Разбойник",
+    "role": "rogue",
+    "class_icon": "R",
+    "class_icon_color": 8,
+    "base_stats": {
+        "strength": 6,
+        "agility": 18,
+        "intelligence": 10,
+        "vitality": 7
+    },
+    "growth_rates": {
+        "strength": 0.05,
+        "agility": 0.08,
+        "intelligence": 0.06,
+        "vitality": 0.07
+    },
+    "description": "Класс с высокой ловкостью, умеренным уроном и низкой защитой.",
+    "starting_abilities": [
+        "Backstab",
+        "SlidingStrike",
+        "CriticalStrike",
+        "PoisonStrike"
+    ]
+}
+
+================================================================================
+Файл: game/data/characters/monster_classes/goblin.json
+================================================================================
+
+{
+    "name": "Гоблин",
+    "role": "goblin",
+    "class_icon": "G",
+    "class_icon_color": 2,
+    "base_stats": {
+        "strength": 6,
+        "agility": 8,
+        "intelligence": 4,
+        "vitality": 8
+    },
+    "growth_rates": {
+        "strength": 0.04,
+        "agility": 0.04,
+        "intelligence": 0.03,
+        "vitality": 0.05
+    },
+    "description": "Слабый враг, который почему-то считает себя опасным. Настолько маленький, что даже его собственная тень прячется от него. Удивительно, как он вообще держит оружие, не говоря уже о том, чтобы им попасть куда-то.",
+    "starting_abilities": []
+}
+
+================================================================================
+Файл: game/data/characters/monster_classes/orc.json
+================================================================================
+
+{
+    "name": "Орк",
+    "role": "orc",
+    "class_icon": "O",
+    "class_icon_color": 1,
+    "base_stats": {
+        "strength": 16,
+        "agility": 6,
+        "intelligence": 5,
+        "vitality": 14
+    },
+    "growth_rates": {
+        "strength": 0.10,
+        "agility": 0.03,
+        "intelligence": 0.02,
+        "vitality": 0.09
+    },
+    "description": "Сильный враг с высоким уроном и IQ размером с арахис. Мозг настолько маленький, что даже муха не может в него въехать. Зато бьет так, что даже стены начинают искать себе другую работу.",
+    "starting_abilities": []
+}
+
+================================================================================
+Файл: game/data/characters/monster_classes/skeleton.json
+================================================================================
+
+{
+    "name": "Скелет",
+    "role": "skeleton",
+    "class_icon": "S",
+    "class_icon_color": 7,
+    "base_stats": {
+        "strength": 12,
+        "agility": 10,
+        "intelligence": 6,
+        "vitality": 10
+    },
+    "growth_rates": {
+        "strength": 0.08,
+        "agility": 0.05,
+        "intelligence": 0.04,
+        "vitality": 0.07
+    },
+    "description": "Средний враг, который умудрился умереть даже будучи мертвым. Постоянно теряет части тела, но это его не останавливает - видимо, он и при жизни был рассеян. Хотя, кто знает, может это и к лучшему.",
+    "starting_abilities": []
+}
+
+================================================================================
+Файл: game/data/characters/monster_classes/troll.json
+================================================================================
+
+{
+    "name": "Тролль",
+    "role": "troll",
+    "class_icon": "T",
+    "class_icon_color": 3,
+    "base_stats": {
+        "strength": 17,
+        "agility": 4,
+        "intelligence": 3,
+        "vitality": 18
+    },
+    "growth_rates": {
+        "strength": 0.09,
+        "agility": 0.02,
+        "intelligence": 0.01,
+        "vitality": 0.11
+    },
+    "description": "Очень крепкий враг, который настолько туп, что даже эхо от его голоса возвращается с извинениями. Мозг размером с вишню, но зато может выдержать прямое попадание метеорита. Смертельно опасен для всего живого... и мертвого тоже.",
+    "starting_abilities": []
+}
+
+================================================================================
+Файл: game/data/characters/monster_classes/wizard.json
+================================================================================
+
+{
+    "name": "Волшебник",
+    "role": "wizard",
+    "class_icon": "W",
+    "class_icon_color": 5,
+    "base_stats": {
+        "strength": 8,
+        "agility": 12,
+        "intelligence": 18,
+        "vitality": 9
+    },
+    "growth_rates": {
+        "strength": 0.05,
+        "agility": 0.07,
+        "intelligence": 0.10,
+        "vitality": 0.06
+    },
+    "description": "Магический враг с высоким уроном, который считает себя гением, потому что может зажечь спичку. Проводит годы в изучении древних заклинаний, чтобы в итоге случайно поджечь сам себя. По крайней мере, он всегда в центре внимания.",
+    "starting_abilities": []
+}
+
+================================================================================
+Файл: game/ui/rendering/__init__.py
+================================================================================
+
+# Game/UI/Rendering/__init__.py
+"""
+Модуль рендеринга пользовательского интерфейса.
+
+Содержит компоненты для отрисовки текста, шаблонов, кнопок и других элементов
+интерфейса с поддержкой цветов, форматирования и шаблонов.
+"""
+
+from .renderer import Renderer
+from .renderable import Renderable, Text, TemplateText, Button, Separator
+from .color_manager import Color, ColorManager
+from .template_renderer import TemplatePart, TemplateRenderer
+
+__all__ = [
+    'Renderer',
+    'Renderable', 'Text', 'TemplateText', 'Button', 'Separator',
+    'Color', 'ColorManager',
+    'TemplatePart', 'TemplateRenderer'
+]
+
+================================================================================
+Файл: game/ui/rendering/renderer.py
+================================================================================
+
+# game/ui/rendering/renderer.py
+"""Рендерер для отрисовки элементов пользовательского интерфейса.
+
+Предоставляет абстракцию над библиотекой curses для упрощения отрисовки
+текста, шаблонов и других элементов интерфейса.
+"""
+
+import curses
+from typing import Dict, Tuple, Any
+
+from game.ui.rendering.color_manager import Color, ColorManager
+from game.ui.rendering.template_renderer import TemplateRenderer
+
+
+class Renderer:
+    """Рендерер для отрисовки элементов на экране."""
+
+    def __init__(self, stdscr: curses.window, color_manager: ColorManager) -> None:
+        """
+        Инициализация рендерера.
+
+        Args:
+            stdscr: Окно curses для отрисовки.
+            color_manager: Менеджер цветов.
+        """
+        self.stdscr = stdscr
+        self.color_manager = color_manager
+        self.template_renderer = TemplateRenderer(color_manager)
+        self.height, self.width = stdscr.getmaxyx()
+
+    def clear(self) -> None:
+        """Очистка экрана."""
+        self.stdscr.clear()
+
+    def draw_text(self, text: str, x: int, y: int,
+                  bold: bool = False, dim: bool = False, color: Color = Color.DEFAULT) -> None:
+        """
+        Отрисовка текста на экране.
+
+        Args:
+            text: Текст для отрисовки.
+            x: Координата X.
+            y: Координата Y.
+            bold: Жирный шрифт.
+            dim: Тусклый шрифт.
+            color: Цвет текста.
+        """
+        try:
+            # Проверяем границы экрана
+            if y >= self.height or x >= self.width or y < 0 or x < 0:
+                return
+
+            # Получаем атрибуты
+            attr = self.color_manager.get_color_pair(color)
+            if bold:
+                attr |= curses.A_BOLD
+            if dim:
+                attr |= curses.A_DIM
+
+            self.stdscr.addstr(y, x, text, attr)
+        except curses.error:
+            # Игнорируем ошибки выхода за границы экрана
+            pass
+
+    def draw_template(self, template: str, replacements: Dict[str, Tuple[str, Color, bool, bool]],
+                      x: int, y: int) -> None:
+        """
+        Отрисовка шаблонного текста.
+
+        Args:
+            template: Шаблон текста с плейсхолдерами %1, %2 и т.д.
+            replacements: Словарь замен {номер: (текст, цвет, жирный, тусклый)}.
+            x: Координата X.
+            y: Координата Y.
+        """
+        try:
+            # Проверяем границы экрана
+            if y < 0 or x < 0 or y >= self.height:
+                return
+
+            self.template_renderer.draw_template(self.stdscr, template, replacements, x, y)
+        except curses.error:
+            pass
+
+    def draw_box(self, x: int, y: int, width: int, height: int) -> None:
+        """
+        Отрисовка прямоугольника.
+
+        Args:
+            x: Координата X левого верхнего угла.
+            y: Координата Y левого верхнего угла.
+            width: Ширина прямоугольника.
+            height: Высота прямоугольника.
+        """
+        try:
+            # Верхняя и нижняя границы
+            if y < self.height and y + height - 1 < self.height:
+                self.stdscr.addstr(y, x, "+" + "-" * (width - 2) + "+")
+                self.stdscr.addstr(y + height - 1, x, "+" + "-" * (width - 2) + "+")
+
+            # Боковые границы
+            for i in range(1, min(height - 1, self.height - y)):
+                if y + i < self.height:
+                    self.stdscr.addstr(y + i, x, "|")
+                    if x + width - 1 < self.width:
+                        self.stdscr.addstr(y + i, x + width - 1, "|")
+        except curses.error:
+            pass
+
+    def refresh(self) -> None:
+        """Обновление экрана."""
+        self.stdscr.refresh()
+
+
+================================================================================
+Файл: game/ui/rendering/renderable.py
+================================================================================
+
+# game/ui/rendering/renderable.py
+"""Базовые элементы пользовательского интерфейса.
+
+Содержит абстрактные и конкретные классы для отображаемых элементов
+интерфейса: текст, кнопки, разделители и т.д.
+"""
+
+from abc import ABC, abstractmethod
+from typing import Dict, Tuple, Optional, TYPE_CHECKING
+
+from game.ui.rendering.color_manager import Color
+
+if TYPE_CHECKING:
+    from game.ui.rendering.renderer import Renderer
+
+
+class Renderable(ABC):
+    """Абстрактный базовый класс для всех отображаемых элементов."""
+
+    def __init__(self, x: int = 0, y: int = 0):
+        """
+        Инициализация отображаемого элемента.
+
+        Args:
+            x: Координата X.
+            y: Координата Y.
+        """
+        self.x = x
+        self.y = y
+
+    @abstractmethod
+    def render(self, renderer: 'Renderer') -> None:
+        """
+        Отрисовка элемента.
+
+        Args:
+            renderer: Рендерер для отрисовки.
+        """
+        pass
+
+
+class Text(Renderable):
+    """Текстовый элемент."""
+
+    def __init__(self, text: str, x: int = 0, y: int = 0,
+                 bold: bool = False, dim: bool = False, color: Color = Color.DEFAULT):
+        """
+        Инициализация текстового элемента.
+
+        Args:
+            text: Отображаемый текст.
+            x: Координата X.
+            y: Координата Y.
+            bold: Жирный шрифт.
+            dim: Тусклый шрифт.
+            color: Цвет текста.
+        """
+        super().__init__(x, y)
+        self.text = text
+        self.bold = bold
+        self.dim = dim
+        self.color = color
+
+    def render(self, renderer: 'Renderer') -> None:
+        """Отрисовка текста."""
+        renderer.draw_text(self.text, self.x, self.y, self.bold, self.dim, self.color)
+
+
+class TemplateText(Renderable):
+    """Текст с шаблонами и цветами."""
+
+    def __init__(self, template: str, replacements: Dict[str, Tuple[str, Color, bool, bool]],
+                 x: int = 0, y: int = 0):
+        """
+        Инициализация шаблонного текста.
+
+        Args:
+            template: Шаблон текста с плейсхолдерами %1, %2 и т.д.
+            replacements: Словарь замен {номер: (текст, цвет, жирный, тусклый)}.
+            x: Координата X.
+            y: Координата Y.
+        """
+        super().__init__(x, y)
+        self.template = template
+        self.replacements = replacements
+
+    def render(self, renderer: 'Renderer') -> None:
+        """Отрисовка шаблонного текста."""
+        renderer.draw_template(self.template, self.replacements, self.x, self.y)
+
+
+class Button(Renderable):
+    """Кнопка."""
+
+    def __init__(self, text: str, x: int = 0, y: int = 0,
+                 key: str = "", color: Color = Color.DEFAULT, bold: bool = False, dim: bool = False):
+        """
+        Инициализация кнопки.
+
+        Args:
+            text: Текст кнопки.
+            x: Координата X.
+            y: Координата Y.
+            key: Клавиша для активации.
+            color: Цвет текста.
+            bold: Жирный шрифт.
+            dim: Тусклый шрифт.
+        """
+        super().__init__(x, y)
+        self.text = text
+        self.key = key
+        self.color = color
+        self.bold = bold
+        self.dim = dim
+
+    def render(self, renderer: 'Renderer') -> None:
+        """Отрисовка кнопки."""
+        display_text = f"[{self.key}] {self.text}" if self.key else self.text
+        renderer.draw_text(display_text, self.x, self.y, self.bold, self.dim, self.color)
+
+
+class Separator(Renderable):
+    """Разделительная линия."""
+
+    def __init__(self, y: int, char: str = "─", length: Optional[int] = None,
+                 color: Color = Color.RED, bold: bool = False, dim: bool = True):
+        """
+        Инициализация разделителя.
+
+        Args:
+            y: Координата Y.
+            char: Символ для линии.
+            length: Длина линии (None для автоматической).
+            color: Цвет линии.
+            bold: Жирный шрифт.
+            dim: Тусклый шрифт.
+        """
+        super().__init__(0, y)
+        self.char = char
+        self.length = length
+        self.color = color
+        self.bold = bold
+        self.dim = dim
+
+    def render(self, renderer: 'Renderer') -> None:
+        """Отрисовка разделителя."""
+        line_length = self.length or renderer.width
+        line = self.char * (line_length - 1)
+        renderer.draw_text(line, self.x, self.y, self.bold, self.dim, self.color)
+
+
+================================================================================
+Файл: game/ui/rendering/color_manager.py
+================================================================================
+
+# game/ui/rendering/color_manager.py
+"""Управление цветами для пользовательского интерфейса.
+
+Предоставляет систему цветов и управление цветовыми парами для curses.
+"""
+
+import curses
+from enum import Enum
+from typing import Any  # Для аннотации stdscr
+
+
+class Color(Enum):
+    """Перечисление доступных цветов."""
+    DEFAULT = 0
+    RED = 1
+    GREEN = 2
+    YELLOW = 3
+    BLUE = 4
+    MAGENTA = 5
+    CYAN = 6
+    WHITE = 7
+    # Примечание: GRAY (8) может не поддерживаться всеми терминалами
+    GRAY = 8
+
+
+class ColorManager:
+    """Управление цветами для curses."""
+
+    def __init__(self) -> None:
+        """Инициализация менеджера цветов."""
+        self.color_pairs: dict = {}
+        self._initialized = False
+
+    def initialize(self, stdscr: Any) -> None:
+        """
+        Инициализация цветов.
+
+        Args:
+            stdscr: Окно curses для инициализации цветов.
+        """
+        if not self._initialized and curses.has_colors():
+            curses.start_color()
+            curses.use_default_colors()
+
+            # Определяем цветовые пары
+            curses.init_pair(Color.RED.value, curses.COLOR_RED, -1)
+            curses.init_pair(Color.GREEN.value, curses.COLOR_GREEN, -1)
+            curses.init_pair(Color.YELLOW.value, curses.COLOR_YELLOW, -1)
+            curses.init_pair(Color.BLUE.value, curses.COLOR_BLUE, -1)
+            curses.init_pair(Color.MAGENTA.value, curses.COLOR_MAGENTA, -1)
+            curses.init_pair(Color.CYAN.value, curses.COLOR_CYAN, -1)
+            curses.init_pair(Color.WHITE.value, curses.COLOR_WHITE, -1)
+            # TODO: Проверить поддержку цвета 8 (GRAY) в различных терминалах
+            curses.init_pair(Color.GRAY.value, 8, -1)
+
+            self._initialized = True
+
+    def get_color_pair(self, color: Color) -> int:
+        """
+        Получение цветовой пары.
+
+        Args:
+            color: Цвет из перечисления Color.
+
+        Returns:
+            Цветовая пара для curses.
+        """
+        if not self._initialized:
+            return curses.A_NORMAL
+        return curses.color_pair(color.value)
+
+
+================================================================================
+Файл: game/ui/rendering/template_renderer.py
+================================================================================
+
+# game/ui/rendering/template_renderer.py
+"""Рендерер для работы с шаблонами текста.
+
+Позволяет создавать форматированный текст с плейсхолдерами и различными
+стилями для каждой части текста.
+"""
+
+import re
+from typing import Dict, List, Tuple, Any
+
+import curses
+
+from game.ui.rendering.color_manager import Color, ColorManager
+
+
+class TemplatePart:
+    """Часть шаблона с форматированием."""
+
+    def __init__(self, text: str, color: Color = Color.DEFAULT, bold: bool = False, dim: bool = False):
+        """
+        Инициализация части шаблона.
+
+        Args:
+            text: Текст части.
+            color: Цвет текста.
+            bold: Жирный шрифт.
+            dim: Тусклый шрифт.
+        """
+        self.text = text
+        self.color = color
+        self.bold = bold
+        self.dim = dim
+
+
+class TemplateRenderer:
+    """Рендерер для работы с шаблонами текста."""
+
+    def __init__(self, color_manager: ColorManager) -> None:
+        """
+        Инициализация рендерера шаблонов.
+
+        Args:
+            color_manager: Менеджер цветов для применения стилей.
+        """
+        self.color_manager = color_manager
+        # Регулярное выражение для поиска плейсхолдеров типа %1, %2 и т.д.
+        self.placeholder_pattern = re.compile(r'%(\d+)')
+
+    def render_template(self, template: str,
+                       replacements: Dict[str, Tuple[str, Color, bool, bool]]) -> List[TemplatePart]:
+        """
+        Рендер шаблона с заменами.
+
+        Args:
+            template: Шаблон текста, например "%1 ударяет %2".
+            replacements: Словарь {номер: (текст, цвет, жирный, тусклый)}, например {"1": ("Игрок", Color.GREEN, True, False)}.
+
+        Returns:
+            Список частей текста с форматированием.
+        """
+        parts: List[TemplatePart] = []
+        last_end = 0
+
+        # Находим все плейсхолдеры
+        for match in self.placeholder_pattern.finditer(template):
+            start, end = match.span()
+            placeholder_num = match.group(1)
+
+            # Добавляем текст до плейсхолдера
+            if start > last_end:
+                parts.append(TemplatePart(template[last_end:start]))
+
+            # Добавляем замену для плейсхолдера
+            if placeholder_num in replacements:
+                text, color, bold, dim = replacements[placeholder_num]
+                parts.append(TemplatePart(text, color, bold, dim))
+            else:
+                # Если нет замены, оставляем плейсхолдер как есть
+                parts.append(TemplatePart(match.group(0)))
+
+            last_end = end
+
+        # Добавляем оставшийся текст
+        if last_end < len(template):
+            parts.append(TemplatePart(template[last_end:]))
+
+        return parts
+
+    def draw_template(self, stdscr: curses.window, template: str, replacements: Dict[str, Tuple[str, Color, bool, bool]],
+                     x: int, y: int) -> None:
+        """
+        Отрисовка шаблона на экране.
+
+        Args:
+            stdscr: Окно curses для отрисовки.
+            template: Шаблон текста.
+            replacements: Словарь замен.
+            x: Координата X.
+            y: Координата Y.
+        """
+        try:
+            parts = self.render_template(template, replacements)
+            current_x = x
+
+            for part in parts:
+                if y >= 0 and current_x >= 0:
+                    attr = self.color_manager.get_color_pair(part.color)
+                    if part.bold:
+                        attr |= curses.A_BOLD
+                    if part.dim:
+                        attr |= curses.A_DIM
+
+                    stdscr.addstr(y, current_x, part.text, attr)
+                    current_x += len(part.text)
+        except curses.error:
+            # Игнорируем ошибки выхода за границы экрана
+            pass
+
+
+================================================================================
+Файл: game/ui/command_system/screen_command_registry.py
+================================================================================
+
+# game/ui/command_system/screen_command_registry.py
+"""Реестр команд для экранов.
+
+Реализует паттерн Registry для хранения связей между классами экранов и их командами.
+"""
+
+from typing import Dict, List, Type, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from game.ui.base_screen import BaseScreen
+    from game.ui.command_system.command import Command
+
+# Глобальный реестр: КлассЭкрана -> СписокКоманд
+SCREEN_COMMANDS: Dict[Type['BaseScreen'], List['Command']] = {}
+
+
+def register_screen_commands(screen_class: Type['BaseScreen'], commands: List['Command']) -> None:
+    """
+    Регистрация команд для конкретного экрана.
+
+    Args:
+        screen_class: Класс экрана.
+        commands: Список команд для этого экрана.
+    """
+    SCREEN_COMMANDS[screen_class] = commands
+
+
+def get_screen_commands(screen_class: Type['BaseScreen']) -> List['Command']:
+    """
+    Получение команд для конкретного экрана.
+
+    Args:
+        screen_class: Класс экрана.
+
+    Returns:
+        Список команд для экрана (пустой список если нет команд).
+    """
+    return SCREEN_COMMANDS.get(screen_class, [])
+
+
+def get_all_registered_screens() -> List[Type['BaseScreen']]:
+    """
+    Получение всех экранов с зарегистрированными командами.
+
+    Returns:
+        Список классов экранов.
+    """
+    return list(SCREEN_COMMANDS.keys())
+
+
+def clear_registry() -> None:
+    """Очистка реестра (для тестирования)."""
+    SCREEN_COMMANDS.clear()
+
+
+================================================================================
+Файл: game/ui/command_system/command.py
+================================================================================
+
+# game/ui/command_system/command.py
+"""Базовые классы для системы команд.
+
+Реализует паттерн Команда для обработки пользовательского ввода.
+"""
+
+from abc import ABC, abstractmethod
+import curses
+from typing import List, Set, Optional, Any, Union
+
+# Отложенная аннотация для избежения циклического импорта
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from game.ui.base_screen import BaseScreen
+
+
+class Command(ABC):
+    """Абстрактная команда."""
+
+    def __init__(self, name: str, description: str, keys: List[Union[str, int]], display_key: str = ""):
+        """
+        Инициализация команды.
+
+        Args:
+            name: Название команды.
+            description: Описание команды.
+            keys: Список клавиш, на которые назначена команда (например, ['q', 'ESC']).
+            display_key: Клавиша для отображения в интерфейсе (если отличается от первой в keys).
+        """
+        self.name = name
+        self.description = description
+        self.keys = keys  # Список символов, например ['q', 'ESC']
+        self.display_key = display_key if display_key else (str(keys[0]) if keys else "")
+
+    def get_key_codes(self) -> Set[int]:
+        """
+        Получение кодов клавиш для регистрации.
+
+        Returns:
+            Множество кодов клавиш.
+        """
+        key_codes = set()
+        for key in self.keys:
+            if isinstance(key, int):
+                key_codes.add(key)
+            else:
+                key_codes.add(ord(str(key)))
+            # TODO: Можно добавить обработку других специальных клавиш curses, если потребуется
+        return key_codes
+
+    @abstractmethod
+    def execute(self, context: Optional[Any] = None) -> None:
+        """
+        Выполнение команды.
+
+        Args:
+            context: Контекст выполнения (обычно экран).
+        """
+        pass
+
+
+class CommandRegistry:
+    """Реестр команд для экрана."""
+
+    def __init__(self) -> None:
+        self._commands: List[Command] = []
+        self._key_to_command: dict[int, Command] = {}  # key_code -> command
+
+    def register_command(self, command: Command) -> None:
+        """
+        Регистрация команды.
+
+        Args:
+            command: Команда для регистрации.
+        """
+        self._commands.append(command)
+        # Регистрируем все клавиши команды
+        for key_code in command.get_key_codes():
+            self._key_to_command[key_code] = command
+
+    def execute_command(self, key_code: int, context: Optional[Any] = None) -> bool:
+        """
+        Выполнение команды по коду клавиши.
+
+        Args:
+            key_code: Код нажатой клавиши.
+            context: Контекст выполнения.
+
+        Returns:
+            True если команда найдена и выполнена, False если нет.
+        """
+        command = self._key_to_command.get(key_code)
+        if command:
+            command.execute(context)
+            return True
+        return False
+
+    def get_all_commands(self) -> List[Command]:
+        """Получение всех зарегистрированных команд."""
+        return self._commands.copy()
+
+    def get_command_by_key(self, key_code: int) -> Optional[Command]:
+        """Получение команды по коду клавиши."""
+        return self._key_to_command.get(key_code)
+
+
+================================================================================
+Файл: game/ui/command_system/__init__.py
+================================================================================
+
+# game/ui/command_system/__init__.py
+"""
+Система команд пользовательского интерфейса.
+
+Содержит самодостаточные команды и систему их регистрации.
+"""
+
+from .command import Command, CommandRegistry
+from .screen_command_registry import (
+    register_screen_commands,
+    get_screen_commands,
+    get_all_registered_screens,
+    clear_registry
+)
+from .command_renderer import CommandRenderer  # ДОБАВИЛИ!
+
+__all__ = [
+    'Command',
+    'CommandRegistry',
+    'CommandRenderer',  # ДОБАВИЛИ!
+    'register_screen_commands',
+    'get_screen_commands',
+    'get_all_registered_screens',
+    'clear_registry'
+]
+
+================================================================================
+Файл: game/ui/command_system/command_renderer.py
+================================================================================
+
+# game/ui/command_system/command_renderer.py
+"""Отрисовка команд пользовательского интерфейса.
+
+Отдельный класс для отображения информации о доступных командах.
+"""
+
+from typing import List, TYPE_CHECKING
+
+from game.ui.rendering.color_manager import Color
+from game.ui.rendering.renderable import Text
+
+if TYPE_CHECKING:
+    from game.ui.command_system.command import Command
+
+
+class CommandRenderer:
+    """Обработчик отображения списка доступных команд."""
+
+    def __init__(self, x: int = 0, y: int = 15, max_width: int = 70):
+        """
+        Инициализация отрисовщика команд.
+
+        Args:
+            x: Начальная координата X.
+            y: Начальная координата Y.
+            max_width: Максимальная ширина строки команд.
+        """
+        self.x = x
+        self.y = y
+        self.max_width = max_width
+
+    def render_commands(self, commands: List['Command']) -> List[Text]:
+        """
+        Создание элементов отрисовки для команд в одной строке.
+        Команды отображаются в формате "key : описание", разделенные " | ".
+        Все элементы - тускло серые.
+
+        Args:
+            commands: Список команд для отрисовки.
+
+        Returns:
+            Список текстовых элементов для отрисовки.
+        """
+        if not commands:
+            return []
+
+        # Создаем список строк для каждой команды и объединяем их
+        command_strings = [f"{command.display_key} : {command.name}" for command in commands]
+        full_line = " | ".join(command_strings)
+
+        # Возвращаем один текстовый элемент, весь текст будет тускло серым
+        return [Text(full_line, self.x, self.y, dim=True, color=Color.GRAY)]
+
+
+================================================================================
+Файл: game/ui/commands/__init__.py
+================================================================================
+
+# game/ui/commands/__init__.py
+"""Пакет конкретных команд для разных экранов.
+
+Содержит реализации команд для конкретных экранов игры.
+"""
+
+# ВАЖНО: Импортируем все команды, чтобы они зарегистрировались
+import game.ui.commands.common_commands
+import game.ui.commands.inventory_commands
+import game.ui.commands.battle_commands
+import game.ui.commands.main_screen_commands
+
+# Экспортируем основные классы команд для удобства использования
+# Общие команды
+from .common_commands import (
+    GoBackCommand,
+    OpenInventoryCommand,
+    HelpCommand,
+    ExitCommand
+)
+
+# Специфические команды инвентаря
+from .inventory_commands import (
+    UseItemCommand,
+    DropItemCommand
+)
+
+# Специфические команды боя
+from .battle_commands import (
+    AttackCommand,
+    DefendCommand,
+    MagicCommand as BattleMagicCommand
+)
+
+# Специфические команды главного экрана
+from .main_screen_commands import (
+    StartBattleCommand,
+    OpenSettingsCommand
+)
+
+__all__ = [
+    # Общие команды
+    'GoBackCommand',
+    'OpenInventoryCommand',
+    'HelpCommand',
+    'ExitCommand',
+
+    # Команды инвентаря
+    'UseItemCommand',
+    'DropItemCommand',
+
+    # Команды боя
+    'AttackCommand',
+    'DefendCommand',
+    'BattleMagicCommand',
+
+    # Команды главного экрана
+    'StartBattleCommand',
+    'OpenSettingsCommand'
+]
+
+
+================================================================================
+Файл: game/ui/commands/inventory_commands.py
+================================================================================
+
+# game/ui/commands/inventory_commands.py
+"""
+Специфические команды для экрана инвентаря.
+"""
+
+from curses import KEY_ENTER
+from game.ui.command_system.command import Command
+from game.ui.inventory_screen import InventoryScreen
+from game.ui.command_system.screen_command_registry import register_screen_commands
+from typing import Optional, Any
+
+
+class UseItemCommand(Command):
+    """Команда использования предмета."""
+
+    def __init__(self):
+        super().__init__(
+            name="Использовать",
+            description="Использовать выбранный предмет",
+            keys=['u', KEY_ENTER],
+            display_key="u/Enter"
+        )
+
+    def execute(self, context: Optional[Any] = None) -> None:
+        """Выполнение команды использования предмета."""
+        if context:
+            print("Предмет использован")
+
+
+class DropItemCommand(Command):
+    """Команда выбрасывания предмета."""
+
+    def __init__(self):
+        super().__init__(
+            name="Выбросить",
+            description="Выбросить выбранный предмет",
+            keys=['d'],
+            display_key="d"
+        )
+
+    def execute(self, context: Optional[Any] = None) -> None:
+        """Выполнение команды выбрасывания предмета."""
+        if context:
+            print("Предмет выброшен")
+
+
+# Импортируем общие команды
+from game.ui.commands.common_commands import GoBackCommand
+
+# Регистрируем команды для экрана инвентаря
+register_screen_commands(InventoryScreen, [
+    UseItemCommand(),
+    DropItemCommand(),
+    GoBackCommand()  # Переиспользуем общую команду
+])
+
+================================================================================
+Файл: game/ui/commands/battle_commands.py
+================================================================================
+
+# game/ui/commands/battle_commands.py
+"""
+Специфические команды для экрана боя.
+"""
+
+from game.ui.command_system.command import Command
+from game.ui.battle_screen import BattleScreen
+from game.ui.command_system.screen_command_registry import register_screen_commands
+from typing import Optional, Any
+
+
+class AttackCommand(Command):
+    """Команда атаки."""
+
+    def __init__(self):
+        super().__init__(
+            name="Атака",
+            description="Атаковать противника",
+            keys=['a', 'A'],
+            display_key="A/a"
+        )
+
+    def execute(self, context: Optional[Any] = None) -> None:
+        """Выполнение команды атаки."""
+        if context:
+            print("Атака!")
+
+
+class DefendCommand(Command):
+    """Команда защиты."""
+
+    def __init__(self):
+        super().__init__(
+            name="Защита",
+            description="Защититься от атаки",
+            keys=['d'],
+            display_key="d"
+        )
+
+    def execute(self, context: Optional[Any] = None) -> None:
+        """Выполнение команды защиты."""
+        if context:
+            print("Защита!")
+
+
+class MagicCommand(Command):
+    """Команда использования магии."""
+
+    def __init__(self):
+        super().__init__(
+            name="Магия",
+            description="Использовать магическое заклинание",
+            keys=['m'],
+            display_key="m"
+        )
+
+    def execute(self, context: Optional[Any] = None) -> None:
+        """Выполнение команды магии."""
+        if context:
+            print("Магия!")
+
+
+# Импортируем общие команды
+from game.ui.commands.common_commands import GoBackCommand, OpenInventoryCommand
+
+# Регистрируем команды для экрана боя
+register_screen_commands(BattleScreen, [
+    AttackCommand(),
+    DefendCommand(),
+    MagicCommand(),
+    OpenInventoryCommand(),  # Переиспользуем общую команду
+    GoBackCommand()          # Переиспользуем общую команду
+])
+
+================================================================================
+Файл: game/ui/commands/main_screen_commands.py
+================================================================================
+
+# game/ui/commands/main_screen_commands.py
+"""Специфические команды для главного экрана."""
+
+from typing import Optional, Any
+
+from game.ui.command_system.command import Command
+from game.ui.command_system.screen_command_registry import register_screen_commands
+# Импортируем общие команды
+from game.ui.commands.common_commands import OpenInventoryCommand, ExitCommand
+# Импортируем экран для регистрации команд
+from game.ui.main_screen import MainScreen
+
+
+class StartBattleCommand(Command):
+    """Команда начала боя."""
+
+    def __init__(self):
+        super().__init__(
+            name="Бой",
+            description="Начать бой",
+            keys=[10],
+            display_key="Enter"
+        )
+
+    def execute(self, context: Optional[Any] = None) -> None:
+        """Выполнение команды начала боя."""
+        if context and hasattr(context, 'manager'):
+            context.manager.change_screen("battle")
+
+
+class OpenSettingsCommand(Command):
+    """Команда открытия настроек."""
+
+    def __init__(self):
+        super().__init__(
+            name="Настройки",
+            description="Открыть настройки",
+            keys=['3'],
+            display_key="3"
+        )
+
+    def execute(self, context: Optional[Any] = None) -> None:
+        """Выполнение команды открытия настроек."""
+        # TODO: Заменить print на отображение внутри curses UI
+        if context:
+            print("Открытие настроек")
+
+
+# Регистрируем команды для главного экрана
+register_screen_commands(MainScreen, [
+    StartBattleCommand(),
+    OpenInventoryCommand(),  # Переиспользуем общую команду
+    OpenSettingsCommand(),
+    ExitCommand()            # Переиспользуем общую команду
+])
+
+
+================================================================================
+Файл: game/ui/commands/common_commands.py
+================================================================================
+
+# game/ui/commands/common_commands.py
+"""Общие команды, которые могут использоваться в нескольких экранах."""
+
+from typing import Optional, Any
+
+from game.ui.command_system.command import Command
+
+
+class GoBackCommand(Command):
+    """Общая команда возврата назад."""
+
+    def __init__(self):
+        super().__init__(
+            name="Назад",
+            description="Вернуться к предыдущему экрану",
+            keys=['q'],
+            display_key="q"
+        )
+
+    def execute(self, context: Optional[Any] = None) -> None:
+        """Выполнение команды возврата."""
+        if context and hasattr(context, 'manager'):
+            context.manager.go_back()
+
+
+class OpenInventoryCommand(Command):
+    """Общая команда открытия инвентаря."""
+
+    def __init__(self):
+        super().__init__(
+            name="Инвентарь",
+            description="Открыть инвентарь",
+            keys=['i'],
+            display_key="i"
+        )
+
+    def execute(self, context: Optional[Any] = None) -> None:
+        """Выполнение команды открытия инвентаря."""
+        if context and hasattr(context, 'manager'):
+            context.manager.change_screen("inventory")
+
+
+class HelpCommand(Command):
+    """Общая команда помощи."""
+
+    def __init__(self):
+        super().__init__(
+            name="Помощь",
+            description="Показать помощь",
+            keys=['h', '?'],
+            display_key="h/?"
+        )
+
+    def execute(self, context: Optional[Any] = None) -> None:
+        """Выполнение команды помощи."""
+        # TODO: Заменить print на отображение внутри curses UI
+        if context:
+            print("Помощь по экрану:", context.__class__.__name__ if context else "Неизвестный экран")
+
+
+class ExitCommand(Command):
+    """Общая команда выхода из игры."""
+
+    def __init__(self):
+        super().__init__(
+            name="Выход",
+            description="Выйти из игры",
+            keys=['q'],  # Только q, не ESC чтобы избежать конфликтов
+            display_key="q"
+        )
+
+    def execute(self, context: Optional[Any] = None) -> None:
+        """Выполнение команды выхода."""
+        # TODO: Рассмотреть использование raise SystemExit() вместо exit()
+        exit()
+
+
+================================================================================
+Файл: game/ui/components/battle_components.py
+================================================================================
+
+# game/ui/components/battle_components.py
+"""Компоненты для экрана боя.
+
+Содержит визуальные элементы для отображения игроков, врагов и лога боя.
+"""
+
+from typing import List, Optional, TYPE_CHECKING
+
+from game.ui.rendering.color_manager import Color
+from game.ui.rendering.renderable import Renderable
+
+if TYPE_CHECKING:
+    from game.ui.rendering.renderer import Renderer
+
+
+class UnitPanel(Renderable):
+    """Базовая панель для отображения одного юнита (игрока или монстра). Высота 1 строка."""
+
+    def __init__(self, x: int, y: int, width: int, name: str, hp: int, max_hp: int,
+                 mp: int = 0, max_mp: int = 0, is_player: bool = True):
+        super().__init__(x, y)
+        self.width = width
+        self.name = name
+        self.hp = hp
+        self.max_hp = max_hp
+        self.mp = mp
+        self.max_mp = max_mp
+        self.is_player = is_player
+        # Заглушка для баффов/дебаффов
+        self.status_effects: List[str] = []  # Например: ["Poison", "Shield"]
+
+    def update_position(self, x: int, y: int) -> None:
+        """Обновление позиции панели."""
+        self.x = x
+        self.y = y
+
+    def update_stats(self, hp: int, max_hp: int, mp: int = 0, max_mp: int = 0) -> None:
+        """Обновление статистики юнита."""
+        self.hp = hp
+        self.max_hp = max_hp
+        self.mp = mp
+        self.max_mp = max_mp
+
+    def render(self, renderer: 'Renderer') -> None:
+        """Отрисовка панели юнита в одну строку."""
+        # Формат: [Имя] [HP Bar] [MP Bar] [Статусы]
+        # Пример: Hero [#####.....] [***......] Poison
+        try:
+            # Рассчитываем доступную ширину
+            available_width = self.width
+
+            # Имя (минимум 8 символов)
+            name_width = min(12, max(8, len(self.name)))
+            name_part = self.name[:name_width].ljust(name_width)
+
+            # Статусы (минимум 6 символов, максимум 15)
+            status_str = " ".join(self.status_effects[:3])  # Показываем максимум 3 эффекта
+            status_width = min(15, max(6, len(status_str)))
+            status_part = status_str[:status_width].ljust(status_width)
+
+            # Оставшаяся ширина для полосок HP и MP
+            bars_width = available_width - name_width - status_width - 3  # 3 пробела
+
+            # Если места мало, упрощаем
+            if bars_width < 10:
+                # Показываем только имя и HP в виде текста
+                hp_text = f"{self.hp}/{self.max_hp}"
+                simple_display = f"{name_part} {hp_text}".ljust(self.width)[:self.width]
+                renderer.draw_text(
+                    simple_display,
+                    self.x,
+                    self.y,
+                    color=Color.GREEN if self.is_player else Color.RED
+                )
+                return
+
+            # Делим оставшуюся ширину между HP и MP
+            hp_bar_width = max(5, bars_width // 2)
+            mp_bar_width = max(5, bars_width - hp_bar_width - 1)  # -1 для пробела
+
+            # HP Bar
+            hp_fill = int((self.hp / self.max_hp) * hp_bar_width) if self.max_hp > 0 else 0
+            hp_bar = "#" * hp_fill + "." * (hp_bar_width - hp_fill)
+
+            # MP Bar (если есть MP)
+            mp_bar = ""
+            if self.max_mp > 0:
+                mp_fill = int((self.mp / self.max_mp) * mp_bar_width) if self.max_mp > 0 else 0
+                mp_bar = " " + "*" * mp_fill + "." * (mp_bar_width - mp_fill)
+
+            # Собираем строку
+            display_line = f"{name_part} [{hp_bar}] [{mp_bar}] {status_part}".rstrip()
+            # Обрезаем, если вышло за границы
+            display_line = display_line[:self.width]
+
+            # Определяем цвет
+            color = Color.GREEN if self.is_player else Color.RED
+
+            renderer.draw_text(display_line, self.x, self.y, color=color)
+
+        except Exception as e:
+            # В случае ошибки рисуем простую заглушку
+            renderer.draw_text(
+                f"{self.name} HP:{self.hp}/{self.max_hp}".ljust(self.width)[:self.width],
+                self.x,
+                self.y,
+                color=Color.WHITE
+            )
+
+
+class PlayerUnitPanel(UnitPanel):
+    """Панель для отображения одного игрока."""
+
+    def __init__(self, x: int, y: int, width: int, name: str, hp: int, max_hp: int,
+                 mp: int = 0, max_mp: int = 0):
+        super().__init__(x, y, width, name, hp, max_hp, mp, max_mp, is_player=True)
+
+
+class EnemyUnitPanel(UnitPanel):
+    """Панель для отображения одного врага."""
+
+    def __init__(self, x: int, y: int, width: int, name: str, hp: int, max_hp: int):
+        # У врагов обычно нет MP
+        super().__init__(x, y, width, name, hp, max_hp, 0, 0, is_player=False)
+
+
+class GroupPanel(Renderable):
+    """Панель для отображения группы юнитов (игроков или врагов)."""
+
+    def __init__(self, x: int, y: int, width: int, height: int, title: str = ""):
+        super().__init__(x, y)
+        self.width = width
+        self.height = height
+        self.title = title
+        self.unit_panels: List[UnitPanel] = []
+
+    def add_unit_panel(self, unit_panel: UnitPanel) -> None:
+        """Добавление панели юнита в группу."""
+        self.unit_panels.append(unit_panel)
+
+    def clear_unit_panels(self) -> None:
+        """Очистка списка панелей юнитов."""
+        self.unit_panels.clear()
+
+    def update_size(self, total_width: int, total_height: int) -> None:
+        """Обновление размеров группы."""
+        # Размеры могут быть скорректированы внешним кодом
+        pass
+
+    def render(self, renderer: 'Renderer') -> None:
+        """Отрисовка группы панелей."""
+        # Рисуем рамку вокруг группы
+        renderer.draw_box(self.x, self.y, self.width, self.height)
+
+        # Рисуем заголовок, если он есть
+        if self.title:
+            title_x = self.x + max(0, (self.width - len(self.title)) // 2)
+            renderer.draw_text(self.title, title_x, self.y, bold=True,
+                             color=Color.CYAN if "Игроки" in self.title else Color.MAGENTA)
+
+        # Отрисовываем панели юнитов
+        for i, unit_panel in enumerate(self.unit_panels):
+            if i >= self.height - 2:  # -2 для рамки и заголовка
+                break  # Не помещаемся
+            unit_panel.update_position(self.x + 1, self.y + 1 + i)
+            unit_panel.render(renderer)
+
+
+class BattleLog(Renderable):
+    """Лог боя в нижней части экрана с прокруткой."""
+
+    def __init__(self, x: int, y: int, width: int, height: int):
+        super().__init__(x, y)
+        self.width = width
+        self.height = height
+        # TODO: Получать реальные сообщения из игровой логики
+        self.messages: List[str] = [
+            "Битва начинается!",
+            "Герой вступает в бой с Драконом.",
+            "Дракон издает грозный рык.",
+            "Герой атакует Дракона!",
+            "Дракон получает 25 урона.",
+            "Дракон атакует Героя!",
+            "Герой получает 15 урона.",
+            "Герой использует зелье лечения.",
+            "Герой восстанавливает 30 HP.",
+            "Дракон готовится к мощной атаке!",
+            "Герой защищается.",
+            "Мощная атака Дракона отражена!",
+        ]
+        self.scroll_offset = 0  # Смещение прокрутки (0 = последние сообщения внизу)
+
+    def add_message(self, message: str) -> None:
+        """Добавление сообщения в лог."""
+        self.messages.append(message)
+        # При добавлении нового сообщения сбрасываем прокрутку вниз
+        self.scroll_offset = 0
+
+    def scroll_up(self) -> None:
+        """Прокрутка лога вверх."""
+        # Максимальное смещение - это количество строк, которые не помещаются
+        max_offset = max(0, len(self.messages) - (self.height - 2))
+        self.scroll_offset = min(max_offset, self.scroll_offset + 1)
+
+    def scroll_down(self) -> None:
+        """Прокрутка лога вниз."""
+        self.scroll_offset = max(0, self.scroll_offset - 1)
+
+    def update_size(self, total_width: int, total_height: int) -> None:
+        """Обновление размеров лога."""
+        # Занимает всю ширину экрана
+        self.width = max(10, total_width - 2)  # -2 для отступов
+        # Высота динамическая, занимает всё оставшееся пространство
+        # Предполагаем, что панели сверху занимают часть высоты
+        # Этот расчет должен быть скорректирован в BattleScreen
+        pass
+
+    def render(self, renderer: 'Renderer') -> None:
+        """Отрисовка лога боя."""
+        # Рисуем рамку
+        renderer.draw_box(self.x, self.y, self.width, self.height)
+
+        # Заголовок лога
+        log_title = "=== ЛОГ ==="
+        title_x = self.x + max(0, (self.width - len(log_title)) // 2)
+        renderer.draw_text(log_title, title_x, self.y, bold=True, color=Color.CYAN)
+
+        # Отображаем сообщения с учетом прокрутки
+        # Рассчитываем, сколько строк помещается (вычитаем 2 для рамки и заголовка)
+        available_lines = self.height - 2
+        # Начальный индекс с учетом прокрутки
+        start_index = max(0, len(self.messages) - available_lines - self.scroll_offset)
+        end_index = min(len(self.messages), start_index + available_lines)
+
+        for i, message in enumerate(self.messages[start_index:end_index]):
+            # Обрезаем сообщение, если оно длиннее области
+            display_message = message[:self.width - 3]  # -3 для рамки и запаса
+            renderer.draw_text(display_message, self.x + 1, self.y + 1 + i, dim=True)
+
+
+================================================================================
+Файл: tests/__init__.py
+================================================================================
+
+
+
+================================================================================
+Файл: tests/test_character.py
+================================================================================
+
+# tests/test_character.py
+"""Тесты для классов Character и Player."""
+
+from typing import Any, Dict, List
+
+import pytest
+
+# Импортируем протокол Attributes
+from game.protocols import Attributes, Stats
+from game.entities.character import Character
+# Убедимся, что SimpleAttributes наследуется от Attributes в своем определении
+from game.entities.player import Player, SimpleAttributes, SimpleStats
+
+
+# ==================== Фикстуры ====================
+
+@pytest.fixture
+def mock_stats() -> Stats:
+    """Фикстура для создания тестовых характеристик."""
+    stats = SimpleStats()
+    stats.strength = 10
+    stats.agility = 10
+    stats.intelligence = 10
+    stats.vitality = 10
+    return stats
+
+
+@pytest.fixture
+def mock_attributes(mock_stats: Stats) -> Attributes:
+    """Фикстура для создания тестовых атрибутов."""
+    # Убедимся, что SimpleAttributes совместим с Attributes
+    return SimpleAttributes(CharacterMock(), mock_stats)
+
+
+@pytest.fixture
+def base_player_data() -> Dict[str, Any]:
+    """Фикстура с базовыми данными для создания игрока."""
+    return {
+        'base_stats_dict': {
+            'strength': 10,
+            'agility': 10,
+            'intelligence': 10,
+            'vitality': 10
+        },
+        'growth_rates_dict': {
+            'strength': 1.0,
+            'agility': 1.0,
+            'intelligence': 1.0,
+            'vitality': 1.0
+        }
+    }
+
+
+# ==================== Мок-классы ====================
+
+class CharacterMock(Character):
+    """Мок-класс для тестирования абстрактного Character."""
+
+    def __init__(self) -> None:
+        """Инициализация мок-персонажа."""
+        # Пропускаем инициализацию Character для упрощения тестов
+        self.name = "TestCharacter"
+        self.role = "test"
+        self.level = 1
+        self.alive = True
+        self.is_player = False
+        self.stats = SimpleStats()
+        # Убедимся, что тип атрибутов совместим
+        self.attributes: Attributes = SimpleAttributes(self, self.stats)
+        self.hp = 100
+        self.energy = 50
+        self._ability_manager = None
+        self._status_manager = None
+
+    def get_base_stats(self) -> Stats:
+        """Получение базовых характеристик."""
+        stats = SimpleStats()
+        stats.strength = 10
+        stats.agility = 10
+        stats.intelligence = 10
+        stats.vitality = 10
+        return stats
+
+    def calculate_attributes(self) -> Attributes:
+        """Вычисление атрибутов."""
+        # Убедимся, что возвращаемый тип совместим
+        return SimpleAttributes(self, self.get_base_stats())
+
+
+# ==================== Тесты Character ====================
+
+class TestCharacter:
+    """Тесты для базового класса Character."""
+
+    def test_character_initialization(self) -> None:
+        """Тест инициализации персонажа."""
+        character = CharacterMock()
+        assert character.name == "TestCharacter"
+        assert character.role == "test"
+        assert character.level == 1
+        assert character.alive is True
+        assert character.is_player is False
+        assert character.hp == 100
+        assert character.energy == 50
+
+    def test_is_alive(self) -> None:
+        """Тест проверки жив ли персонаж."""
+        character = CharacterMock()
+        assert character.is_alive() is True
+
+        character.alive = False
+        assert character.is_alive() is False
+
+    def test_get_level(self) -> None:
+        """Тест получения уровня персонажа."""
+        character = CharacterMock()
+        character.level = 5
+        assert character.get_level() == 5
+
+    def test_take_damage(self) -> None:
+        """Тест получения урона."""
+        character = CharacterMock()
+        character.attributes.defense = 4 # type: ignore # Мы знаем, что у SimpleAttributes есть defense
+        character.hp = 100
+
+        # Урон 20, защита 4, фактический урон = max(1, 20 - 4//2) = 18
+        results = character.take_damage(20)
+
+        assert len(results) == 1
+        assert results[0]["type"] == "damage_taken"
+        assert results[0]["damage"] == 18
+        assert character.hp == 82  # 100 - 18
+
+    def test_take_damage_death(self) -> None:
+        """Тест смерти персонажа от урона."""
+        character = CharacterMock()
+        character.hp = 5
+
+        results = character.take_damage(10)
+
+        # Должно быть 2 результата: урон и смерть
+        assert len(results) >= 1
+        assert character.hp == 0
+        assert character.alive is False
+
+    def test_take_heal(self) -> None:
+        """Тест исцеления персонажа."""
+        character = CharacterMock()
+        character.attributes.max_hp = 100 # type: ignore # Мы знаем, что у SimpleAttributes есть max_hp
+        character.hp = 50
+
+        results = character.take_heal(30)
+
+        assert len(results) == 1
+        assert results[0]["type"] == "healed"
+        assert results[0]["heal_amount"] == 30
+        assert character.hp == 80
+
+    def test_take_heal_over_max(self) -> None:
+        """Тест исцеления выше максимального HP."""
+        character = CharacterMock()
+        character.attributes.max_hp = 100 # type: ignore # Мы знаем, что у SimpleAttributes есть max_hp
+        character.hp = 90
+
+        results = character.take_heal(20)
+
+        assert results[0]["heal_amount"] == 10  # Только 10 до максимума
+        assert character.hp == 100
+
+    def test_restore_energy(self) -> None:
+        """Тест восстановления энергии."""
+        character = CharacterMock()
+        character.attributes.max_energy = 100 # type: ignore # Мы знаем, что у SimpleAttributes есть max_energy
+        character.energy = 50
+
+        results = character.restore_energy(amount=30)
+
+        assert len(results) == 1
+        assert results[0]["type"] == "energy_restored"
+        assert results[0]["amount"] == 30
+        assert character.energy == 80
+
+    def test_spend_energy_success(self) -> None:
+        """Тест успешной траты энергии."""
+        character = CharacterMock()
+        character.energy = 50
+
+        result = character.spend_energy(20)
+
+        assert result is True
+        assert character.energy == 30
+
+    def test_spend_energy_fail(self) -> None:
+        """Тест неудачной траты энергии."""
+        character = CharacterMock()
+        character.energy = 10
+
+        result = character.spend_energy(20)
+
+        assert result is False
+        assert character.energy == 10  # Энергия не изменилась
+
+    def test_level_up(self) -> None:
+        """Тест повышения уровня."""
+        character = CharacterMock()
+        character.level = 1
+        character.hp = 80
+        character.energy = 30
+        character.attributes.max_hp = 100 # type: ignore # Мы знаем, что у SimpleAttributes есть max_hp
+        character.attributes.max_energy = 50 # type: ignore # Мы знаем, что у SimpleAttributes есть max_energy
+
+        results = character.level_up()
+
+        assert len(results) == 1
+        assert results[0]["type"] == "level_up"
+        assert character.level == 2
+        # Проверяем сохранение процентов HP/энергии
+        assert character.hp > 0  # HP должен сохраниться пропорционально
+
+
+# ==================== Тесты Player ====================
+
+class TestPlayer:
+    """Тесты для класса Player."""
+
+    def test_player_initialization(self, base_player_data: Dict[str, Any]) -> None:
+        """Тест инициализации игрока."""
+        player = Player(
+            name="TestPlayer",
+            role="warrior",
+            **base_player_data,
+            level=1
+        )
+
+        assert player.name == "TestPlayer"
+        assert player.role == "warrior"
+        assert player.level == 1
+        assert player.is_player is True
+        assert player.exp == 0
+        assert hasattr(player, 'exp_to_next_level')
+
+    def test_get_base_stats(self, base_player_data: Dict[str, Any]) -> None:
+        """Тест получения базовых характеристик."""
+        player = Player(
+            name="TestPlayer",
+            role="warrior",
+            **base_player_data,
+            level=1
+        )
+
+        stats = player.get_base_stats()
+        # Проверяем, что объект имеет нужные атрибуты (вместо isinstance)
+        assert hasattr(stats, 'strength')
+        assert hasattr(stats, 'agility')
+        assert hasattr(stats, 'intelligence')
+        assert hasattr(stats, 'vitality')
+        assert stats.strength > 0
+        assert stats.agility > 0
+        assert stats.intelligence > 0
+        assert stats.vitality > 0
+
+    def test_calculate_attributes(self, base_player_data: Dict[str, Any]) -> None:
+        """Тест вычисления атрибутов."""
+        player = Player(
+            name="TestPlayer",
+            role="warrior",
+            **base_player_data,
+            level=1
+        )
+
+        attributes = player.calculate_attributes()
+        # Проверяем, что объект имеет нужные атрибуты (вместо isinstance)
+        assert hasattr(attributes, 'max_hp')
+        assert hasattr(attributes, 'max_energy')
+        assert hasattr(attributes, 'attack_power')
+        assert hasattr(attributes, 'defense')
+        assert attributes.max_hp > 0
+        assert attributes.max_energy > 0
+        assert attributes.attack_power >= 0
+        assert attributes.defense >= 0
+
+    def test_calculate_exp_for_next_level(self, base_player_data: Dict[str, Any]) -> None:
+        """Тест расчета опыта для следующего уровня."""
+        player = Player(
+            name="TestPlayer",
+            role="warrior",
+            **base_player_data,
+            level=1
+        )
+
+        player.calculate_exp_for_next_level()
+        assert player.exp_to_next_level > 0
+
+        # Проверяем, что опыт увеличивается с уровнем
+        player.level = 2
+        player.calculate_exp_for_next_level()
+        exp_level_2 = player.exp_to_next_level
+
+        player.level = 3
+        player.calculate_exp_for_next_level()
+        exp_level_3 = player.exp_to_next_level
+
+        assert exp_level_3 > exp_level_2
+
+    def test_gain_experience(self, base_player_data: Dict[str, Any]) -> None:
+        """Тест получения опыта."""
+        player = Player(
+            name="TestPlayer",
+            role="warrior",
+            **base_player_data,
+            level=1
+        )
+        player.calculate_exp_for_next_level()
+
+        # Получаем немного опыта
+        results = player.gain_experience(50)
+
+        assert len(results) == 1
+        assert results[0]["type"] == "exp_gained"
+        assert player.exp == 50
+
+    def test_gain_experience_level_up(self, base_player_data: Dict[str, Any]) -> None:
+        """Тест повышения уровня через опыт."""
+        player = Player(
+            name="TestPlayer",
+            role="warrior",
+            **base_player_data,
+            level=1
+        )
+        player.exp_to_next_level = 100  # Устанавливаем опыт для теста
+
+        # Получаем достаточно опыта для повышения уровня
+        results = player.gain_experience(150)
+
+        # Должно быть как минимум 2 результата: опыт и повышение уровня
+        assert len(results) >= 2
+        assert player.level >= 2
+        assert player.exp == 50  # Остаток после повышения уровня (150 - 100 = 50)
+
+    def test_gain_experience_multiple_level_up(self, base_player_data: Dict[str, Any]) -> None:
+        """Тест множественного повышения уровня через опыт."""
+        player = Player(
+            name="TestPlayer",
+            role="warrior",
+            **base_player_data,
+            level=1
+        )
+
+        # Установим начальный опыт для следующего уровня
+        player.exp_to_next_level = 100
+
+        # Получаем 250 опыта: 100 для первого уровня, 150 останется
+        results = player.gain_experience(250)
+
+        # После первого повышения уровень должен быть 2
+        assert player.level == 2
+        # Остаток опыта должен быть 150
+        assert player.exp == 150
+
+    def test_player_level_up(self, base_player_data: Dict[str, Any]) -> None:
+        """Тест повышения уровня игрока."""
+        player = Player(
+            name="TestPlayer",
+            role="warrior",
+            **base_player_data,
+            level=1
+        )
+        initial_level = player.level
+
+        results = player.level_up()
+
+        assert len(results) >= 1
+        assert player.level == initial_level + 1
+        # exp_to_next_level должен быть пересчитан
+        assert player.exp_to_next_level > 0
+
+    def test_experience_property(self, base_player_data: Dict[str, Any]) -> None:
+        """Тест свойства опыта."""
+        player = Player(
+            name="TestPlayer",
+            role="warrior",
+            **base_player_data,
+            level=1
+        )
+        player.calculate_exp_for_next_level()
+
+        assert player.experience_to_next_level == player.exp_to_next_level
+
+
+# ==================== Тесты вспомогательных классов ====================
+
+class TestSimpleStats:
+    """Тесты для SimpleStats."""
+
+    def test_simple_stats_initialization(self) -> None:
+        """Тест инициализации SimpleStats."""
+        stats = SimpleStats()
+        assert stats.strength == 0
+        assert stats.agility == 0
+        assert stats.intelligence == 0
+        assert stats.vitality == 0
+
+
+class TestSimpleAttributes:
+    """Тесты для SimpleAttributes."""
+
+    def test_simple_attributes_calculation(self, mock_stats: Stats) -> None:
+        """Тест расчета атрибутов."""
+        character = CharacterMock()
+        attributes = SimpleAttributes(character, mock_stats)
+
+        # Проверяем расчеты на основе формул из класса
+        expected_max_hp = 50 + (mock_stats.vitality * 5)  # 50 + 50 = 100
+        expected_max_energy = 20 + (mock_stats.intelligence * 3)  # 20 + 30 = 50
+        expected_attack_power = mock_stats.strength * 2  # 10 * 2 = 20
+        expected_defense = int(mock_stats.agility * 1.5)  # int(10 * 1.5) = 15
+
+        assert attributes.max_hp == expected_max_hp
+        assert attributes.max_energy == expected_max_energy
+        assert attributes.attack_power == expected_attack_power
+        assert attributes.defense == expected_defense
+
+
+# ==================== Интеграционные тесты ====================
+
+class TestCharacterPlayerIntegration:
+    """Интеграционные тесты между Character и Player."""
+
+    def test_player_inherits_character_behavior(self, base_player_data: Dict[str, Any]) -> None:
+        """Тест, что Player наследует поведение Character."""
+        player = Player(
+            name="TestPlayer",
+            role="warrior",
+            **base_player_data,
+            level=1
+        )
+
+        # Проверяем методы, унаследованные от Character
+        assert player.is_alive() is True
+        assert player.get_level() == 1
+
+        # Проверяем, что можно использовать методы Character
+        heal_results = player.take_heal(20)
+        assert len(heal_results) == 1
+        assert heal_results[0]["type"] == "healed"
+
+    def test_player_damage_handling(self, base_player_data: Dict[str, Any]) -> None:
+        """Тест обработки урона игроком."""
+        player = Player(
+            name="TestPlayer",
+            role="warrior",
+            **base_player_data,
+            level=1
+        )
+
+        # Устанавливаем защиту для теста
+        player.attributes.defense = 6 # type: ignore # Мы знаем, что у SimpleAttributes есть defense
+        player.hp = 100
+
+        damage_results = player.take_damage(20)
+        assert len(damage_results) >= 1
+        assert damage_results[0]["type"] == "damage_taken"
+        assert player.hp < 100  # HP должно уменьшиться
+
+
+================================================================================
+Файл: tests/test_command_system.py
+================================================================================
+
+# tests/test_command_system.py
+"""Тесты для системы команд."""
+
+from typing import Any, Optional
+from unittest.mock import MagicMock, patch
+
+from game.ui.command_system.command import Command, CommandRegistry
+
+
+class CommandTest(Command):
+    """Тестовая реализация команды."""
+
+    def __init__(self, name: str = "Test", description: str = "A test command", keys: Optional[list] = None) -> None:
+        """
+        Инициализация тестовой команды.
+
+        Args:
+            name: Название команды.
+            description: Описание команды.
+            keys: Список клавиш.
+        """
+        if keys is None:
+            keys = ['t']
+        super().__init__(name, description, keys)
+        self.executed: bool = False
+        self.context: Any = None
+
+    def execute(self, context: Any = None) -> None:
+        """
+        Выполнение тестовой команды.
+
+        Args:
+            context: Контекст выполнения.
+        """
+        self.executed = True
+        self.context = context
+
+
+class CommandWithIntKeyTest(Command):
+    """Тестовая реализация команды с целочисленным кодом клавиши."""
+
+    def __init__(self) -> None:
+        """Инициализация команды с целочисленным кодом клавиши."""
+        # Имитируем ситуацию, когда ключ передан как число
+        super().__init__("Int Key Cmd", "Command with int key", [10])  # Enter key code
+        self.executed: bool = False
+
+    def execute(self, context: Any = None) -> None:
+        """
+        Выполнение команды с целочисленным кодом клавиши.
+
+        Args:
+            context: Контекст выполнения.
+        """
+        self.executed = True
+
+
+def test_command_initialization() -> None:
+    """Тест инициализации команды."""
+    cmd = CommandTest("MyCmd", "My Description", ['m', 'M'])
+    assert cmd.name == "MyCmd"
+    assert cmd.description == "My Description"
+    assert cmd.keys == ['m', 'M']
+
+
+def test_command_get_key_codes_case_insensitive() -> None:
+    """Тест получения кодов клавиш с учетом регистра."""
+    cmd1 = CommandTest("Test1", "Desc", ['a'])  # lowercase
+    cmd2 = CommandTest("Test2", "Desc", ['A'])  # uppercase
+
+    assert cmd1.get_key_codes() != cmd2.get_key_codes()
+    assert cmd1.get_key_codes() == {ord('a')}  # Проверяем, что это код 'a'
+
+
+def test_command_registry_register_command() -> None:
+    """Тест регистрации команды в реестре."""
+    registry = CommandRegistry()
+    cmd = CommandTest()
+
+    registry.register_command(cmd)
+
+    assert cmd in registry._commands
+    assert ord('t') in registry._key_to_command
+    assert registry._key_to_command[ord('t')] == cmd
+
+
+def test_command_registry_execute_command_success() -> None:
+    """Тест успешного выполнения команды из реестра."""
+    registry = CommandRegistry()
+    cmd = CommandTest()
+    registry.register_command(cmd)
+
+    result = registry.execute_command(ord('t'), "test_context")
+
+    assert result is True
+    assert cmd.executed is True
+    assert cmd.context == "test_context"
+
+
+def test_command_registry_execute_command_failure() -> None:
+    """Тест неуспешного выполнения команды из реестра."""
+    registry = CommandRegistry()
+    cmd = CommandTest()
+    registry.register_command(cmd)
+
+    result = registry.execute_command(ord('x'), "test_context")  # 'x' не зарегистрирован
+
+    assert result is False
+    assert cmd.executed is False  # Команда не должна выполниться
+
+
+def test_command_registry_get_all_commands() -> None:
+    """Тест получения всех команд из реестра."""
+    registry = CommandRegistry()
+    cmd1 = CommandTest("Cmd1", "Desc1", ['1'])
+    cmd2 = CommandTest("Cmd2", "Desc2", ['2'])
+
+    registry.register_command(cmd1)
+    registry.register_command(cmd2)
+
+    all_commands = registry.get_all_commands()
+
+    assert len(all_commands) == 2
+    assert cmd1 in all_commands
+    assert cmd2 in all_commands
+    # Проверяем, что возвращается копия
+    assert all_commands is not registry._commands
+
+
+def test_command_registry_get_command_by_key() -> None:
+    """Тест получения команды по коду клавиши из реестра."""
+    registry = CommandRegistry()
+    cmd = CommandTest()
+    registry.register_command(cmd)
+
+    found_cmd = registry.get_command_by_key(ord('t'))
+    not_found_cmd = registry.get_command_by_key(ord('x'))
+
+    assert found_cmd == cmd
+    assert not_found_cmd is None
+
+
+def test_command_with_int_key_in_registry() -> None:
+    """Тест работы реестра с командой, имеющей целочисленный код клавиши."""
+    # Проверяем, как реестр обрабатывает команды с int ключами
+    registry = CommandRegistry()
+    cmd = CommandWithIntKeyTest()  # Эта команда в keys имеет [10]
+
+    # Регистрируем команду через реестр, который должен корректно обработать int ключ
+    registry.register_command(cmd)
+
+    # Выполняем команду по её int коду
+    result = registry.execute_command(10, "context")
+
+    assert result is True
+    assert cmd.executed is True
+
+
+================================================================================
+Файл: tests/test_game_manager.py
+================================================================================
+
+# tests/test_game_manager.py
+"""Тесты для модуля game.game_manager, включая класс GameManager и функцию get_game_manager."""
+
+import pytest
+from unittest.mock import patch, MagicMock
+from game.game_manager import GameManager, get_game_manager
+
+class TestGameManager:
+    """Тесты для класса GameManager."""
+
+    def test_singleton_instance_via_get_game_manager(self) -> None:
+        """
+        Тест: Функция get_game_manager возвращает один и тот же экземпляр GameManager.
+        Проверяет реализацию паттерна Singleton.
+        """
+        manager1 = get_game_manager()
+        manager2 = get_game_manager()
+        assert manager1 is manager2
+
+    @patch('game.game_manager.get_config')
+    def test_initialization_with_config(self, mock_get_config) -> None:
+        """
+        Тест: Инициализация GameManager корректно загружает конфигурацию.
+        """
+        # --- Ключевое исправление: Сброс Singleton перед тестом ---
+        GameManager._instance = None
+
+        # Настройка моков
+        mock_config_instance = MagicMock()
+        mock_get_config.return_value = mock_config_instance
+
+        # Вызов тестируемой функциональности
+        manager = get_game_manager()
+
+        # Проверки
+        mock_get_config.assert_called_once()
+
+    def test_get_player_group(self) -> None:
+        """
+        Тест: Метод get_player_group возвращает список игроков.
+        """
+        manager = get_game_manager()
+
+        # Создание мок-игроков и установка их в менеджер
+        mock_player1 = MagicMock()
+        mock_player2 = MagicMock()
+        manager.player_group = [mock_player1, mock_player2]
+
+        # Вызов тестируемой функциональности
+        player_group = manager.get_player_group()
+
+        # Проверки
+        assert player_group == [mock_player1, mock_player2]
+        assert len(player_group) == 2
+
+
+================================================================================
+Файл: tests/test_ui/test_mixins.py
+================================================================================
+
+# tests/test_ui/test_mixins.py
+"""Тесты для миксинов UI."""
+
+import unittest
+from unittest.mock import Mock, patch
+
+# Предполагаем, что LayoutProtocol импортируется отсюда
+from game.ui.mixins import FooterMixin, HeaderMixin, LayoutProtocol, StandardLayoutMixin
+from game.ui.rendering.color_manager import Color
+
+
+# Явно наследуем от LayoutProtocol
+class _TestLayoutProtocol(LayoutProtocol):
+    """Тестовая реализация LayoutProtocol для миксинов."""
+
+    def __init__(self) -> None:
+        """Инициализация тестового протокола."""
+        # Инициализируем атрибуты, ожидаемые LayoutProtocol
+        # Используем Mock для имитации реальных объектов
+        self.renderer: Mock = Mock() 
+        self.command_registry: Mock = Mock()
+        # Явно указываем типы атрибутов, чтобы mypy знал, что они существуют
+        # Типы Mock подойдут, так как они будут иметь необходимые атрибуты во время теста
+
+    # Заглушки для абстрактных методов протокола, чтобы mypy не считал класс абстрактным
+    def render_header(self, title: str) -> None:
+        pass
+
+    def render_footer(self) -> None:
+        pass
+
+
+class HeaderMixinTest(unittest.TestCase):
+    """Тесты для HeaderMixin."""
+
+    def setUp(self) -> None:
+        """Настройка тестового окружения."""
+        # Теперь TestHeaderClass наследуется от HeaderMixin и _TestLayoutProtocol,
+        # который реализует LayoutProtocol. MyPy должен принять это.
+        class TestHeaderClass(HeaderMixin, _TestLayoutProtocol):
+            pass
+
+        # mypy думает, что TestHeaderClass абстрактный из-за нереализованных методов протокола
+        # Но для тестирования миксина это приемлемо
+        self.test_instance = TestHeaderClass()  # type: ignore
+        # Настройка моков
+        self.test_instance.renderer.width = 20
+        self.test_instance.renderer.height = 10
+
+    @patch('game.ui.mixins.Text')
+    @patch('game.ui.mixins.Separator')
+    def test_render_header(self, mock_separator, mock_text) -> None:
+        """Тест отрисовки заголовка."""
+        title = "Test Title"
+
+        # Этот вызов теперь должен пройти проверку mypy
+        self.test_instance.render_header(title)
+        
+        # Проверяем, что Text был создан с правильными параметрами
+        mock_text.assert_called_once_with(
+            title, 5, 0, bold=True, color=Color.CYAN
+        )
+        
+        # Проверяем, что render был вызван у текста
+        mock_text.return_value.render.assert_called_once_with(
+            self.test_instance.renderer
+        )
+        
+        # Проверяем, что Separator был создан и отрисован
+        mock_separator.assert_called_once_with(1, color=Color.DEFAULT)
+        mock_separator.return_value.render.assert_called_once_with(
+            self.test_instance.renderer
+        )
+
+    @patch('game.ui.mixins.Text')
+    @patch('game.ui.mixins.Separator')
+    def test_render_header_centering_with_short_title(self, mock_separator, mock_text) -> None:
+        """Тест центрирования короткого заголовка."""
+        title = "A"
+        self.test_instance.renderer.width = 20
+
+        self.test_instance.render_header(title)
+
+        # Заголовок должен быть центрирован: (20 - 1) // 2 = 9
+        mock_text.assert_called_once_with(
+            title, 9, 0, bold=True, color=Color.CYAN
+        )
+
+    @patch('game.ui.mixins.Text')
+    @patch('game.ui.mixins.Separator')
+    def test_render_header_centering_with_long_title(self, mock_separator, mock_text) -> None:
+        """Тест центрирования длинного заголовка."""
+        title = "Very Long Title That Exceeds Width"
+        self.test_instance.renderer.width = 20
+
+        self.test_instance.render_header(title)
+
+        # При отрицательном значении x должен быть 0
+        mock_text.assert_called_once_with(
+            title, 0, 0, bold=True, color=Color.CYAN
+        )
+
+
+class FooterMixinTest(unittest.TestCase):
+    """Тесты для FooterMixin."""
+
+    def setUp(self) -> None:
+        """Настройка тестового окружения."""
+        class TestFooterClass(FooterMixin, _TestLayoutProtocol):
+            pass
+
+        self.test_instance = TestFooterClass()  # type: ignore
+        self.test_instance.renderer.width = 20
+        self.test_instance.renderer.height = 10
+
+        # Мокаем команды
+        self.mock_commands = [Mock(), Mock()]
+        self.test_instance.command_registry.get_all_commands.return_value = self.mock_commands
+
+    @patch('game.ui.mixins.Separator')
+    @patch('game.ui.mixins.CommandRenderer')
+    def test_render_footer(self, mock_command_renderer, mock_separator) -> None:
+        """Тест отрисовки подвала."""
+        # Настраиваем моки
+        mock_command_elements = [Mock(), Mock()]
+        mock_command_renderer_instance = mock_command_renderer.return_value
+        mock_command_renderer_instance.render_commands.return_value = mock_command_elements
+
+        self.test_instance.render_footer()
+
+        # Проверяем вызов get_all_commands
+        self.test_instance.command_registry.get_all_commands.assert_called_once()
+
+        # Проверяем создание и отрисовку разделителя подвала
+        mock_separator.assert_called_once_with(8, color=Color.GRAY)
+        mock_separator.return_value.render.assert_called_once_with(
+            self.test_instance.renderer
+        )
+
+        # Проверяем создание CommandRenderer
+        mock_command_renderer.assert_called_once_with(y=9)
+
+        # Проверяем вызов render_commands
+        mock_command_renderer_instance.render_commands.assert_called_once_with(
+            self.mock_commands
+        )
+
+        # Проверяем, что render был вызван у каждого элемента команд
+        for element in mock_command_elements:
+            element.render.assert_called_once_with(self.test_instance.renderer)
+
+    @patch('game.ui.mixins.Separator')
+    @patch('game.ui.mixins.CommandRenderer')
+    def test_render_footer_with_small_height(self, mock_command_renderer, mock_separator) -> None:
+        """Тест отрисовки подвала при малой высоте."""
+        self.test_instance.renderer.height = 1
+
+        # Настраиваем моки
+        mock_command_elements = [Mock()]
+        mock_command_renderer_instance = mock_command_renderer.return_value
+        mock_command_renderer_instance.render_commands.return_value = mock_command_elements
+
+        self.test_instance.render_footer()
+
+        # При высоте 1: footer_separator_y = max(0, 1-2) = 0, commands_y = max(0, 1-1) = 0
+        mock_separator.assert_called_once_with(0, color=Color.GRAY)
+        mock_command_renderer.assert_called_once_with(y=0)
+
+
+class StandardLayoutMixinTest(unittest.TestCase):
+    """Тесты для StandardLayoutMixin."""
+
+    def setUp(self) -> None:
+        """Настройка тестового окружения."""
+        class TestStandardLayoutClass(StandardLayoutMixin, _TestLayoutProtocol):
+            pass
+
+        self.test_instance = TestStandardLayoutClass()  # type: ignore
+        self.test_instance.renderer.width = 20
+        self.test_instance.renderer.height = 10
+
+    @patch('game.ui.mixins.Text')
+    @patch('game.ui.mixins.Separator')
+    @patch('game.ui.mixins.CommandRenderer')
+    def test_render_standard_layout(self, mock_command_renderer, mock_separator, mock_text) -> None:
+        """Тест отрисовки стандартного макета."""
+        # Настраиваем моки для подвала
+        mock_command_elements = [Mock()]
+        mock_command_renderer_instance = mock_command_renderer.return_value
+        mock_command_renderer_instance.render_commands.return_value = mock_command_elements
+        self.test_instance.command_registry.get_all_commands.return_value = [Mock()]
+
+        title = "Standard Layout"  # Длина 14 символов
+        expected_x = max(0, (self.test_instance.renderer.width - len(title)) // 2)  # 20 - 14 = 6 // 2 = 3
+
+        self.test_instance.render_standard_layout(title)
+
+        # Проверяем вызов render_header - используем вычисленное значение expected_x
+        mock_text.assert_called_once_with(
+            title, expected_x, 0, bold=True, color=Color.CYAN
+        )
+        mock_text.return_value.render.assert_called_once_with(
+            self.test_instance.renderer
+        )
+
+        # Проверяем, что были вызваны оба разделителя (один из header, один из footer)
+        self.assertEqual(mock_separator.call_count, 2)
+
+        # Проверяем вызов CommandRenderer
+        mock_command_renderer.assert_called_once_with(y=9)
+
+
+if __name__ == '__main__':
+    unittest.main()
+
+
+================================================================================
+Файл: main.py
+================================================================================
+
+# main.py
+import curses
+from game.ui import ScreenManager
+from game.game_manager import get_game_manager
+
+# ВАЖНО: Импортируем команды, чтобы они зарегистрировались
+import game.ui.commands.inventory_commands
+import game.ui.commands.battle_commands
+import game.ui.commands.main_screen_commands
+
+
+def main(stdscr: curses.window) -> None:
+    """Главная функция curses приложения."""
+    curses.curs_set(0) # Скрыть курсор
+
+    # --- Инициализация игрового состояния ---
+    game_manager = get_game_manager()
+
+    # --- Инициализация менеджера экранов с группой игроков ---
+    manager = ScreenManager(stdscr, game_manager)
+    manager.run()
+
+
+if __name__ == "__main__":
+    curses.wrapper(main)
+
+
+================================================================================
+Файл: guide/style_guide.md
+================================================================================
+
+# Руководство по стилю кода проекта Battler
+
+Этот документ описывает принятые стандарты кодирования для проекта Battler. Следование этим правилам помогает обеспечить согласованность, читаемость и поддерживаемость кода.
+
+## 1. Общие принципы
+
+* **Язык:** Весь код, комментарии и docstrings пишутся на русском языке.
+* **PEP 8:** Соблюдаем рекомендации [PEP 8](https://peps.python.org/pep-0008/) по оформлению кода Python.
+* **Аннотации типов:** Используем аннотации типов (`typing`) для всех параметров функций, методов и возвращаемых значений.
+* **Именование:**
+  * Переменные, функции, методы: `snake_case`.
+  * Классы: `PascalCase`.
+  * Константы: `UPPER_CASE_WITH_UNDERSCORES`.
+* **Пустые строки:** Используем пустые строки для разделения логических блоков внутри функций/методов и между определениями классов/функций.
+* **Константы:** Именуем константы модуля и класса в `UPPER_CASE_WITH_UNDERSCORES`.
+* Этот стиль будет применяться ко всем файлам проекта для обеспечения согласованности.
+
+## 2. Структура файла
+
+Файлы должны следовать этой структуре сверху вниз:
+
+1. **Комментарий модуля (Docstring):** Первая строка файла. Подробно описывает назначение модуля.
+2. **Импорты:**
+   * Стандартная библиотека (например, `os`, `json`, `typing`).
+   * Сторонние библиотеки (например, `curses`, `dataclasses`).
+   * Локальные импорты (например, `from game.protocols import ...`).
+   * Импорты внутри `if TYPE_CHECKING:` располагаются после основных импортов.
+3. **Константы модуля:** Если используются.
+4. **Классы и функции:** Основное содержимое модуля.
+
+## 3. Комментарии и Docstrings
+
+* **Язык:** Все комментарии и docstrings на русском языке.
+* **Docstrings:** Используем docstrings для всех модулей, классов, функций и методов.
+* **Стиль:** Docstring следует стилю Google, описывая `Args` для каждого параметра конструктора.
+* При длинных списках параметров допускается перенос аргументов `__init__` на новые строки с выравниванием.
+
+## 4. Функции и методы
+
+* **Именование:** Использовать `snake_case`.
+* **Docstrings:** Все публичные (не начинающиеся с `_`) функции и методы должны иметь docstring в стиле Google.
+* **Аннотации типов:** Использовать аннотации типов для всех параметров и возвращаемых значений (см. `typing`).
+* **Длина:** Функции и методы должны быть компактными и выполнять одну задачу. Избегать чрезмерной длины.
+
+## 5. Классы
+
+* **Именование:** Использовать `PascalCase`.
+* **Docstrings:** Классы должны иметь docstring, описывающий их назначение и основные атрибуты/методы.
+* **Атрибуты:** Атрибуты класса, если не очевидны из контекста, должны быть задокументированы в docstring класса или аннотированы типами.
+* **Методы:** См. раздел "Функции и методы".
+
+## 6. Обработка ошибок
+
+* **Исключения:** Использовать встроенные исключения Python (`ValueError`, `TypeError`, `FileNotFoundError` и т.д.) при возможности. Создавать собственные исключения только при необходимости.
+* **Блоки try/except:** Использовать для обработки ожидаемых ошибок. Не подавлять исключения без логгирования или обработки.
+* **finally:** Использовать для кода, который должен выполниться в любом случае (например, закрытие файлов).
+
+Пример обработки ошибок:
+
+```python
+try:
+    with open("config.json", 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    # ... обработка данных ...
+except FileNotFoundError:
+    # Обработка отсутствия файла
+    print("Файл конфигурации не найден, используются значения по умолчанию.")
+    data = {}
+except json.JSONDecodeError as e:
+    # Обработка ошибки парсинга JSON
+    print(f"Ошибка чтения конфигурации: Некорректный JSON. {e}")
+    data = {}
+except Exception as e:
+    # Логирование или обработка других исключений
+    # Пока просто выходим
+    print(f"Критическая ошибка: {e}")
+    exit()
+```
+## 7. Написание тестов
+
+Тесты обеспечивают надежность и корректность кода. Для проекта Battler установлены следующие правила написания тестов с использованием `pytest`:
+
+* **Фреймворк:** Использовать `pytest` для написания тестов. Все тесты должны находиться в директории `tests/`.
+* **Структура файлов тестов:**
+  * Файлы тестов должны называться `test_<имя_модуля>.py`, где `<имя_модуля>` соответствует тестируемому файлу в основном коде (например, тесты для `game/entities/character.py` находятся в `tests/test_character.py`).
+  * Внутри файлов тестов классы тестов именуются как `Test<ИмяКласса>` или `Test<ОписаниеФункционала>`.
+  * Отдельные тестовые методы именуются как `test_<описание_теста>`.
+* **Покрытие:**
+  * Стремиться к высокому покрытию кода тестами, особенно для бизнес-логики.
+  * Тестировать как нормальные сценарии, так и граничные условия и возможные ошибки.
+* **Читаемость тестов:**
+  * Тесты должны быть легко читаемыми и понятными.
+  * Использовать понятные имена для переменных внутри тестов.
+  * Комментарии в тестах допустимы для пояснения сложных сценариев подготовки данных.
+* **Фикстуры:**
+  * Использовать фикстуры `pytest` (`@pytest.fixture`) для подготовки и очистки общих ресурсов, объектов или данных, используемых в нескольких тестах.
+  * Использовать декоратор `@pytest.mark.parametrize` для запуска одного и того же теста с разными наборами входных данных и ожидаемых результатов.
+* **Маркировка тестов:**
+  * Использовать марки (`@pytest.mark.slow`, `@pytest.mark.integration`) для классификации тестов и возможности выборочного запуска.
+* **Docstrings для тестов:** Docstrings для тестов не обязательны, но могут быть полезны для сложных сценариев. Если используются, следовать стилю Google.
+
+## 8. Прочее
+
+* **Отступы:** 4 пробела.
+* **Пробелы:** Следовать PEP 8 (пробелы вокруг операторов, после запятых и т.д.).
+* **Пустые строки:** Использовать пустые строки для разделения логических блоков внутри функций/методов и между определениями классов/функций.
+* **Константы:** Именовать константы модуля и класса в `UPPER_CASE_WITH_UNDERSCORES`.
+* Этот стиль будет применяться ко всем файлам проекта для обеспечения согласованности.
+
+## 9. Принципы проектирования
+
+* **SOLID и DRY:**
+  * Следовать принципам [SOLID](https://ru.wikipedia.org/wiki/SOLID_(%D0%BE%D0%B1%D1%8A%D0%B5%D0%BA%D1%82%D0%BD%D0%BE-%D0%BE%D1%80%D0%B8%D0%B5%D0%BD%D1%82%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%BD%D0%BE%D0%B5_%D0%BF%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5)) для объектно-ориентированного проектирования.
+    * **S** - Принцип единственной ответственности (Single Responsibility Principle).
+    * **O** - Принцип открытости/закрытости (Open/Closed Principle).
+    * **L** - Принцип подстановки Барбары Лисков (Liskov Substitution Principle).
+    * **I** - Принцип разделения интерфейса (Interface Segregation Principle).
+    * **D** - Принцип инверсии зависимостей (Dependency Inversion Principle).
+  * Следовать принципу [DRY](https://ru.wikipedia.org/wiki/Don%E2%80%99t_repeat_yourself) (Don't Repeat Yourself) - избегать дублирования кода. Повторяющуюся логику следует выносить в функции, классы или модули.
+
+## 10. Рабочий процесс
+
+* **Работа с TODO:**
+  * **Перед началом работы:** Всегда уточнять, над какой конкретной задачей вы работаете.
+  * **Поиск задачи:** Найти эту задачу в файле `PROJECT_TODO.md` в корне проекта.
+  * **Если задачи нет:** Добавить новую задачу в секцию `## TODO` файла `PROJECT_TODO.md`, используя формат `<!-- TODO: Краткое описание задачи. -->`.
+  * **Если задача есть:** Перед началом работы изменить тег задачи с `TODO` на `WIP` (Work In Progress) в файле `PROJECT_TODO.md`.
+  * **После завершения:** Изменить тег задачи с `WIP` (или `TODO`, если забыли поменять) на `DONE` в файле `PROJECT_TODO.md`.
+
