@@ -1,5 +1,5 @@
 Сборник исходных кодов и конфигурационных файлов
-Дата создания: 2025-08-16 19:11:48
+Дата создания: 2025-08-16 20:39:27
 ================================================================================
 
 ================================================================================
@@ -16,8 +16,8 @@
 ## Игровая логика & Менеджеры
 
 <!-- DONE: Создать масштабируемую систему имен монстров -->
-<!-- WIP: Интегрировать реальные данные монстров в BattleScreen. Связать EnemyGroupPanel с GameManager, чтобы панели отображали состояние объектов Character (монстров), созданных фабрикой. -->
-<!-- WIP: Добавить загрузку стартовых монстров в GameManager._initialize_game_entities (или аналогичный метод), используя monster_factory. -->
+<!-- DONE: Интегрировать реальные данные монстров в BattleScreen. Связать EnemyGroupPanel с GameManager, чтобы панели отображали состояние объектов Character (монстров), созданных фабрикой. -->
+<!-- DONE: Добавить загрузку стартовых монстров в GameManager._initialize_game_entities (или аналогичный метод), используя monster_factory. -->
 <!-- DONE: Реализовать механизм обновления UI (HP/MP) в BattleScreen на основе текущего состояния объектов Player/Character. -->
 <!-- DONE: Добавить в GameManager методы для управления текущими врагами (`get_current_enemies`, `set_current_enemies` и т.д.). -->
 <!-- TODO: Создать JSON-файлы для классов монстров в `game/data/characters/monster_classes/`, если они еще не существуют. -->
@@ -31,7 +31,7 @@
 <!-- TODO: Доработать BattleScreen.render, чтобы он обновлял содержимое UnitPanel (имя, HP, MP) на основе данных из GameManager перед отрисовкой панелей. -->
 <!-- TODO: Проверить/доработать логику `_update_component_sizes` в `BattleScreen` для корректного изменения размеров компонентов при ресайзе окна терминала. -->
 <!-- TODO: Реализовать отображение имен монстров/игроков в UnitPanel (сейчас в EnemyUnitPanel имя передается вручную, нужно брать из объекта Character). -->
-<!-- TODO: Возможно, унифицировать EnemyUnitPanel и PlayerUnitPanel, или создать базовый класс, если различий будет немного. -->
+<!-- WIP: Улучшить визуал BattleScreen: корректное расположение игроков/монстров, настройка лога, порядок обрамления. -->
 
 ## Компоненты UI
 
@@ -257,163 +257,6 @@ def get_config() -> GameConfig:
 
 
 ================================================================================
-Файл: game/game_manager.py
-================================================================================
-
-# game/game_manager.py
-"""Менеджер игрового состояния.
-Отвечает за инициализацию и хранение основных сущностей игры:
-игроков, глобального состояния, текущих врагов, инвентаря и т.д.
-Реализует паттерн Singleton для обеспечения единственного экземпляра менеджера."""
-
-from typing import Any, Dict, List, Optional, TYPE_CHECKING, Union
-
-from game.factories.player_factory import create_player
-from game.config import get_config
-
-if TYPE_CHECKING:
-    from game.entities.player import Player
-    from game.entities.monster import Monster
-    # from game.inventory import Inventory # и т.д.
-
-
-class GameManager:
-    """Менеджер игрового состояния."""
-    _instance: Optional['GameManager'] = None # Для реализации Singleton
-
-    def __new__(cls) -> 'GameManager':
-        """Реализация паттерна Singleton."""
-        if cls._instance is None:
-            cls._instance = super(GameManager, cls).__new__(cls)
-        return cls._instance
-
-    def __init__(self) -> None:
-        """Инициализирует менеджер игры и загружает начальное состояние."""
-        # Проверка, инициализирован ли уже объект, чтобы избежать повторной инициализации
-        # при повторном вызове __init__ на том же экземпляре из-за Singleton
-        if hasattr(self, 'initialized'):
-            return
-
-        self.config = get_config() # Получаем глобальную конфигурацию
-
-        # --- Инициализация основных сущностей ---
-        self.player_group: List['Player'] = []
-        self.current_enemies: List['Monster'] = []
-        # self.global_inventory: 'Inventory' = ... # Для будущего использования
-
-        self._initialize_game_entities()
-
-        self.initialized = True # Флаг, что инициализация прошла
-
-    def _initialize_game_entities(self) -> None:
-        """Создает и инициализирует стартовые сущности игры."""
-        # Получаем пути из конфигурации
-        player_data_dir = self.config.system.player_classes_directory
-
-        # Пример создания игроков
-        # В будущем это может загружаться из файла сохранения или профиля
-        
-        # Создаем Берсерка
-        berserker = create_player(
-            name="Громила",
-            role="berserker",
-            level=1,
-            data_directory=player_data_dir
-        )
-        if berserker:
-            self.player_group.append(berserker)
-
-        # Создаем Лекаря
-        healer = create_player(
-            name="Целитель",
-            role="healer",
-            level=1,
-            data_directory=player_data_dir
-        )
-        if healer:
-            self.player_group.append(healer)
-
-
-        # TODO: Добавить создание других стартовых игроков, если нужно
-        # --- Инициализация других сущностей ---
-        # TODO: Инициализация инвентаря, глобального состояния и т.д.
-
-
-    def get_player_group(self) -> List['Player']:
-        """Получить текущую группу игроков."""
-        return self.player_group
-
-    # TODO: Добавить методы для управления другими сущностями
-    # def get_global_inventory(self) -> 'Inventory': ...
-    # def start_new_battle(self, enemies: List['Monster']) -> None: ...
-    # и т.д.
-
-
-    def get_current_enemies(self) -> List['Monster']:
-        """
-        Получение списка текущих врагов (монстров) в бою.
-
-        Returns:
-            List[Monster]: Список объектов Monster, представляющих текущих врагов.
-                           Если врагов нет, возвращается пустой список.
-        """
-        return self.current_enemies.copy() # Возвращаем копию, чтобы предотвратить случайное изменение внутреннего списка извне
-
-
-    def create_enemies(self, enemy_data_list: List[Dict[str, Any]]) -> bool:
-        """
-        Создание новой группы врагов (монстров) и сохранение их в current_enemies.
-
-        Args:
-            enemy_data_list (List[Dict[str, Any]]): Список словарей с данными для создания монстров.
-                Каждый словарь может содержать ключи:
-                - 'role' (str, обязательный): Роль/тип монстра (например, 'goblin', 'dragon').
-                - 'level' (int, опциональный): Уровень монстра. По умолчанию 1.
-                - 'name' (str, опциональный): Имя монстра. Если не указано,
-                                             будет сгенерировано фабрикой.
-
-        Returns:
-            bool: Монстры созданы.
-
-        Example:
-            enemy_data = [
-                {'role': 'goblin', 'level': 2},
-                {'role': 'orc', 'name': 'Громила'},
-                {'role': 'dragon'} # Будет уровень 1
-            ]
-            new_enemies = game_manager.create_enemies(enemy_data)
-        """
-        # Очищаем список текущих врагов перед созданием новых
-        self.current_enemies.clear()
-        
-        # Импортируем фабрику внутри метода, чтобы избежать циклических импортов
-        from game.factories.monster_factory import create_monster
-
-        for enemy_data in enemy_data_list:
-            role = enemy_data.get('role')
-            if not role:
-                # Можно логировать ошибку или пропустить
-                print(f"Предупреждение: Пропущен монстр без 'role': {enemy_data}")
-                continue
-
-            level = enemy_data.get('level', 1) # Уровень по умолчанию 1
-            name = enemy_data.get('name') # Имя может быть None, тогда сгенерируется
-            
-            # Создаем монстра с помощью фабрики
-            monster = create_monster(name=name, role=role, level=level)
-            if monster:
-                self.current_enemies.append(monster)
-        
-        return True # Возвращаем список только что созданных врагов
-
-# Функция для удобного получения экземпляра GameManager
-def get_game_manager() -> GameManager:
-    """Получить глобальный экземпляр GameManager."""
-    # Это гарантирует, что экземпляр будет создан при первом вызове
-    return GameManager()
-
-
-================================================================================
 Файл: game/protocols.py
 ================================================================================
 
@@ -567,6 +410,177 @@ class MonsterNamerProtocol(Protocol):
             Сгенерированное имя.
         """
         ... # Тело метода в протоколе пустое, описывает интерфейс
+
+
+================================================================================
+Файл: game/game_manager.py
+================================================================================
+
+# game/game_manager.py
+"""Менеджер игрового состояния.
+Отвечает за инициализацию и хранение основных сущностей игры:
+игроков, глобального состояния, текущих врагов, инвентаря и т.д.
+Реализует паттерн Singleton для обеспечения единственного экземпляра менеджера."""
+
+from typing import Any, Dict, List, Optional, TYPE_CHECKING, Union
+
+from game.factories.player_factory import create_player
+from game.config import get_config
+
+if TYPE_CHECKING:
+    from game.entities.player import Player
+    from game.entities.monster import Monster
+    # from game.inventory import Inventory # и т.д.
+
+
+class GameManager:
+    """Менеджер игрового состояния."""
+    _instance: Optional['GameManager'] = None # Для реализации Singleton
+
+    def __new__(cls) -> 'GameManager':
+        """Реализация паттерна Singleton."""
+        if cls._instance is None:
+            cls._instance = super(GameManager, cls).__new__(cls)
+        return cls._instance
+
+    def __init__(self) -> None:
+        """Инициализирует менеджер игры и загружает начальное состояние."""
+        # Проверка, инициализирован ли уже объект, чтобы избежать повторной инициализации
+        # при повторном вызове __init__ на том же экземпляре из-за Singleton
+        if hasattr(self, 'initialized'):
+            return
+
+        self.config = get_config() # Получаем глобальную конфигурацию
+
+        # --- Инициализация основных сущностей ---
+        self.player_group: List['Player'] = []
+        self.current_enemies: List['Monster'] = []
+        # self.global_inventory: 'Inventory' = ... # Для будущего использования
+
+        self._initialize_game_entities()
+
+        self.initialized = True # Флаг, что инициализация прошла
+
+    def _initialize_game_entities(self) -> None:
+        """Создает и инициализирует стартовые сущности игры."""
+        # Получаем пути из конфигурации
+        player_data_dir = self.config.system.player_classes_directory
+        # monster_data_dir = self.config.system.monster_classes_directory # Если понадобится напрямую
+
+        # --- Инициализация игроков ---
+        # В будущем это может загружаться из файла сохранения или профиля
+        
+        # Словарь с именами и ролями стартовых игроков
+        starting_players = {
+            "Роланд": "berserker",
+            "Стайлс": "rogue",
+            "Морган": "mage",
+            "Дамиан": "healer"
+        }
+        
+        # Создаем каждого игрока из словаря
+        for name, role in starting_players.items():
+            player = create_player(
+                name=name,
+                role=role,
+                level=1,
+                data_directory=player_data_dir
+            )
+            if player:
+                self.player_group.append(player)
+
+        # --- Инициализация стартовых врагов ---
+        # Создаем начальную группу врагов для первого боя
+        # Пример данных для создания монстров
+        initial_enemy_data = [
+            {'role': 'goblin', 'level': 1}, # Имя будет сгенерировано
+            {'role': 'orc', 'name': 'Громозека', 'level': 2},
+            # Можно добавить больше стартовых монстров
+        ]
+        
+        # Создаем монстров, используя существующий метод create_enemies
+        # Это заполнит self.current_enemies
+        self.create_enemies(initial_enemy_data)
+        
+        # Альтернатива: можно вызвать create_monster напрямую в цикле,
+        # но использование create_enemies более консистентно и переиспользует логику
+        
+        # --- Инициализация других сущностей ---
+        # TODO: Инициализация инвентаря, глобального состояния и т.д.
+
+
+    def get_player_group(self) -> List['Player']:
+        """Получить текущую группу игроков."""
+        return self.player_group
+
+    # TODO: Добавить методы для управления другими сущностями
+    # def get_global_inventory(self) -> 'Inventory': ...
+    # def start_new_battle(self, enemies: List['Monster']) -> None: ...
+    # и т.д.
+
+
+    def get_current_enemies(self) -> List['Monster']:
+        """
+        Получение списка текущих врагов (монстров) в бою.
+
+        Returns:
+            List[Monster]: Список объектов Monster, представляющих текущих врагов.
+                           Если врагов нет, возвращается пустой список.
+        """
+        return self.current_enemies.copy() # Возвращаем копию, чтобы предотвратить случайное изменение внутреннего списка извне
+
+
+    def create_enemies(self, enemy_data_list: List[Dict[str, Any]]) -> bool:
+        """
+        Создание новой группы врагов (монстров) и сохранение их в current_enemies.
+
+        Args:
+            enemy_data_list (List[Dict[str, Any]]): Список словарей с данными для создания монстров.
+                Каждый словарь может содержать ключи:
+                - 'role' (str, обязательный): Роль/тип монстра (например, 'goblin', 'dragon').
+                - 'level' (int, опциональный): Уровень монстра. По умолчанию 1.
+                - 'name' (str, опциональный): Имя монстра. Если не указано,
+                                             будет сгенерировано фабрикой.
+
+        Returns:
+            bool: Монстры созданы.
+
+        Example:
+            enemy_data = [
+                {'role': 'goblin', 'level': 2},
+                {'role': 'orc', 'name': 'Громила'},
+                {'role': 'dragon'} # Будет уровень 1
+            ]
+            new_enemies = game_manager.create_enemies(enemy_data)
+        """
+        # Очищаем список текущих врагов перед созданием новых
+        self.current_enemies.clear()
+        
+        # Импортируем фабрику внутри метода, чтобы избежать циклических импортов
+        from game.factories.monster_factory import create_monster
+
+        for enemy_data in enemy_data_list:
+            role = enemy_data.get('role')
+            if not role:
+                # Можно логировать ошибку или пропустить
+                print(f"Предупреждение: Пропущен монстр без 'role': {enemy_data}")
+                continue
+
+            level = enemy_data.get('level', 1) # Уровень по умолчанию 1
+            name = enemy_data.get('name') # Имя может быть None, тогда сгенерируется
+            
+            # Создаем монстра с помощью фабрики
+            monster = create_monster(name=name, role=role, level=level)
+            if monster:
+                self.current_enemies.append(monster)
+        
+        return True # Возвращаем список только что созданных врагов
+
+# Функция для удобного получения экземпляра GameManager
+def get_game_manager() -> GameManager:
+    """Получить глобальный экземпляр GameManager."""
+    # Это гарантирует, что экземпляр будет создан при первом вызове
+    return GameManager()
 
 
 ================================================================================
@@ -795,198 +809,6 @@ class InventoryScreen(BaseScreen, StandardLayoutMixin):
     def _handle_unregistered_key(self, key: int) -> None:
         """Обработка незарегистрированных клавиш."""
         pass
-
-
-================================================================================
-Файл: game/ui/battle_screen.py
-================================================================================
-
-# game/ui/battle_screen.py
-"""Экран боя.
-Отображает боевую сцену с возможностью взаимодействия."""
-
-import curses
-from typing import TYPE_CHECKING
-
-# - ДОБАВЛЯЕМ ИМПОРТ МИКСИНА -
-from game.ui.mixins import StandardLayoutMixin
-# -
-
-# - ИМПОРТИРУЕМ НОВЫЕ КОМПОНЕНТЫ -
-from game.ui.components.battle_components import (
-    PlayerUnitPanel,
-    EnemyUnitPanel,
-    GroupPanel,
-    BattleLog
-)
-# -
-from game.ui.base_screen import BaseScreen
-from game.ui.rendering.color_manager import Color
-
-# - ДОБАВЛЯЕМ ИМПОРТ ДЛЯ TYPE_CHECKING -
-if TYPE_CHECKING:
-    from game.ui.screen_manager import ScreenManager
-    from game.entities.player import Player # Для аннотаций
-# -
-
-
-# - НАСЛЕДУЕМСЯ ОТ StandardLayoutMixin -
-class BattleScreen(BaseScreen, StandardLayoutMixin):
-    """Экран боя."""
-
-    def __init__(self, manager: 'ScreenManager'):
-        # Инициализируем атрибуты для компонентов
-        self.player_group: GroupPanel = None # type: ignore # Будет инициализирован в _setup_elements
-        self.enemy_group: GroupPanel = None # type: ignore
-        self.battle_log: BattleLog = None # type: ignore
-        super().__init__(manager)
-
-    def _setup_elements(self) -> None:
-        """Настройка элементов экрана."""
-        # УБИРАЕМ старый заголовок и разделитель, так как они теперь в миксине
-        self.elements = [] # Очищаем список, так как компоненты будут отрисовываться напрямую
-
-        # - НАСТРОЙКА КОМПОНЕНТОВ -
-        # Инициализируем компоненты с начальными размерами
-        # Они будут обновлены в render/update_size
-        header_height = 2
-        initial_group_height = 6 # Примерная высота для группы (может быть динамической)
-        player_group_x = 1
-        player_group_y = header_height
-        enemy_group_x = 1
-        enemy_group_y = player_group_y + initial_group_height + 1 # +1 для разделителя
-
-        self.player_group = GroupPanel(player_group_x, player_group_y, 50, initial_group_height, "Герои")
-        self.enemy_group = GroupPanel(enemy_group_x, enemy_group_y, 50, initial_group_height, "Враги")
-
-        # Получаем GameManager
-        game_manager = self.manager.game_manager
-        player_characters = game_manager.get_player_group()
-        monster_characters = game_manager.get_current_enemies()
-
-        # Создаем панели для каждого игрока
-        for i, player_char in enumerate(player_characters):
-            # Создаем PlayerUnitPanel, используя данные реального персонажа
-            # Предполагаем, что player_char имеет атрибуты name, hp, energy, attributes
-            player_panel = PlayerUnitPanel(
-                x=0,  # Координаты будут обновлены в _update_component_sizes
-                y=0,  # Координаты будут обновлены в _update_component_sizes
-                width=30, # Ширина может быть скорректирована позже
-                name=player_char.name,
-                hp=player_char.hp,
-                max_hp=player_char.attributes.max_hp,
-                mp=player_char.energy, # Предполагаем, что энергия отображается как MP
-                max_mp=player_char.attributes.max_energy # Предполагаем, что макс. энергия отображается как макс. MP
-            )
-            # Добавляем панель в группу
-            self.player_group.add_unit_panel(player_panel)
-
-        for i, monster_char in enumerate(monster_characters):
-            monster_panel = EnemyUnitPanel(
-                x=0,  # Координаты будут обновлены в _update_component_sizes
-                y=0,  # Координаты будут обновлены в _update_component_sizes
-                width=30, # Ширина может быть скорректирована позже
-                name=monster_char.name,
-                hp=monster_char.hp,
-                max_hp=monster_char.attributes.max_hp
-            )
-
-        # (Пока) оставляем создание врагов как в оригинале, или можно также обновить
-        # если будет фабрика монстров в GameManager
-        #enemy1 = EnemyUnitPanel(0, 0, 30, "Дракон", 150, 150)
-        #enemy2 = EnemyUnitPanel(0, 0, 30, "Гоблин", 40, 40)
-        #self.enemy_group.add_unit_panel(enemy1)
-        #self.enemy_group.add_unit_panel(enemy2)
-        # --- КОНЕЦ НОВОГО кода ---
-
-        # Временные координаты для battle_log, будут обновлены в update_size
-        log_x = 1
-        log_y = enemy_group_y + initial_group_height + 1
-        log_width = 60
-        log_height = 5
-        self.battle_log = BattleLog(log_x, log_y, log_width, log_height)
-
-        # Добавляем тестовые сообщения в лог
-        # TODO: Заменить на реальные сообщения из игровой логики
-        self.battle_log.add_message("Битва начинается!")
-
-    def _update_component_sizes(self) -> None:
-        """Обновление размеров компонентов."""
-        if not self.renderer:
-            return
-
-        # Координаты и размеры
-        header_height = 2
-        group_width = max(10, self.renderer.width - 2)
-        group_height = 6 # Примерная высота, можно сделать динамической
-
-        # Группы игроков и врагов
-        self.player_group.x = 1
-        self.player_group.y = header_height
-        self.player_group.width = group_width
-        self.player_group.height = group_height
-
-        self.enemy_group.x = 1
-        self.enemy_group.y = header_height + group_height + 1
-        self.enemy_group.width = group_width
-        self.enemy_group.height = group_height
-
-        # Обновляем размеры дочерних компонентов
-        self.player_group.update_size(self.renderer.width, self.renderer.height)
-        self.enemy_group.update_size(self.renderer.width, self.renderer.height)
-
-        # Лог боя
-        log_x = 1
-        log_y = header_height + 2 * group_height + 2
-        log_width = max(10, self.renderer.width - 2)
-        # Высота лога - всё оставшееся пространство минус отступы
-        available_height = self.renderer.height - log_y - 2 # -2 для подвала
-        log_height = max(3, available_height) # Минимальная высота 3
-
-        self.battle_log.x = log_x
-        self.battle_log.y = log_y
-        self.battle_log.width = log_width
-        self.battle_log.height = log_height
-        self.battle_log.update_size(self.renderer.width, self.renderer.height)
-
-    def _setup_commands(self) -> None:
-        """Настройка дополнительных команд экрана."""
-        # Все команды добавятся автоматически из реестра!
-        pass
-
-    # - ОБНОВЛЯЕМ МЕТОД render -
-    def render(self, stdscr: curses.window) -> None:
-        """Отрисовка экрана."""
-        # Обновляем размеры компонентов перед отрисовкой
-        self._update_component_sizes()
-
-        self.renderer.clear()
-        # Отрисовка стандартного макета (шапка + подвал)
-        self.render_standard_layout("=== БОЙ ===")
-
-        # - ОТРИСОВКА НОВЫХ КОМПОНЕНТОВ -
-        # Отрисовываем компоненты напрямую
-        if self.player_group:
-            self.player_group.render(self.renderer)
-        if self.enemy_group:
-            self.enemy_group.render(self.renderer)
-        if self.battle_log:
-            self.battle_log.render(self.renderer)
-        # -
-
-        self.renderer.refresh() # Не забываем refresh
-
-    def _handle_unregistered_key(self, key: int) -> None:
-        """Обработка незарегистрированных клавиш."""
-        # Обработка прокрутки лога
-        if key == curses.KEY_UP:
-            if self.battle_log:
-                self.battle_log.scroll_up()
-        elif key == curses.KEY_DOWN:
-            if self.battle_log:
-                self.battle_log.scroll_down()
-        # Можно добавить отладочный вывод
-        # print(f"BattleScreen: Нажата незарегистрированная клавиша: {key}")
 
 
 ================================================================================
@@ -1225,6 +1047,215 @@ class ScreenManager:
                 # Пока просто выходим
                 print(f"Критическая ошибка: {e}")
                 exit()
+
+
+================================================================================
+Файл: game/ui/battle_screen.py
+================================================================================
+
+# game/ui/screens/battle_screen.py
+"""Экран боя.
+Отображает боевую сцену с возможностью взаимодействия."""
+
+import curses
+from typing import TYPE_CHECKING
+
+# - ДОБАВЛЯЕМ ИМПОРТ МИКСИНА -
+from game.ui.mixins import StandardLayoutMixin
+# -
+
+# - ИМПОРТИРУЕМ НОВЫЕ КОМПОНЕНТЫ -
+from game.ui.components.battle_components import (
+    PlayerGroupPanel,
+    EnemyGroupPanel,
+    BattleLog
+)
+# -
+from game.ui.base_screen import BaseScreen
+from game.ui.rendering.color_manager import Color
+# Импортируем get_game_manager для использования внутри _setup_elements
+from game.game_manager import get_game_manager
+
+# - ДОБАВЛЯЕМ ИМПОРТ ДЛЯ TYPE_CHECKING -
+if TYPE_CHECKING:
+    from game.ui.screen_manager import ScreenManager
+    from game.entities.player import Player # Для аннотаций
+    from game.entities.monster import Monster # Для аннотаций
+# -
+
+
+# - НАСЛЕДУЕМСЯ ОТ StandardLayoutMixin -
+class BattleScreen(BaseScreen, StandardLayoutMixin):
+    """Экран боя."""
+
+    def __init__(self, manager: 'ScreenManager'):
+        # Инициализируем атрибуты для компонентов
+        # Они будут инициализированы в _setup_elements
+        self.player_group: 'PlayerGroupPanel' = None # type: ignore
+        self.enemy_group: 'EnemyGroupPanel' = None # type: ignore
+        self.battle_log: 'BattleLog' = None # type: ignore
+
+        # Вызываем родительский конструктор
+        # _setup_elements будет вызван внутри него
+        super().__init__(manager)
+
+        # После вызова super().__init__ все атрибуты уже инициализированы
+        # Дополнительная инициализация, если потребуется, может быть здесь
+
+    def _setup_elements(self) -> None:
+        """Настройка элементов экрана."""
+        
+        self.elements = [] # Очищаем список, так как компоненты будут отрисовываться напрямую
+
+        # --- ПОЛУЧАЕМ ДАННЫЕ ИЗ GameManager НЕПОСРЕДСТВЕННО В _setup_elements ---
+        # Это решает проблему порядка инициализации
+        game_manager = get_game_manager()
+        real_enemy_data = game_manager.get_current_enemies()
+        real_player_data = game_manager.get_player_group()
+        # ---
+
+        # - НАСТРОЙКА КОМПОНЕНТОВ -
+        # Инициализируем компоненты с начальными размерами
+        # Они будут обновлены в render/update_size
+        header_height = 2
+        
+        # Начальные координаты для блоков юнитов
+        units_y = header_height + 1 # Блоки юнитов под заголовком
+        units_height = 5 # Фиксированная высота 5 строк
+        
+        # Ширины блоков
+        total_width = 80 # Начальное значение, будет пересчитано в update_size
+        player_group_width = total_width // 3
+        enemy_group_width = total_width - player_group_width - 1 # -1 для зазора
+        
+        # Координаты X
+        player_group_x = 1
+        enemy_group_x = player_group_x + player_group_width + 1 # +1 для зазора
+
+        # Создаем панели с реальными объектами Character
+        # EnemyGroupPanel и PlayerGroupPanel теперь принимают List[Monster] и List[Player]
+        self.player_group = PlayerGroupPanel(
+            x=player_group_x,
+            y=units_y,
+            width=player_group_width,
+            height=units_height,
+            players=real_player_data # Передаем список объектов Player напрямую
+        )
+
+        self.enemy_group = EnemyGroupPanel(
+            x=enemy_group_x,
+            y=units_y,
+            width=enemy_group_width,
+            height=units_height,
+            enemies=real_enemy_data # Передаем список объектов Monster напрямую
+        )
+
+        # Временные координаты для battle_log, будут обновлены в update_size
+        log_x = 1
+        log_y = units_y + units_height + 1 # Под блоками юнитов
+        log_width = 60
+        log_height = 5
+        self.battle_log = BattleLog(log_x, log_y, log_width, log_height)
+
+        # Добавляем тестовые сообщения в лог
+        # TODO: Заменить на реальные сообщения из игровой логики
+        self.battle_log.add_message("Битва начинается!")
+
+    def _update_component_sizes(self) -> None:
+        """Обновление размеров компонентов."""
+        if not self.renderer:
+            return
+
+        # Получаем текущие размеры экрана
+        screen_width = self.renderer.width
+        screen_height = self.renderer.height
+        
+        # Координаты и размеры
+        header_height = 2
+        
+        # Блоки юнитов
+        units_y = header_height + 1
+        units_height = 5 # Фиксированная высота
+        
+        # Ширины блоков (1/3 для игроков, 2/3 для монстров)
+        player_group_width = max(10, screen_width // 3)
+        enemy_group_width = max(10, screen_width - player_group_width - 1) # -1 для зазора
+        
+        # Координаты X
+        player_group_x = 1
+        enemy_group_x = player_group_x + player_group_width + 1 # +1 для зазора
+
+        # Обновляем размеры и позиции групп
+        self.player_group.x = player_group_x
+        self.player_group.y = units_y
+        self.player_group.width = player_group_width
+        self.player_group.height = units_height
+
+        self.enemy_group.x = enemy_group_x
+        self.enemy_group.y = units_y
+        self.enemy_group.width = enemy_group_width
+        self.enemy_group.height = units_height
+
+        # Обновляем размеры дочерних компонентов групп
+        # Для GroupPanel update_size принимает общие размеры экрана
+        self.player_group.update_size(screen_width, screen_height)
+        self.enemy_group.update_size(screen_width, screen_height)
+
+        # Лог боя
+        log_x = 1
+        log_y = units_y + units_height + 1 # Под блоками юнитов
+        log_width = max(10, screen_width - 2) # На всю ширину с отступами
+        
+        # Высота лога - всё оставшееся пространство минус отступы и подвал
+        available_height = screen_height - log_y - 2 # -2 для подвала
+        log_height = max(3, available_height) # Минимальная высота 3
+
+        self.battle_log.x = log_x
+        self.battle_log.y = log_y
+        self.battle_log.width = log_width
+        self.battle_log.height = log_height
+        # Исправленный вызов update_size для BattleLog
+        # Сигнатура: update_size(self, total_width: int, total_height: int)
+        self.battle_log.update_size(screen_width, screen_height)
+
+    def _setup_commands(self) -> None:
+        """Настройка дополнительных команд экрана."""
+        # Все команды добавятся автоматически из реестра!
+        pass
+
+    # - ОБНОВЛЯЕМ МЕТОД render -
+    def render(self, stdscr: curses.window) -> None:
+        """Отрисовка экрана."""
+        # Обновляем размеры компонентов перед отрисовкой
+        self._update_component_sizes()
+
+        self.renderer.clear()
+        # Отрисовка стандартного макета (шапка + подвал)
+        self.render_standard_layout("=== БОЙ ===")
+
+        # - ОТРИСОВКА НОВЫХ КОМПОНЕНТОВ -
+        # Отрисовываем компоненты напрямую
+        if self.player_group:
+            self.player_group.render(self.renderer)
+        if self.enemy_group:
+            self.enemy_group.render(self.renderer)
+        if self.battle_log:
+            self.battle_log.render(self.renderer)
+        # -
+
+        self.renderer.refresh() # Не забываем refresh
+
+    def _handle_unregistered_key(self, key: int) -> None:
+        """Обработка незарегистрированных клавиш."""
+        # Обработка прокрутки лога
+        if key == curses.KEY_UP:
+            if self.battle_log:
+                self.battle_log.scroll_up()
+        elif key == curses.KEY_DOWN:
+            if self.battle_log:
+                self.battle_log.scroll_down()
+        # Можно добавить отладочный вывод
+        # print(f"BattleScreen: Нажата незарегистрированная клавиша: {key}")
 
 
 ================================================================================
@@ -3711,176 +3742,294 @@ register_screen_commands(MainScreen, [
 
 # game/ui/components/battle_components.py
 """Компоненты для экрана боя.
+Содержит визуальные элементы для отображения игроков, врагов и лога боя."""
 
-Содержит визуальные элементы для отображения игроков, врагов и лога боя.
-"""
+import curses
+from typing import List, Dict, Any, TYPE_CHECKING
 
-from typing import List, Optional, TYPE_CHECKING
-
-from game.ui.rendering.color_manager import Color
 from game.ui.rendering.renderable import Renderable
+from game.ui.rendering.color_manager import Color
+from game.ui.rendering.renderer import Renderer
 
+# Импорты для аннотаций типов, чтобы избежать циклических импортов на уровне выполнения
 if TYPE_CHECKING:
-    from game.ui.rendering.renderer import Renderer
+    from game.entities.monster import Monster
+    from game.entities.player import Player
+    from game.entities.character import Character
 
 
 class UnitPanel(Renderable):
-    """Базовая панель для отображения одного юнита (игрока или монстра). Высота 1 строка."""
+    """Базовая панель для отображения одного юнита (игрока или врага) в одну строку без рамки."""
 
-    def __init__(self, x: int, y: int, width: int, name: str, hp: int, max_hp: int,
-                 mp: int = 0, max_mp: int = 0, is_player: bool = True):
+    def __init__(self, x: int, y: int, width: int, height: int) -> None:
+        """Инициализация базовой панели юнита.
+        Args:
+            x: Координата X.
+            y: Координата Y.
+            width: Ширина панели.
+            height: Высота панели (должна быть 1 для соответствия новому дизайну).
+        """
         super().__init__(x, y)
         self.width = width
-        self.name = name
-        self.hp = hp
-        self.max_hp = max_hp
-        self.mp = mp
-        self.max_mp = max_mp
-        self.is_player = is_player
-        # Заглушка для баффов/дебаффов
-        self.status_effects: List[str] = []  # Например: ["Poison", "Shield"]
+        self.height = height  # Ожидается 1
+        # Эти атрибуты будут устанавливаться в подклассах или методах обновления
+        self.name: str = "Unknown"
+        self.max_hp: int = 1
+        self.current_hp: int = 1
+        self.max_mp: int = 0
+        self.current_mp: int = 0
+        self.is_player: bool = False
 
-    def update_position(self, x: int, y: int) -> None:
-        """Обновление позиции панели."""
-        self.x = x
-        self.y = y
+    def render(self, renderer: Renderer) -> None:
+        """Отрисовка базовой панели юнита в одну строку без рамки."""
+        # Формат: [Имя] HP: текущее/максимум [MP: текущее/максимум]
+        # Цвет: синий для игроков, красный для монстров
+        
+        # Определяем цвет
+        color = Color.CYAN if self.is_player else Color.RED
 
-    def update_stats(self, hp: int, max_hp: int, mp: int = 0, max_mp: int = 0) -> None:
-        """Обновление статистики юнита."""
-        self.hp = hp
-        self.max_hp = max_hp
-        self.mp = mp
-        self.max_mp = max_mp
-
-    def render(self, renderer: 'Renderer') -> None:
-        """Отрисовка панели юнита в одну строку."""
-        # Формат: [Имя] [HP Bar] [MP Bar] [Статусы]
-        # Пример: Hero [#####.....] [***......] Poison
+        # Создаем текстовое представление
+        hp_text = f"HP: {self.current_hp}/{self.max_hp}"
+        mp_text = ""
+        if self.max_mp > 0:
+            mp_text = f" MP: {self.current_mp}/{self.max_mp}"
+        
+        # Комбинируем текст
+        full_text = f"{self.name} {hp_text}{mp_text}"
+        
+        # Обрезаем или дополняем пробелами до ширины панели
+        display_text = full_text.ljust(self.width)[:self.width]
+        
+        # Отрисовка текста
         try:
-            # Рассчитываем доступную ширину
-            available_width = self.width
-
-            # Имя (минимум 8 символов)
-            name_width = min(12, max(8, len(self.name)))
-            name_part = self.name[:name_width].ljust(name_width)
-
-            # Статусы (минимум 6 символов, максимум 15)
-            status_str = " ".join(self.status_effects[:3])  # Показываем максимум 3 эффекта
-            status_width = min(15, max(6, len(status_str)))
-            status_part = status_str[:status_width].ljust(status_width)
-
-            # Оставшаяся ширина для полосок HP и MP
-            bars_width = available_width - name_width - status_width - 3  # 3 пробела
-
-            # Если места мало, упрощаем
-            if bars_width < 10:
-                # Показываем только имя и HP в виде текста
-                hp_text = f"{self.hp}/{self.max_hp}"
-                simple_display = f"{name_part} {hp_text}".ljust(self.width)[:self.width]
-                renderer.draw_text(
-                    simple_display,
-                    self.x,
-                    self.y,
-                    color=Color.GREEN if self.is_player else Color.RED
-                )
-                return
-
-            # Делим оставшуюся ширину между HP и MP
-            hp_bar_width = max(5, bars_width // 2)
-            mp_bar_width = max(5, bars_width - hp_bar_width - 1)  # -1 для пробела
-
-            # HP Bar
-            hp_fill = int((self.hp / self.max_hp) * hp_bar_width) if self.max_hp > 0 else 0
-            hp_bar = "#" * hp_fill + "." * (hp_bar_width - hp_fill)
-
-            # MP Bar (если есть MP)
-            mp_bar = ""
-            if self.max_mp > 0:
-                mp_fill = int((self.mp / self.max_mp) * mp_bar_width) if self.max_mp > 0 else 0
-                mp_bar = " " + "*" * mp_fill + "." * (mp_bar_width - mp_fill)
-
-            # Собираем строку
-            display_line = f"{name_part} [{hp_bar}] [{mp_bar}] {status_part}".rstrip()
-            # Обрезаем, если вышло за границы
-            display_line = display_line[:self.width]
-
-            # Определяем цвет
-            color = Color.GREEN if self.is_player else Color.RED
-
-            renderer.draw_text(display_line, self.x, self.y, color=color)
-
-        except Exception as e:
-            # В случае ошибки рисуем простую заглушку
-            renderer.draw_text(
-                f"{self.name} HP:{self.hp}/{self.max_hp}".ljust(self.width)[:self.width],
-                self.x,
-                self.y,
-                color=Color.WHITE
-            )
-
-
-class PlayerUnitPanel(UnitPanel):
-    """Панель для отображения одного игрока."""
-
-    def __init__(self, x: int, y: int, width: int, name: str, hp: int, max_hp: int,
-                 mp: int = 0, max_mp: int = 0):
-        super().__init__(x, y, width, name, hp, max_hp, mp, max_mp, is_player=True)
+            renderer.draw_text(display_text, self.x, self.y, color=color)
+        except curses.error:
+            # Игнорируем ошибки выхода за границы экрана
+            pass
 
 
 class EnemyUnitPanel(UnitPanel):
     """Панель для отображения одного врага."""
 
-    def __init__(self, x: int, y: int, width: int, name: str, hp: int, max_hp: int):
-        # У врагов обычно нет MP
-        super().__init__(x, y, width, name, hp, max_hp, 0, 0, is_player=False)
+    def __init__(self, x: int, y: int, width: int, height: int, monster: 'Monster') -> None:
+        """Инициализация панели врага.
+        Args:
+            x: Координата X.
+            y: Координата Y.
+            width: Ширина панели.
+            height: Высота панели (должна быть 1).
+            monster: Объект Monster для отображения.
+        """
+        # Инициализируем базовую панель
+        super().__init__(x, y, width, height)
+        # Сохраняем ссылку на объект Monster
+        self.monster = monster
+        # Инициализируем данные из объекта Monster
+        self._update_data_from_monster()
+
+    def _update_data_from_monster(self) -> None:
+        """Обновить внутренние данные панели из объекта Monster."""
+        # Получаем актуальные данные из объекта Monster
+        self.name = getattr(self.monster, 'name', 'Unknown Enemy')
+        
+        # HP
+        self.current_hp = getattr(self.monster, 'hp', 0)
+        # Получаем max_hp из атрибутов, если они есть
+        attributes = getattr(self.monster, 'attributes', None)
+        if attributes:
+            self.max_hp = getattr(attributes, 'max_hp', 1)
+        else:
+            # Если атрибутов нет, используем текущий HP как максимум
+            self.max_hp = self.current_hp if self.current_hp > 0 else 1
+
+        # MP
+        self.current_mp = getattr(self.monster, 'mp', 0)
+        if attributes:
+            self.max_mp = getattr(attributes, 'max_mp', 0)
+        else:
+            self.max_mp = self.current_mp
+
+        # is_player всегда False для EnemyUnitPanel
+        self.is_player = False
+
+    def render(self, renderer: Renderer) -> None:
+        """Отрисовка панели врага."""
+        # Перед отрисовкой обновляем данные из объекта Monster
+        self._update_data_from_monster()
+        # Вызываем родительский метод render
+        super().render(renderer)
+
+
+class PlayerUnitPanel(UnitPanel):
+    """Панель для отображения одного игрока."""
+
+    def __init__(self, x: int, y: int, width: int, height: int, player: 'Player') -> None:
+        """Инициализация панели игрока.
+        Args:
+            x: Координата X.
+            y: Координата Y.
+            width: Ширина панели.
+            height: Высота панели (должна быть 1).
+            player: Объект Player для отображения.
+        """
+        # Инициализируем базовую панель
+        super().__init__(x, y, width, height)
+        # Сохраняем ссылку на объект Player
+        self.player = player
+        # Инициализируем данные из объекта Player
+        self._update_data_from_player()
+
+    def _update_data_from_player(self) -> None:
+        """Обновить внутренние данные панели из объекта Player."""
+        # Получаем актуальные данные из объекта Player
+        self.name = getattr(self.player, 'name', 'Unknown Player')
+        
+        # HP
+        self.current_hp = getattr(self.player, 'hp', 0)
+        # Получаем max_hp из атрибутов, если они есть
+        attributes = getattr(self.player, 'attributes', None)
+        if attributes:
+            self.max_hp = getattr(attributes, 'max_hp', 1)
+        else:
+            # Если атрибутов нет, используем текущий HP как максимум
+            self.max_hp = self.current_hp if self.current_hp > 0 else 1
+
+        # MP
+        self.current_mp = getattr(self.player, 'mp', 0)
+        if attributes:
+            self.max_mp = getattr(attributes, 'max_mp', 0)
+        else:
+            self.max_mp = self.current_mp
+
+        # is_player всегда True для PlayerUnitPanel
+        self.is_player = True
+
+    def render(self, renderer: Renderer) -> None:
+        """Отрисовка панели игрока."""
+        # Перед отрисовкой обновляем данные из объекта Player
+        self._update_data_from_player()
+        # Вызываем родительский метод render
+        super().render(renderer)
 
 
 class GroupPanel(Renderable):
-    """Панель для отображения группы юнитов (игроков или врагов)."""
+    """Базовая панель для отображения группы юнитов без внешнего обрамления."""
 
-    def __init__(self, x: int, y: int, width: int, height: int, title: str = ""):
+    def __init__(self, x: int, y: int, width: int, height: int) -> None:
+        """Инициализация базовой панели группы.
+        Args:
+            x: Координата X.
+            y: Координата Y.
+            width: Ширина панели.
+            height: Высота панели.
+        """
         super().__init__(x, y)
         self.width = width
         self.height = height
-        self.title = title
-        self.unit_panels: List[UnitPanel] = []
+        # Этот список будет заполняться в подклассах
+        self.panels: List[UnitPanel] = []
 
-    def add_unit_panel(self, unit_panel: UnitPanel) -> None:
-        """Добавление панели юнита в группу."""
-        self.unit_panels.append(unit_panel)
+    def update_size(self, max_width: int, max_height: int) -> None:
+        """Обновление размеров панели и её компонентов.
+        Args:
+            max_width: Максимальная ширина экрана.
+            max_height: Максимальная высота экрана.
+        """
+        # Обновление размеров дочерних панелей
+        if self.panels:
+            # Рассчитываем ширину для каждой панели
+            panel_count = len(self.panels)
+            new_panel_width = max(10, self.width // panel_count) if panel_count > 0 else self.width
 
-    def clear_unit_panels(self) -> None:
-        """Очистка списка панелей юнитов."""
-        self.unit_panels.clear()
+            for i, panel in enumerate(self.panels):
+                panel.width = new_panel_width
+                # Также обновляем позицию X, если ширина изменилась
+                # panel.x = self.x + i * new_panel_width # Не меняем X, т.к. он устанавливается в _update_panels
+                # Высота панели юнита должна быть 1
+                panel.height = 1
 
-    def update_size(self, total_width: int, total_height: int) -> None:
-        """Обновление размеров группы."""
-        # Размеры могут быть скорректированы внешним кодом
-        pass
+    def render(self, renderer: Renderer) -> None:
+        """Отрисовка панели группы без внешнего обрамления."""
+        # НЕ отрисовываем рамку вокруг группы
+        # Отрисовка каждой панели юнита
+        for panel in self.panels:
+            panel.render(renderer)
 
-    def render(self, renderer: 'Renderer') -> None:
-        """Отрисовка группы панелей."""
-        # Рисуем рамку вокруг группы
-        renderer.draw_box(self.x, self.y, self.width, self.height)
 
-        # Рисуем заголовок, если он есть
-        if self.title:
-            title_x = self.x + max(0, (self.width - len(self.title)) // 2)
-            renderer.draw_text(self.title, title_x, self.y, bold=True,
-                             color=Color.CYAN if "Игроки" in self.title else Color.MAGENTA)
+class EnemyGroupPanel(GroupPanel):
+    """Панель для отображения группы врагов."""
 
-        # Отрисовываем панели юнитов
-        for i, unit_panel in enumerate(self.unit_panels):
-            if i >= self.height - 2:  # -2 для рамки и заголовка
-                break  # Не помещаемся
-            unit_panel.update_position(self.x + 1, self.y + 1 + i)
-            unit_panel.render(renderer)
+    def __init__(self, x: int, y: int, width: int, height: int, enemies: List['Monster']) -> None:
+        """Инициализация панели группы врагов.
+        Args:
+            x: Координата X.
+            y: Координата Y.
+            width: Ширина панели.
+            height: Высота панели (ожидается 5).
+            enemies: Список объектов Monster для отображения.
+        """
+        # Инициализируем базовую панель группы
+        super().__init__(x, y, width, height)
+        # Сохраняем ссылку на список объектов Monster
+        self.enemies = enemies
+        # Обновляем панели на основе переданных объектов
+        self._update_panels()
+
+    def _update_panels(self) -> None:
+        """Обновление списка панелей на основе объектов врагов."""
+        self.panels = []
+        
+        for i, monster in enumerate(self.enemies):
+            # Каждая панель размещается на отдельной строке
+            panel_x = self.x
+            panel_y = self.y + i  # Одна строка на панель
+            panel_width = self.width
+            panel_height = 1  # Фиксированная высота 1 строка
+            
+            # Создаем панель, передавая объект Monster
+            panel = EnemyUnitPanel(panel_x, panel_y, panel_width, panel_height, monster)
+            self.panels.append(panel)
+
+
+class PlayerGroupPanel(GroupPanel):
+    """Панель для отображения группы игроков."""
+
+    def __init__(self, x: int, y: int, width: int, height: int, players: List['Player']) -> None:
+        """Инициализация панели группы игроков.
+        Args:
+            x: Координата X.
+            y: Координата Y.
+            width: Ширина панели.
+            height: Высота панели (ожидается 5).
+            players: Список объектов Player для отображения.
+        """
+        # Инициализируем базовую панель группы
+        super().__init__(x, y, width, height)
+        # Сохраняем ссылку на список объектов Player
+        self.players = players
+        # Обновляем панели на основе переданных объектов
+        self._update_panels()
+
+    def _update_panels(self) -> None:
+        """Обновление списка панелей на основе объектов игроков."""
+        self.panels = []
+        
+        for i, player in enumerate(self.players):
+            # Каждая панель размещается на отдельной строке
+            panel_x = self.x
+            panel_y = self.y + i  # Одна строка на панель
+            panel_width = self.width
+            panel_height = 1  # Фиксированная высота 1 строка
+            
+            # Создаем панель, передавая объект Player
+            panel = PlayerUnitPanel(panel_x, panel_y, panel_width, panel_height, player)
+            self.panels.append(panel)
 
 
 class BattleLog(Renderable):
-    """Лог боя в нижней части экрана с прокруткой."""
+    """Лог боя в нижней части экрана с прокруткой и обрамлением."""
 
-    def __init__(self, x: int, y: int, width: int, height: int):
+    def __init__(self, x: int, y: int, width: int, height: int) -> None:
         super().__init__(x, y)
         self.width = width
         self.height = height
@@ -3899,10 +4048,13 @@ class BattleLog(Renderable):
             "Герой защищается.",
             "Мощная атака Дракона отражена!",
         ]
-        self.scroll_offset = 0  # Смещение прокрутки (0 = последние сообщения внизу)
+        self.scroll_offset = 0 # Смещение прокрутки (0 = последние сообщения внизу)
 
     def add_message(self, message: str) -> None:
-        """Добавление сообщения в лог."""
+        """Добавление сообщения в лог.
+        Args:
+            message: Текст сообщения.
+        """
         self.messages.append(message)
         # При добавлении нового сообщения сбрасываем прокрутку вниз
         self.scroll_offset = 0
@@ -3910,43 +4062,56 @@ class BattleLog(Renderable):
     def scroll_up(self) -> None:
         """Прокрутка лога вверх."""
         # Максимальное смещение - это количество строк, которые не помещаются
-        max_offset = max(0, len(self.messages) - (self.height - 2))
-        self.scroll_offset = min(max_offset, self.scroll_offset + 1)
+        max_offset = max(0, len(self.messages) - self.height)
+        if self.messages:
+            self.scroll_offset = min(max_offset, self.scroll_offset + 1)
 
     def scroll_down(self) -> None:
         """Прокрутка лога вниз."""
-        self.scroll_offset = max(0, self.scroll_offset - 1)
+        if self.messages:
+            self.scroll_offset = max(0, self.scroll_offset - 1)
 
     def update_size(self, total_width: int, total_height: int) -> None:
-        """Обновление размеров лога."""
-        # Занимает всю ширину экрана
-        self.width = max(10, total_width - 2)  # -2 для отступов
-        # Высота динамическая, занимает всё оставшееся пространство
-        # Предполагаем, что панели сверху занимают часть высоты
-        # Этот расчет должен быть скорректирован в BattleScreen
+        """Обновление размеров лога.
+        Args:
+            total_width: Общая ширина экрана.
+            total_height: Общая высота экрана.
+        """
+        # Занимает всю ширину экрана (с отступами)
+        self.width = max(10, total_width - 2) # -2 для отступов
+        # Высота динамическая, устанавливается в BattleScreen._update_component_sizes
+        # Пока оставим пустую реализацию или базовую
         pass
 
-    def render(self, renderer: 'Renderer') -> None:
-        """Отрисовка лога боя."""
-        # Рисуем рамку
-        renderer.draw_box(self.x, self.y, self.width, self.height)
+    def render(self, renderer: Renderer) -> None:
+        """Отрисовка лога боя с обрамлением."""
+        # Отрисовка рамки лога (она остается)
+        try:
+            renderer.draw_box(self.x, self.y, self.width, self.height)
+        except curses.error:
+            # Игнорируем ошибки выхода за границы экрана
+            pass
 
-        # Заголовок лога
-        log_title = "=== ЛОГ ==="
-        title_x = self.x + max(0, (self.width - len(log_title)) // 2)
-        renderer.draw_text(log_title, title_x, self.y, bold=True, color=Color.CYAN)
+        # Определяем, какие сообщения отображать с учетом прокрутки
+        # scroll_offset = 0 означает, что последние сообщения внизу
+        start_index = max(0, len(self.messages) - self.height - self.scroll_offset)
+        end_index = start_index + self.height
+        visible_messages = self.messages[start_index:end_index]
 
-        # Отображаем сообщения с учетом прокрутки
-        # Рассчитываем, сколько строк помещается (вычитаем 2 для рамки и заголовка)
-        available_lines = self.height - 2
-        # Начальный индекс с учетом прокрутки
-        start_index = max(0, len(self.messages) - available_lines - self.scroll_offset)
-        end_index = min(len(self.messages), start_index + available_lines)
+        # Отрисовка сообщений
+        for i, message in enumerate(visible_messages):
+            # Позиция Y для текущего сообщения
+            msg_y = self.y + 1 + i
+            # Позиция X (с небольшим отступом)
+            msg_x = self.x + 1
 
-        for i, message in enumerate(self.messages[start_index:end_index]):
-            # Обрезаем сообщение, если оно длиннее области
-            display_message = message[:self.width - 3]  # -3 для рамки и запаса
-            renderer.draw_text(display_message, self.x + 1, self.y + 1 + i, dim=True)
+            # Отрисовка текста сообщения
+            try:
+                # TODO: Добавить цвета/стили для разных типов сообщений (урон, лечение, и т.д.)
+                renderer.draw_text(message, msg_x, msg_y, color=Color.WHITE)
+            except curses.error:
+                # Игнорируем ошибки выхода за границы экрана
+                pass
 
 
 ================================================================================
