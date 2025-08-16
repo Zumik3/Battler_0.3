@@ -55,6 +55,7 @@ class SystemSettings:
     data_directory: str = "game/data"
     characters_data_directory: str = "game/data/characters"
     player_classes_directory: str = "game/data/characters/player_classes"
+    monster_classes_directory: str = "game/data/characters/monster_classes"
 
 
 @dataclass

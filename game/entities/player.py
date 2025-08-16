@@ -1,8 +1,7 @@
 # game/entities/player.py
 """Класс игрока (персонажа, управляемого игроком)."""
 from typing import List, Dict, Any, Optional, Callable, TYPE_CHECKING
-from game.config import get_config
-from game.entities.character import Character
+from game.entities.character import Character, SimpleStats, SimpleAttributes # Импортируем вспомогательные классы
 from game.protocols import (
     Stats,
     Attributes,
@@ -84,11 +83,9 @@ class Player(Character):
         status_effect_manager_factory: Optional[Callable[['CharacterType'], StatusEffectManagerProtocol]] = None,
         exp_calculator: Optional[ExperienceCalculatorProtocol] = None,
         level_up_handler: Optional[LevelUpHandlerProtocol] = None,
-        is_player: bool = True,
+        # is_player: bool = True, # Устанавливается автоматически
     ):
-        # Сохраняем данные класса
-        self.base_stats_dict = base_stats_dict
-        self.growth_rates_dict = growth_rates_dict
+        # --- Атрибуты, специфичные для игрока ---
         self.class_icon = class_icon
         self.class_icon_color = class_icon_color if class_icon_color is not None else 0
 
@@ -97,21 +94,19 @@ class Player(Character):
         self.level_up_handler = level_up_handler if level_up_handler else SimpleLevelUpHandler()
         self.exp = 0
         self.exp_to_next_level = 0
-
-        # Создаем фабрики по умолчанию если не предоставлены
-        if stats_factory is None:
-            stats_factory = self.get_base_stats
-        if attributes_factory is None:
-            attributes_factory = self._attributes_factory
+        # --- Конец специфичных атрибутов ---
 
         # Вызываем конструктор родительского класса
+        # Передаем все необходимые данные, включая base_stats_dict и growth_rates_dict
         super().__init__(
             name=name,
             role=role,
+            base_stats_dict=base_stats_dict,
+            growth_rates_dict=growth_rates_dict,
             level=level,
-            is_player=is_player,
-            stats_factory=stats_factory,
-            attributes_factory=attributes_factory,
+            is_player=True, # Всегда True для игрока
+            stats_factory=stats_factory, # Может быть None, будет использована реализация по умолчанию из Character
+            attributes_factory=attributes_factory, # Может быть None, будет использована реализация по умолчанию из Character
             ability_manager_factory=ability_manager_factory,
             status_effect_manager_factory=status_effect_manager_factory,
         )
@@ -119,35 +114,11 @@ class Player(Character):
         # Рассчитываем опыт для следующего уровня
         self.calculate_exp_for_next_level()
 
-    # ==================== Вспомогательные методы для фабрик ====================
-    def _attributes_factory(self, character: 'CharacterType') -> Attributes:
-        """Фабрика для создания атрибутов."""
-        return self.calculate_attributes()
-
-    # ==================== Абстрактные методы ====================
-    def get_base_stats(self) -> Stats:
-        """Возвращает базовые характеристики персонажа."""
-        stats = SimpleStats()
-        # Масштабируем базовые характеристики в соответствии с уровнем
-        level_multiplier = self.level * 0.1
-        stats.strength = int(self.base_stats_dict.get('strength', 10) * 
-                           (1 + level_multiplier * self.growth_rates_dict.get('strength', 1.0)))
-        stats.agility = int(self.base_stats_dict.get('agility', 10) * 
-                          (1 + level_multiplier * self.growth_rates_dict.get('agility', 1.0)))
-        stats.intelligence = int(self.base_stats_dict.get('intelligence', 10) * 
-                               (1 + level_multiplier * self.growth_rates_dict.get('intelligence', 1.0)))
-        stats.vitality = int(self.base_stats_dict.get('vitality', 10) * 
-                           (1 + level_multiplier * self.growth_rates_dict.get('vitality', 1.0)))
-        return stats
-
-    def calculate_attributes(self) -> Attributes:
-        """Вычисляет атрибуты персонажа на основе его характеристик и уровня."""
-        return SimpleAttributes(self, self.stats)
-
-    # ==================== Уровень и характеристики ====================
+    # ==================== Уровень и характеристики (расширение) ====================
+    # Переопределяем level_up, чтобы добавить логику опыта
     def level_up(self) -> List[Dict[str, Any]]:
         """
-        Повышает уровень персонажа.
+        Повышает уровень персонажа (игрока).
         Возвращает список сообщений/результатов.
         """
         # Вызываем родительский метод level_up
@@ -203,34 +174,13 @@ class Player(Character):
 
         return results
 
-# ==================== Вспомогательные классы ====================
-
-class SimpleStats:
-    """Простая реализация базовых характеристик."""
-    def __init__(self):
-        self.strength = 0
-        self.agility = 0
-        self.intelligence = 0
-        self.vitality = 0
-
-# game/entities/player.py (обновленный фрагмент)
-class SimpleAttributes:
-    """Простая реализация производных атрибутов."""
-    def __init__(self, character: 'Character', stats: Stats):
-        self.character = character
-        self.stats = stats
-        config = get_config()
-        
-        # Расчет производных атрибутов с использованием настроек
-        self.max_hp = config.character.base_max_hp + (stats.vitality * config.character.hp_per_vitality)
-        self.max_energy = config.character.base_max_energy + (stats.intelligence * config.character.energy_per_intelligence)
-        self.attack_power = stats.strength * config.character.attack_per_strength
-        self.defense = int(stats.agility * config.character.defense_per_agility)
+# ==================== Вспомогательные классы (специфичные для игрока) ====================
 
 class SimpleExperienceCalculator:
     """Простой калькулятор опыта для следующего уровня."""
     def calculate_exp_for_next_level(self, current_level: int) -> int:
         """Рассчитывает опыт, необходимый для достижения следующего уровня."""
+        from game.config import get_config # Локальный импорт для избежания циклических зависимостей на уровне модуля
         config = get_config()
         return int(config.experience.formula_base * (current_level ** config.experience.formula_multiplier))
 
