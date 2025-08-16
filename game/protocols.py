@@ -1,89 +1,134 @@
 # game/protocols.py
-"""Протоколы (интерфейсы) для взаимодействия компонентов игры."""
+"""Протоколы, определяющие интерфейсы для различных компонентов игры."""
 
-from typing import Protocol, List, Dict, Any, Optional, TYPE_CHECKING, Callable
+import traceback
+from abc import ABC, abstractmethod
+from typing import List, Dict, Any, Protocol, Optional
 
-# Используем TYPE_CHECKING, чтобы избежать циклических импортов в аннотациях
+# Импорты с TYPE_CHECKING для избежания циклических импортов
+# в аннотациях типов на уровне модуля
+# (импортируем только при аннотации типов, а не во время выполнения)
+from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
-    from game.entities.character import Character
+    from game.entities.character import Character as CharacterType
 
-# --- Протоколы для подсистем ---
-
-class Ability(Protocol):
-    """Протокол для способности."""
-    name: str
-    description: str
-    energy_cost: int
-    # Можно добавить другие общие атрибуты
-    
-    def can_use(self, user: 'Character') -> bool: ...
-    def use(self, user: 'Character', targets: List['Character'], **kwargs) -> Any: ...
-
-class StatusEffect(Protocol):
-    """Протокол для статус-эффекта."""
-    name: str
-    description: str
-    duration: int # Оставшаяся продолжительность
-    
-    def apply(self, target: 'Character') -> Dict[str, Any]: # Возвращает словарь с сообщением или результатом
-        """Применить эффект к цели."""
-        ...
-    def update(self, target: 'Character') -> Dict[str, Any]: # Возвращает словарь с сообщением или результатом
-        """Обновить эффект (например, нанести урон от отравления)."""
-        ...
-    def remove(self, target: 'Character') -> Dict[str, Any]: # Возвращает словарь с сообщением или результатом
-        """Удалить эффект с цели."""
-        ...
-    def is_expired(self) -> bool: ...
 
 class Stats(Protocol):
-    """Протокол для базовых характеристик."""
+    """Протокол для базовых характеристик персонажа."""
     strength: int
     agility: int
     intelligence: int
     vitality: int
-    # ... другие базовые характеристики
 
-class Attributes(Protocol): # <-- ИЗМЕНЕНО: DerivedStats -> Attributes
-    """Протокол для атрибутов персонажа."""
+
+class Attributes(Protocol):
+    """Протокол для производных атрибутов персонажа."""
     max_hp: int
     max_energy: int
     attack_power: int
     defense: int
-    # ... другие атрибуты
 
-# --- Протоколы для менеджеров ---
+    def recalculate(self, stats: Stats) -> None:
+        """Пересчитать атрибуты на основе базовых характеристик."""
+        ...
+
 
 class AbilityManagerProtocol(Protocol):
     """Протокол для менеджера способностей."""
-    def add_ability(self, name: str, ability: Ability) -> None: ...
-    def get_available_abilities(self, character: 'Character') -> List[str]: ...
-    def use_ability(self, name: str, user: 'Character', targets: List['Character'], **kwargs) -> Any: ...
-    def update_cooldowns(self) -> None: ...
+    def use_ability(self, ability_name: str, target: 'CharacterType') -> List[Dict[str, Any]]:
+        """Использовать способность на цель."""
+        ...
+
+    def get_available_abilities(self) -> List[str]:
+        """Получить список доступных способностей."""
+        ...
+
 
 class StatusEffectManagerProtocol(Protocol):
     """Протокол для менеджера статус-эффектов."""
-    def add_effect(self, effect: StatusEffect) -> Dict[str, Any]: ...
-    def remove_effect(self, effect_name: str) -> bool: ...
-    def update_effects(self) -> List[Dict[str, Any]]: # Возвращает список сообщений/результатов
-        """Обновить все эффекты и вернуть список результатов."""
+    def apply_effect(self, effect: 'StatusEffect') -> List[Dict[str, Any]]:
+        """Применить эффект к персонажу."""
         ...
-    def has_effect(self, effect_name: str) -> bool: ...
-    def get_all_effects(self) -> List[StatusEffect]: ...
-    def clear_all_effects(self) -> List[Dict[str, Any]]: # Возвращает список сообщений/результатов
+
+    def remove_effect(self, effect_name: str) -> List[Dict[str, Any]]:
+        """Удалить эффект по имени."""
+        ...
+
+    def get_effect(self, effect_name: str) -> Optional['StatusEffect']:
+        """Получить эффект по имени."""
+        ...
+
+    def get_all_effects(self) -> List['StatusEffect']:
+        """Получить список всех активных эффектов."""
+        ...
+
+    def clear_all_effects(self) -> List[Dict[str, Any]]:
         """Очистить все эффекты и вернуть список результатов."""
         ...
 
-# --- Протоколы для системы уровней/опыта ---
-# Эти протоколы позволят нам в будущем легко подменить систему роста
 
+# Протоколы для системы уровней/опыта
+# Эти протоколы позволят нам в будущем легко подменить систему роста
 class ExperienceCalculatorProtocol(Protocol):
     """Протокол для калькулятора опыта."""
-    def calculate_exp_for_next_level(self, current_level: int) -> int: ...
-    def calculate_stat_increase(self, base_stat: int, growth_rate: float, level: int) -> int: ...
+    def calculate_exp_for_next_level(self, current_level: int) -> int:
+        """Рассчитать опыт, необходимый для следующего уровня."""
+        ...
+
+    def calculate_stat_increase(self, base_stat: int, growth_rate: float, level: int) -> int:
+        """Рассчитать увеличение характеристики."""
+        ...
+
 
 class LevelUpHandlerProtocol(Protocol):
     """Протокол для обработчика повышения уровня."""
-    def handle_level_up(self, character: 'Character') -> List[Dict[str, Any]]:
+    def handle_level_up(self, character: 'CharacterType') -> List[Dict[str, Any]]:
         """Обработать повышение уровня и вернуть список результатов."""
         ...
+
+
+# Базовые абстрактные классы
+class Character(ABC):
+    """Абстрактный базовый класс, представляющий персонажа в игре."""
+    # (Определение класса находится в game/entities/character.py)
+    pass # fallback если абстрактные методы не реализованы корректно
+
+
+class Ability(ABC):
+    """Абстрактный базовый класс для способностей."""
+    def __init__(self, name: str, energy_cost: int, description: str = ""):
+        self.name = name
+        self.energy_cost = energy_cost
+        self.description = description
+
+    @abstractmethod
+    def activate(self, caster: 'CharacterType', target: 'CharacterType') -> List[Dict[str, Any]]:
+        """Активировать способность."""
+        ...
+
+
+class StatusEffect(ABC):
+    """Абстрактный базовый класс для статус-эффектов."""
+    def __init__(self, name: str, duration: int, description: str = ""):
+        self.name = name
+        self.duration = duration
+        self.description = description
+
+    @abstractmethod
+    def apply(self, target: 'CharacterType') -> List[Dict[str, Any]]:
+        """Применить эффект к цели."""
+        ...
+
+    @abstractmethod
+    def remove(self, target: 'CharacterType') -> List[Dict[str, Any]]:
+        """Удалить эффект с цели."""
+        ...
+
+    def tick(self, target: 'CharacterType') -> List[Dict[str, Any]]:
+        """Выполнить действие эффекта за ход (если применимо)."""
+        # По умолчанию эффект просто уменьшает свою длительность
+        self.duration -= 1
+        if self.duration <= 0:
+            return target.status_manager.remove_effect(self.name) # type: ignore
+        return []

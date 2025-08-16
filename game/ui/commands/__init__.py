@@ -1,6 +1,5 @@
 # game/ui/commands/__init__.py
-"""
-Пакет конкретных команд для разных экранов.
+"""Пакет конкретных команд для разных экранов.
 
 Содержит реализации команд для конкретных экранов игры.
 """
@@ -45,16 +44,16 @@ __all__ = [
     'OpenInventoryCommand',
     'HelpCommand',
     'ExitCommand',
-    
+
     # Команды инвентаря
     'UseItemCommand',
     'DropItemCommand',
-    
+
     # Команды боя
     'AttackCommand',
     'DefendCommand',
     'BattleMagicCommand',
-    
+
     # Команды главного экрана
     'StartBattleCommand',
     'OpenSettingsCommand'

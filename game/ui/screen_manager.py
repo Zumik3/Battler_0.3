@@ -1,16 +1,24 @@
 # game/ui/screen_manager.py
+"""Управление экранами игры.
+
+Реализует паттерн Состояние для переключения между экранами.
+"""
+
 import curses
 from typing import Dict, Type, List
+
 from game.ui.base_screen import BaseScreen
-from game.ui.main_screen import MainScreen
 from game.ui.battle_screen import BattleScreen
 from game.ui.inventory_screen import InventoryScreen
-from game.ui.rendering.renderer import Renderer
+from game.ui.main_screen import MainScreen
 from game.ui.rendering.color_manager import ColorManager
+from game.ui.rendering.renderer import Renderer
+
 
 class ScreenManager:
     """Управление экранами игры с использованием паттерна состояние."""
-    def __init__(self, stdscr: curses.window):
+
+    def __init__(self, stdscr: curses.window) -> None:
         self.stdscr = stdscr
         self.color_manager = ColorManager()
         self.color_manager.initialize(stdscr)
@@ -32,7 +40,12 @@ class ScreenManager:
         return self.screen_stack[-1]
 
     def change_screen(self, screen_name: str) -> None:
-        """Переход на новый экран (добавление в стек)."""
+        """
+        Переход на новый экран (добавление в стек).
+
+        Args:
+            screen_name: Имя экрана для перехода.
+        """
         if screen_name in self.screens:
             new_screen = self.screens[screen_name](self)
             self.screen_stack.append(new_screen)
@@ -45,6 +58,7 @@ class ScreenManager:
             self.screen_stack.pop()
         else:
             # Если это последний экран - выходим из приложения
+            # TODO: Рассмотреть использование raise SystemExit() вместо exit()
             exit()
 
     def _update_renderer_for_all_screens(self) -> None:
@@ -53,7 +67,7 @@ class ScreenManager:
         self.renderer = Renderer(self.stdscr, self.color_manager)
         # Обновляем renderer у всех экранов в стеке
         for screen in self.screen_stack:
-            screen.renderer = self.renderer # type: ignore # BaseScreen.renderer аннотирован как Renderer
+            screen.renderer = self.renderer  # type: ignore # BaseScreen.renderer аннотирован как Renderer
 
     def run(self) -> None:
         """Основной цикл отображения текущего экрана."""
@@ -63,14 +77,10 @@ class ScreenManager:
 
             # Проверяем, является ли нажатая клавиша сигналом изменения размера
             if key == curses.KEY_RESIZE:
-                # Сообщаем curses об изменении размера (иногда помогает)
-                # h, w = self.stdscr.getmaxyx() # Не всегда нужно, но можно попробовать
-                # curses.resizeterm(h, w) # Не всегда нужно, но можно попробовать
-
                 # Обновляем renderer у менеджера и всех экранов
                 self._update_renderer_for_all_screens()
                 # Продолжаем цикл для перерисовки с новым renderer'ом
-                continue # Переход к следующей итерации цикла, что вызовет перерисовку
+                continue  # Переход к следующей итерации цикла, что вызовет перерисовку
 
             # Если это не изменение размера, обрабатываем ввод как обычно
             self.current_screen.handle_input(key)

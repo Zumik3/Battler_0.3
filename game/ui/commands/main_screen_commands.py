@@ -1,12 +1,14 @@
 # game/ui/commands/main_screen_commands.py
-"""
-Специфические команды для главного экрана.
-"""
+"""Специфические команды для главного экрана."""
+
+from typing import Optional, Any
 
 from game.ui.command_system.command import Command
-from game.ui.main_screen import MainScreen
 from game.ui.command_system.screen_command_registry import register_screen_commands
-from typing import Optional, Any
+# Импортируем общие команды
+from game.ui.commands.common_commands import OpenInventoryCommand, ExitCommand
+# Импортируем экран для регистрации команд
+from game.ui.main_screen import MainScreen
 
 
 class StartBattleCommand(Command):
@@ -39,12 +41,10 @@ class OpenSettingsCommand(Command):
 
     def execute(self, context: Optional[Any] = None) -> None:
         """Выполнение команды открытия настроек."""
+        # TODO: Заменить print на отображение внутри curses UI
         if context:
             print("Открытие настроек")
 
-
-# Импортируем общие команды
-from game.ui.commands.common_commands import OpenInventoryCommand, ExitCommand
 
 # Регистрируем команды для главного экрана
 register_screen_commands(MainScreen, [
