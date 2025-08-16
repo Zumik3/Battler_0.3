@@ -2,15 +2,16 @@
 """Основные настройки игры."""
 
 from dataclasses import dataclass, field
-from typing import Dict, Any
+from pathlib import Path
 import json
 import os
-from pathlib import Path
+from typing import Any, Dict
 
 
 @dataclass
 class ExperienceSettings:
     """Настройки системы опыта."""
+
     formula_base: int = 100
     formula_multiplier: float = 1.5
 
@@ -18,6 +19,7 @@ class ExperienceSettings:
 @dataclass
 class CombatSettings:
     """Настройки боевой системы."""
+
     min_damage: int = 1
     defense_reduction_factor: float = 0.5
 
@@ -25,6 +27,7 @@ class CombatSettings:
 @dataclass
 class CharacterSettings:
     """Настройки персонажей."""
+
     base_max_hp: int = 50
     base_max_energy: int = 20
     hp_per_vitality: int = 5
@@ -36,6 +39,7 @@ class CharacterSettings:
 @dataclass
 class UISettings:
     """Настройки пользовательского интерфейса."""
+
     screen_width: int = 80
     screen_height: int = 24
 
@@ -43,6 +47,7 @@ class UISettings:
 @dataclass
 class SystemSettings:
     """Системные настройки."""
+
     enable_debug_logging: bool = False
     log_file: str = "game.log"
     save_directory: str = "saves"
@@ -50,6 +55,7 @@ class SystemSettings:
     data_directory: str = "game/data"
     characters_data_directory: str = "game/data/characters"
     player_classes_directory: str = "game/data/characters/player_classes"
+    monster_classes_directory: str = "game/data/characters/monster_classes"
 
 
 @dataclass
@@ -65,7 +71,12 @@ class GameConfig:
     config_file: str = "config.json"
 
     def load_from_file(self, config_file: str = "") -> None:
-        """Загрузить конфигурацию из файла."""
+        """
+        Загрузить конфигурацию из файла.
+
+        Args:
+            config_file: Путь к файлу конфигурации. Если не указан, используется self.config_file.
+        """
         file_path = config_file or self.config_file
         try:
             if os.path.exists(file_path):
@@ -76,7 +87,12 @@ class GameConfig:
             print(f"Ошибка загрузки конфигурации: {e}")
 
     def save_to_file(self, config_file: str = "") -> None:
-        """Сохранить конфигурацию в файл."""
+        """
+        Сохранить конфигурацию в файл.
+
+        Args:
+            config_file: Путь к файлу конфигурации. Если не указан, используется self.config_file.
+        """
         file_path = config_file or self.config_file
         try:
             Path(file_path).parent.mkdir(parents=True, exist_ok=True)
@@ -120,7 +136,12 @@ class GameConfig:
         }
 
     def _update_from_dict(self, data: Dict[str, Any]) -> None:
-        """Обновить конфигурацию из словаря."""
+        """
+        Обновить конфигурацию из словаря.
+
+        Args:
+            data: Словарь с данными конфигурации.
+        """
         if 'experience' in data:
             for key, value in data['experience'].items():
                 if hasattr(self.experience, key):

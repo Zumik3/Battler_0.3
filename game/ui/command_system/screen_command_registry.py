@@ -1,8 +1,7 @@
 # game/ui/command_system/screen_command_registry.py
-"""
-Реестр команд для экранов.
+"""Реестр команд для экранов.
 
-Реализует паттерн Реестр для хранения связей между экранами и их командами.
+Реализует паттерн Registry для хранения связей между классами экранов и их командами.
 """
 
 from typing import Dict, List, Type, TYPE_CHECKING
@@ -18,10 +17,10 @@ SCREEN_COMMANDS: Dict[Type['BaseScreen'], List['Command']] = {}
 def register_screen_commands(screen_class: Type['BaseScreen'], commands: List['Command']) -> None:
     """
     Регистрация команд для конкретного экрана.
-    
+
     Args:
-        screen_class: Класс экрана
-        commands: Список команд для этого экрана
+        screen_class: Класс экрана.
+        commands: Список команд для этого экрана.
     """
     SCREEN_COMMANDS[screen_class] = commands
 
@@ -29,12 +28,12 @@ def register_screen_commands(screen_class: Type['BaseScreen'], commands: List['C
 def get_screen_commands(screen_class: Type['BaseScreen']) -> List['Command']:
     """
     Получение команд для конкретного экрана.
-    
+
     Args:
-        screen_class: Класс экрана
-        
+        screen_class: Класс экрана.
+
     Returns:
-        Список команд для экрана (пустой список если нет команд)
+        Список команд для экрана (пустой список если нет команд).
     """
     return SCREEN_COMMANDS.get(screen_class, [])
 
@@ -42,9 +41,9 @@ def get_screen_commands(screen_class: Type['BaseScreen']) -> List['Command']:
 def get_all_registered_screens() -> List[Type['BaseScreen']]:
     """
     Получение всех экранов с зарегистрированными командами.
-    
+
     Returns:
-        Список классов экранов
+        Список классов экранов.
     """
     return list(SCREEN_COMMANDS.keys())
 

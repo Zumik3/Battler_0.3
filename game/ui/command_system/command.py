@@ -1,16 +1,14 @@
 # game/ui/command_system/command.py
-"""
-Базовые классы для системы команд.
+"""Базовые классы для системы команд.
 
 Реализует паттерн Команда для обработки пользовательского ввода.
 """
 
 from abc import ABC, abstractmethod
 import curses
-from turtle import st
 from typing import List, Set, Optional, Any, Union
 
-# Отложенная аннотация для избежания циклического импорта
+# Отложенная аннотация для избежения циклического импорта
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -23,23 +21,24 @@ class Command(ABC):
     def __init__(self, name: str, description: str, keys: List[Union[str, int]], display_key: str = ""):
         """
         Инициализация команды.
-        
+
         Args:
-            name: Название команды
-            description: Описание команды
-            keys: Список клавиш, на которые назначена команда (например, ['q', 'ESC'])
+            name: Название команды.
+            description: Описание команды.
+            keys: Список клавиш, на которые назначена команда (например, ['q', 'ESC']).
+            display_key: Клавиша для отображения в интерфейсе (если отличается от первой в keys).
         """
         self.name = name
         self.description = description
         self.keys = keys  # Список символов, например ['q', 'ESC']
-        self.display_key = display_key
+        self.display_key = display_key if display_key else (str(keys[0]) if keys else "")
 
     def get_key_codes(self) -> Set[int]:
         """
         Получение кодов клавиш для регистрации.
-        
+
         Returns:
-            Множество кодов клавиш
+            Множество кодов клавиш.
         """
         key_codes = set()
         for key in self.keys:
@@ -47,16 +46,16 @@ class Command(ABC):
                 key_codes.add(key)
             else:
                 key_codes.add(ord(str(key)))
-            # Можно добавить другие специальные клавиши
+            # TODO: Можно добавить обработку других специальных клавиш curses, если потребуется
         return key_codes
 
     @abstractmethod
     def execute(self, context: Optional[Any] = None) -> None:
         """
         Выполнение команды.
-        
+
         Args:
-            context: Контекст выполнения (обычно экран)
+            context: Контекст выполнения (обычно экран).
         """
         pass
 
@@ -66,14 +65,14 @@ class CommandRegistry:
 
     def __init__(self) -> None:
         self._commands: List[Command] = []
-        self._key_to_command: dict = {}  # key_code -> command
+        self._key_to_command: dict[int, Command] = {}  # key_code -> command
 
     def register_command(self, command: Command) -> None:
         """
         Регистрация команды.
-        
+
         Args:
-            command: Команда для регистрации
+            command: Команда для регистрации.
         """
         self._commands.append(command)
         # Регистрируем все клавиши команды
@@ -83,16 +82,17 @@ class CommandRegistry:
     def execute_command(self, key_code: int, context: Optional[Any] = None) -> bool:
         """
         Выполнение команды по коду клавиши.
-        
+
         Args:
-            key_code: Код нажатой клавиши
-            context: Контекст выполнения
-            
+            key_code: Код нажатой клавиши.
+            context: Контекст выполнения.
+
         Returns:
-            True если команда найдена и выполнена, False если нет
+            True если команда найдена и выполнена, False если нет.
         """
-        if key_code in self._key_to_command:
-            self._key_to_command[key_code].execute(context)
+        command = self._key_to_command.get(key_code)
+        if command:
+            command.execute(context)
             return True
         return False
 

@@ -1,39 +1,70 @@
 # tests/test_command_system.py
+"""Тесты для системы команд."""
+
+from typing import Any, Optional
 from unittest.mock import MagicMock, patch
+
 from game.ui.command_system.command import Command, CommandRegistry
 
 
 class CommandTest(Command):
-    def __init__(self, name="Test", description="A test command", keys=None):
+    """Тестовая реализация команды."""
+
+    def __init__(self, name: str = "Test", description: str = "A test command", keys: Optional[list] = None) -> None:
+        """
+        Инициализация тестовой команды.
+
+        Args:
+            name: Название команды.
+            description: Описание команды.
+            keys: Список клавиш.
+        """
         if keys is None:
             keys = ['t']
         super().__init__(name, description, keys)
-        self.executed = False
-        self.context = None
+        self.executed: bool = False
+        self.context: Any = None
 
-    def execute(self, context=None):
+    def execute(self, context: Any = None) -> None:
+        """
+        Выполнение тестовой команды.
+
+        Args:
+            context: Контекст выполнения.
+        """
         self.executed = True
         self.context = context
 
 
 class CommandWithIntKeyTest(Command):
-    def __init__(self):
+    """Тестовая реализация команды с целочисленным кодом клавиши."""
+
+    def __init__(self) -> None:
+        """Инициализация команды с целочисленным кодом клавиши."""
         # Имитируем ситуацию, когда ключ передан как число
         super().__init__("Int Key Cmd", "Command with int key", [10])  # Enter key code
-        self.executed = False
+        self.executed: bool = False
 
-    def execute(self, context=None):
+    def execute(self, context: Any = None) -> None:
+        """
+        Выполнение команды с целочисленным кодом клавиши.
+
+        Args:
+            context: Контекст выполнения.
+        """
         self.executed = True
 
 
-def test_command_initialization():
+def test_command_initialization() -> None:
+    """Тест инициализации команды."""
     cmd = CommandTest("MyCmd", "My Description", ['m', 'M'])
     assert cmd.name == "MyCmd"
     assert cmd.description == "My Description"
     assert cmd.keys == ['m', 'M']
 
 
-def test_command_get_key_codes_case_insensitive():
+def test_command_get_key_codes_case_insensitive() -> None:
+    """Тест получения кодов клавиш с учетом регистра."""
     cmd1 = CommandTest("Test1", "Desc", ['a'])  # lowercase
     cmd2 = CommandTest("Test2", "Desc", ['A'])  # uppercase
 
@@ -41,7 +72,8 @@ def test_command_get_key_codes_case_insensitive():
     assert cmd1.get_key_codes() == {ord('a')}  # Проверяем, что это код 'a'
 
 
-def test_command_registry_register_command():
+def test_command_registry_register_command() -> None:
+    """Тест регистрации команды в реестре."""
     registry = CommandRegistry()
     cmd = CommandTest()
 
@@ -52,7 +84,8 @@ def test_command_registry_register_command():
     assert registry._key_to_command[ord('t')] == cmd
 
 
-def test_command_registry_execute_command_success():
+def test_command_registry_execute_command_success() -> None:
+    """Тест успешного выполнения команды из реестра."""
     registry = CommandRegistry()
     cmd = CommandTest()
     registry.register_command(cmd)
@@ -64,7 +97,8 @@ def test_command_registry_execute_command_success():
     assert cmd.context == "test_context"
 
 
-def test_command_registry_execute_command_failure():
+def test_command_registry_execute_command_failure() -> None:
+    """Тест неуспешного выполнения команды из реестра."""
     registry = CommandRegistry()
     cmd = CommandTest()
     registry.register_command(cmd)
@@ -75,7 +109,8 @@ def test_command_registry_execute_command_failure():
     assert cmd.executed is False  # Команда не должна выполниться
 
 
-def test_command_registry_get_all_commands():
+def test_command_registry_get_all_commands() -> None:
+    """Тест получения всех команд из реестра."""
     registry = CommandRegistry()
     cmd1 = CommandTest("Cmd1", "Desc1", ['1'])
     cmd2 = CommandTest("Cmd2", "Desc2", ['2'])
@@ -92,7 +127,8 @@ def test_command_registry_get_all_commands():
     assert all_commands is not registry._commands
 
 
-def test_command_registry_get_command_by_key():
+def test_command_registry_get_command_by_key() -> None:
+    """Тест получения команды по коду клавиши из реестра."""
     registry = CommandRegistry()
     cmd = CommandTest()
     registry.register_command(cmd)
@@ -104,22 +140,16 @@ def test_command_registry_get_command_by_key():
     assert not_found_cmd is None
 
 
-def test_command_with_int_key_in_registry():
-    # Проверяем, как реестр обрабатывает команды, если get_key_codes вернул int напрямую
-    # (Это тест для случая, если бы get_key_codes возвращал int, но в текущей реализации так не бывает)
-    # Но мы можем проверить, что реестр работает с int ключами
+def test_command_with_int_key_in_registry() -> None:
+    """Тест работы реестра с командой, имеющей целочисленный код клавиши."""
+    # Проверяем, как реестр обрабатывает команды с int ключами
     registry = CommandRegistry()
     cmd = CommandWithIntKeyTest()  # Эта команда в keys имеет [10]
 
-    # Мы должны убедиться, что get_key_codes правильно обрабатывает это
-    # Но в текущей реализации Command.__init__ требует List[str]
-    # Так что этот тест скорее гипотетический, если бы тип был Union[str, int]
+    # Регистрируем команду через реестр, который должен корректно обработать int ключ
+    registry.register_command(cmd)
 
-    # Для текущей реализации, если мы хотим протестировать с int кодом,
-    # мы можем напрямую добавить его в реестр
-    registry._key_to_command[10] = cmd
-    registry._commands.append(cmd)
-
+    # Выполняем команду по её int коду
     result = registry.execute_command(10, "context")
 
     assert result is True

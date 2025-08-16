@@ -1,11 +1,9 @@
 # game/ui/commands/common_commands.py
-"""
-Общие команды, которые могут использоваться в нескольких экранах.
-"""
+"""Общие команды, которые могут использоваться в нескольких экранах."""
+
+from typing import Optional, Any
 
 from game.ui.command_system.command import Command
-from typing import TYPE_CHECKING, Optional, Any
-
 
 
 class GoBackCommand(Command):
@@ -17,7 +15,6 @@ class GoBackCommand(Command):
             description="Вернуться к предыдущему экрану",
             keys=['q'],
             display_key="q"
-
         )
 
     def execute(self, context: Optional[Any] = None) -> None:
@@ -56,6 +53,7 @@ class HelpCommand(Command):
 
     def execute(self, context: Optional[Any] = None) -> None:
         """Выполнение команды помощи."""
+        # TODO: Заменить print на отображение внутри curses UI
         if context:
             print("Помощь по экрану:", context.__class__.__name__ if context else "Неизвестный экран")
 
@@ -73,4 +71,5 @@ class ExitCommand(Command):
 
     def execute(self, context: Optional[Any] = None) -> None:
         """Выполнение команды выхода."""
+        # TODO: Рассмотреть использование raise SystemExit() вместо exit()
         exit()

@@ -29,5 +29,8 @@ MANIFEST
 code_collector.py
 collected_code.txt
 char_str.md
+files_collector.py
+combined_source.txt
+PROJECT_TODO.md
 
 .vscode
