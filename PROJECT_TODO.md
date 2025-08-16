@@ -7,11 +7,11 @@
 
 ## Игровая логика & Менеджеры
 
-<!-- WIP: Создать масштабируемую систему имен монстров -->
-<!-- TODO: Интегрировать реальные данные монстров в BattleScreen. Связать EnemyGroupPanel с GameManager, чтобы панели отображали состояние объектов Character (монстров), созданных фабрикой. -->
-<!-- TODO: Добавить загрузку стартовых монстров в GameManager._initialize_game_entities (или аналогичный метод), используя monster_factory. -->
+<!-- DONE: Создать масштабируемую систему имен монстров -->
+<!-- DONE: Интегрировать реальные данные монстров в BattleScreen. Связать EnemyGroupPanel с GameManager, чтобы панели отображали состояние объектов Character (монстров), созданных фабрикой. -->
+<!-- WIP: Добавить загрузку стартовых монстров в GameManager._initialize_game_entities (или аналогичный метод), используя monster_factory. -->
 <!-- DONE: Реализовать механизм обновления UI (HP/MP) в BattleScreen на основе текущего состояния объектов Player/Character. -->
-<!-- TODO: Добавить в GameManager методы для управления текущими врагами (`get_current_enemies`, `set_current_enemies` и т.д.). -->
+<!-- DONE: Добавить в GameManager методы для управления текущими врагами (`get_current_enemies`, `set_current_enemies` и т.д.). -->
 <!-- TODO: Создать JSON-файлы для классов монстров в `game/data/characters/monster_classes/`, если они еще не существуют. -->
 <!-- TODO: GameManager должен отвечать за хранение и предоставление данных о текущих игроках и монстрах для экранов UI. -->
 <!-- DONE: Описание задачи -->

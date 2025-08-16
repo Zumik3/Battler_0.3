@@ -1,4 +1,4 @@
-# game/ui/battle_screen.py
+# game/ui/screens/battle_screen.py
 """Экран боя.
 Отображает боевую сцену с возможностью взаимодействия."""
 
@@ -11,19 +11,20 @@ from game.ui.mixins import StandardLayoutMixin
 
 # - ИМПОРТИРУЕМ НОВЫЕ КОМПОНЕНТЫ -
 from game.ui.components.battle_components import (
-    PlayerUnitPanel,
-    EnemyUnitPanel,
-    GroupPanel,
+    PlayerGroupPanel,
+    EnemyGroupPanel,
     BattleLog
 )
 # -
 from game.ui.base_screen import BaseScreen
 from game.ui.rendering.color_manager import Color
+from game.game_manager import get_game_manager
 
 # - ДОБАВЛЯЕМ ИМПОРТ ДЛЯ TYPE_CHECKING -
 if TYPE_CHECKING:
     from game.ui.screen_manager import ScreenManager
     from game.entities.player import Player # Для аннотаций
+    from game.entities.monster import Monster # Для аннотаций
 # -
 
 
@@ -33,14 +34,16 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
 
     def __init__(self, manager: 'ScreenManager'):
         # Инициализируем атрибуты для компонентов
-        self.player_group: GroupPanel = None # type: ignore # Будет инициализирован в _setup_elements
-        self.enemy_group: GroupPanel = None # type: ignore
-        self.battle_log: BattleLog = None # type: ignore
+        # Используем аннотации типов, так как присваивание будет позже
+        self.player_group: 'PlayerGroupPanel'
+        self.enemy_group: 'EnemyGroupPanel'
+        self.battle_log: 'BattleLog'
+
         super().__init__(manager)
 
     def _setup_elements(self) -> None:
         """Настройка элементов экрана."""
-        # УБИРАЕМ старый заголовок и разделитель, так как они теперь в миксине
+        
         self.elements = [] # Очищаем список, так как компоненты будут отрисовываться напрямую
 
         # - НАСТРОЙКА КОМПОНЕНТОВ -
@@ -53,51 +56,30 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
         enemy_group_x = 1
         enemy_group_y = player_group_y + initial_group_height + 1 # +1 для разделителя
 
-        self.player_group = GroupPanel(player_group_x, player_group_y, 50, initial_group_height, "Герои")
-        self.enemy_group = GroupPanel(enemy_group_x, enemy_group_y, 50, initial_group_height, "Враги")
+         # Получаем экземпляр GameManager
+        self.game_manager = get_game_manager()
 
-        # --- СТАРОЕ: Создание тестовых панелей ---
-        # # Добавляем тестовые панели юнитов
-        # # В реальной игре это будет делаться на основе данных о бое
-        # player1 = PlayerUnitPanel(0, 0, 30, "Герой", 100, 100, 50, 50)
-        # player2 = PlayerUnitPanel(0, 0, 30, "Соратник", 80, 80, 30, 30)
-        # self.player_group.add_unit_panel(player1)
-        # self.player_group.add_unit_panel(player2)
-        # enemy1 = EnemyUnitPanel(0, 0, 30, "Дракон", 150, 150)
-        # enemy2 = EnemyUnitPanel(0, 0, 30, "Гоблин", 40, 40)
-        # self.enemy_group.add_unit_panel(enemy1)
-        # self.enemy_group.add_unit_panel(enemy2)
-        # --- КОНЕЦ СТАРОГО кода ---
+        # Получаем реальные данные из GameManager
+        self.real_enemy_data = self.game_manager.get_current_enemies()
+        self.real_player_data = self.game_manager.get_player_group()
 
-        # --- НОВОЕ: Создание панелей на основе данных из GameManager ---
-        # Получаем группу игроков из GameManager
-        if self.manager and hasattr(self.manager, 'game_manager'):
-            player_characters = self.manager.game_manager.get_player_group()
+        # Создаем панели с реальными объектами Character
+        # EnemyGroupPanel и PlayerGroupPanel теперь принимают List[Monster] и List[Player]
+        self.enemy_group = EnemyGroupPanel(
+            x=enemy_group_x,
+            y=enemy_group_y,
+            width=50,  # Ширина будет обновлена в _update_component_sizes
+            height=initial_group_height,
+            enemies=self.real_enemy_data # Передаем список объектов Monster напрямую
+        )
 
-            # Создаем панели для каждого игрока
-            for i, player_char in enumerate(player_characters):
-                # Создаем PlayerUnitPanel, используя данные реального персонажа
-                # Предполагаем, что player_char имеет атрибуты name, hp, energy, attributes
-                player_panel = PlayerUnitPanel(
-                    x=0,  # Координаты будут обновлены в _update_component_sizes
-                    y=0,  # Координаты будут обновлены в _update_component_sizes
-                    width=30, # Ширина может быть скорректирована позже
-                    name=player_char.name,
-                    hp=player_char.hp,
-                    max_hp=player_char.attributes.max_hp,
-                    mp=player_char.energy, # Предполагаем, что энергия отображается как MP
-                    max_mp=player_char.attributes.max_energy # Предполагаем, что макс. энергия отображается как макс. MP
-                )
-                # Добавляем панель в группу
-                self.player_group.add_unit_panel(player_panel)
-
-        # (Пока) оставляем создание врагов как в оригинале, или можно также обновить
-        # если будет фабрика монстров в GameManager
-        enemy1 = EnemyUnitPanel(0, 0, 30, "Дракон", 150, 150)
-        enemy2 = EnemyUnitPanel(0, 0, 30, "Гоблин", 40, 40)
-        self.enemy_group.add_unit_panel(enemy1)
-        self.enemy_group.add_unit_panel(enemy2)
-        # --- КОНЕЦ НОВОГО кода ---
+        self.player_group = PlayerGroupPanel(
+            x=player_group_x,
+            y=player_group_y,
+            width=50,  # Ширина будет обновлена в _update_component_sizes
+            height=initial_group_height,
+            players=self.real_player_data # Передаем список объектов Player напрямую
+        )
 
         # Временные координаты для battle_log, будут обновлены в update_size
         log_x = 1
@@ -109,17 +91,6 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
         # Добавляем тестовые сообщения в лог
         # TODO: Заменить на реальные сообщения из игровой логики
         self.battle_log.add_message("Битва начинается!")
-        # self.battle_log.add_message("Герой вступает в бой с Драконом.")
-        # self.battle_log.add_message("Дракон издает грозный рык.")
-        # self.battle_log.add_message("Герой атакует Дракона!")
-        # self.battle_log.add_message("Дракон получает 25 урона.")
-        # self.battle_log.add_message("Дракон атакует Героя!")
-        # self.battle_log.add_message("Герой получает 15 урона.")
-        # self.battle_log.add_message("Герой использует зелье лечения.")
-        # self.battle_log.add_message("Герой восстанавливает 30 HP.")
-        # self.battle_log.add_message("Дракон готовится к мощной атаке!")
-        # self.battle_log.add_message("Герой защищается.")
-        # self.battle_log.add_message("Мощная атака Дракона отражена!")
 
     def _update_component_sizes(self) -> None:
         """Обновление размеров компонентов."""
