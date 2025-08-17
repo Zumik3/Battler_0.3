@@ -4,10 +4,10 @@
 from typing import TYPE_CHECKING, List
 from game.protocols import (
     ExperienceCalculatorProtocol, 
-    LevelUpHandlerProtocol,
-    ActionResult
+    LevelUpHandlerProtocol
 )
-from game.results import LevelUpHealResult
+
+from game.results import ActionResult, LevelUpHealResult
 from game.config import get_config
 
 if TYPE_CHECKING:

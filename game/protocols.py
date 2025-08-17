@@ -33,22 +33,34 @@ class Attributes(Protocol):
 
 class AbilityManagerProtocol(Protocol):
     """Протокол для менеджера способностей."""
-    def use_ability(self, ability_name: str, target: 'CharacterType') -> List[Dict[str, Any]]:
+    def add_ability(self, ability: 'Ability') -> List[ActionResult]:
+        """Добавляет способность персонажу."""
+        ...
+
+    def use_ability(self, ability_name: str, target: List['CharacterType'], **kwargs) -> List[ActionResult]:
         """Использовать способность на цель."""
         ...
 
-    def get_available_abilities(self) -> List[str]:
+    def get_available_abilities(self) -> List['Ability']:
+        """Получить список доступных способностей."""
+        ...
+
+    def update_cooldowns(self) -> List[ActionResult]:
         """Получить список доступных способностей."""
         ...
 
 class StatusEffectManagerProtocol(Protocol):
     """Протокол для менеджера статус-эффектов."""
-    def apply_effect(self, effect: 'StatusEffect') -> List[Dict[str, Any]]:
+    def apply_effect(self, effect: 'StatusEffect') -> List[ActionResult]:
         """Применить эффект к персонажу."""
         ...
 
-    def remove_effect(self, effect_name: str) -> List[Dict[str, Any]]:
+    def remove_effect(self, effect_name: str) -> List[ActionResult]:
         """Удалить эффект по имени."""
+        ...
+
+    def update_effects(self) -> List[ActionResult]:
+        """Обновить эффекты."""
         ...
 
     def get_effect(self, effect_name: str) -> Optional['StatusEffect']:
@@ -59,7 +71,7 @@ class StatusEffectManagerProtocol(Protocol):
         """Получить список всех активных эффектов."""
         ...
 
-    def clear_all_effects(self) -> List[Dict[str, Any]]:
+    def clear_all_effects(self) -> List[ActionResult]:
         """Очистить все эффекты и вернуть список результатов."""
         ...
 
