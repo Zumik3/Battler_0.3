@@ -33,11 +33,11 @@ class Attributes(Protocol):
 
 class AbilityManagerProtocol(Protocol):
     """Протокол для менеджера способностей."""
-    def add_ability(self, ability: 'Ability') -> List[ActionResult]:
+    def add_ability(self, ability: 'Ability') -> List['ActionResult']:
         """Добавляет способность персонажу."""
         ...
 
-    def use_ability(self, ability_name: str, target: List['CharacterType'], **kwargs) -> List[ActionResult]:
+    def use_ability(self, ability_name: str, target: List['CharacterType'], **kwargs) -> List['ActionResult']:
         """Использовать способность на цель."""
         ...
 
@@ -45,21 +45,21 @@ class AbilityManagerProtocol(Protocol):
         """Получить список доступных способностей."""
         ...
 
-    def update_cooldowns(self) -> List[ActionResult]:
-        """Получить список доступных способностей."""
+    def update_cooldowns(self) -> List['ActionResult']:
+        """Обновить кулдауны способностей."""
         ...
 
 class StatusEffectManagerProtocol(Protocol):
     """Протокол для менеджера статус-эффектов."""
-    def apply_effect(self, effect: 'StatusEffect') -> List[ActionResult]:
+    def apply_effect(self, effect: 'StatusEffect') -> List['ActionResult']:
         """Применить эффект к персонажу."""
         ...
 
-    def remove_effect(self, effect_name: str) -> List[ActionResult]:
+    def remove_effect(self, effect_name: str) -> List['ActionResult']:
         """Удалить эффект по имени."""
         ...
 
-    def update_effects(self) -> List[ActionResult]:
+    def update_effects(self) -> List['ActionResult']:
         """Обновить эффекты."""
         ...
 
@@ -71,7 +71,7 @@ class StatusEffectManagerProtocol(Protocol):
         """Получить список всех активных эффектов."""
         ...
 
-    def clear_all_effects(self) -> List[ActionResult]:
+    def clear_all_effects(self) -> List['ActionResult']:
         """Очистить все эффекты и вернуть список результатов."""
         ...
 
@@ -118,7 +118,6 @@ class MonsterNamerProtocol(Protocol):
 
 class Character(ABC):
     """Абстрактный базовый класс, представляющий персонажа в игре."""
-    # (Определение класса находится в game/entities/character.py)
     pass
 
 class Ability(ABC):
@@ -129,7 +128,7 @@ class Ability(ABC):
         self.description = description
 
     @abstractmethod
-    def activate(self, caster: 'CharacterType', target: 'CharacterType') -> List[Dict[str, Any]]:
+    def activate(self, caster: 'CharacterType', target: 'CharacterType') -> List['ActionResult']:
         """Активировать способность."""
         ...
 
@@ -141,19 +140,24 @@ class StatusEffect(ABC):
         self.description = description
 
     @abstractmethod
-    def apply(self, target: 'CharacterType') -> List[Dict[str, Any]]:
+    def apply(self, target: 'CharacterType') -> List['ActionResult']:
         """Применить эффект к цели."""
         ...
 
     @abstractmethod
-    def remove(self, target: 'CharacterType') -> List[Dict[str, Any]]:
+    def remove(self, target: 'CharacterType') -> List['ActionResult']:
         """Удалить эффект с цели."""
         ...
 
-    def tick(self, target: 'CharacterType') -> List[Dict[str, Any]]:
+    def tick(self, target: 'CharacterType') -> List['ActionResult']:
         """Выполнить действие эффекта за ход (если применимо)."""
-        # По умолчанию эффект просто уменьшает свою длительность
         self.duration -= 1
         if self.duration <= 0:
-            return target.status_manager.remove_effect(self.name) # type: ignore
+            # Сигнализируем, что эффект нужно удалить
+            return [ActionResult(type="effect_expired", message=f"Эффект {self.name} истек")]
         return []
+
+    @property
+    def is_expired(self) -> bool:
+        """Проверить, истек ли эффект."""
+        return self.duration <= 0

@@ -4,19 +4,23 @@
 import random
 import json
 import os
-from typing import List, Dict
+from typing import List, Dict, Optional
 from game.protocols import MonsterNamerProtocol
 
 class TemplateMonsterNamer(MonsterNamerProtocol):
     """Простой генератор имен монстров, использующий шаблоны и списки слов."""
 
-    def __init__(self, data_directory: str = "game/data/names"):
+    def __init__(self, data_directory: Optional[str] = None):
         """
         Инициализирует генератор.
 
         Args:
             data_directory: Путь к директории с JSON-файлами слов.
         """
+        if data_directory is None:
+            from game.config import get_config
+            data_directory = get_config().system.character_names_directory
+            
         self.data_directory = data_directory
         self.word_data: Dict[str, List[str]] = {}
         self._load_word_data()
@@ -36,59 +40,44 @@ class TemplateMonsterNamer(MonsterNamerProtocol):
                 "prefixes": "prefixes.json",
                 "suffixes": "suffixes.json",
             }
+            
             for key, filename in common_files.items():
                 filepath = os.path.join(self.data_directory, filename)
                 if os.path.exists(filepath):
                     with open(filepath, 'r', encoding='utf-8') as f:
                         self.word_data[key] = json.load(f)
                 else:
-                    print(f"Предупреждение: Файл данных имен '{filepath}' не найден.")
-                    self.word_data[key] = [] # Пустой список по умолчанию
-
-            # Можно добавить загрузку специфичных для роли списков позже
-            # Например, monster_role_adjectives.json
-
-        except json.JSONDecodeError as e:
-            print(f"Ошибка: Некорректный JSON в файлах имен: {e}")
-            self.word_data = {k: [] for k in ["adjectives", "nouns", "prefixes", "suffixes"]}
-        except Exception as e:
+                    self.word_data[key] = []
+                    
+        except (json.JSONDecodeError, Exception) as e:
             print(f"Ошибка при загрузке данных имен: {e}")
-            self.word_data = {k: [] for k in ["adjectives", "nouns", "prefixes", "suffixes"]}
+            self.word_data = {k: [] for k in common_files.keys()}
 
     def _get_words(self, category: str) -> List[str]:
-        """Получает список слов по категории. Возвращает пустой список, если категория отсутствует."""
+        """Получает список слов по категории."""
         return self.word_data.get(category, [])
 
     def generate_name(self, monster_role: str) -> str:
         """
         Генерирует имя для монстра на основе его роли.
-
-        Args:
-            monster_role: Роль/тип монстра (например, 'goblin', 'dragon').
-
-        Returns:
-            Сгенерированное имя.
         """
-        # Простые шаблоны
+        if not monster_role or not monster_role.strip():
+            monster_role = "monster"
+
         templates = [
             "{adjective} {noun}",
             "{prefix}{noun}",
             "{noun} {suffix}",
             "{adjective} {prefix}{noun}",
             "{prefix}{noun} {suffix}",
-            "{noun}", # Резервный вариант
+            "{noun}",
         ]
-
-        # Можно сделать шаблоны зависимыми от роли в будущем
-        # role_templates = self._load_role_templates(monster_role)
-        # if role_templates:
-        #     templates = role_templates
 
         template = random.choice(templates)
 
         # Получаем слова
         adjectives = self._get_words("adjectives")
-        nouns = self._get_words("nouns")
+        nouns = self._get_words("nouns") 
         prefixes = self._get_words("prefixes")
         suffixes = self._get_words("suffixes")
 
@@ -100,41 +89,21 @@ class TemplateMonsterNamer(MonsterNamerProtocol):
             "suffix": random.choice(suffixes) if suffixes else "",
         }
 
-        # Форматируем имя
         try:
             name = template.format(**replacements).strip()
-            # Убираем лишние пробелы, которые могли остаться
             name = " ".join(name.split())
-            if not name:
-                name = f"{monster_role.capitalize()} {random.randint(1, 1000)}"
-            return name
-        except KeyError as e:
-            # На случай, если в шаблоне будет неизвестный ключ
-            print(f"Ошибка форматирования имени: неизвестный ключ {e} в шаблоне '{template}'. Используется резервное имя.")
-            return f"{monster_role.capitalize()} {random.randint(1, 1000)}"
-        except Exception as e:
-            print(f"Неожиданная ошибка при генерации имени: {e}. Используется резервное имя.")
+            return name if name else f"{monster_role.capitalize()} {random.randint(1, 1000)}"
+        except (KeyError, Exception):
             return f"{monster_role.capitalize()} {random.randint(1, 1000)}"
 
-# --- Глобальный экземпляр для удобства ---
-_DEFAULT_NAMER: TemplateMonsterNamer = None # type: ignore
-
-def get_default_namer() -> TemplateMonsterNamer:
-    """Получить глобальный экземпляр генератора имен."""
-    global _DEFAULT_NAMER
-    if _DEFAULT_NAMER is None:
-        _DEFAULT_NAMER = TemplateMonsterNamer()
-    return _DEFAULT_NAMER
+# --- Фабрика для удобства ---
+def create_default_namer() -> TemplateMonsterNamer:
+    """Создать экземпляр генератора имен с настройками по умолчанию."""
+    return TemplateMonsterNamer()
 
 def generate_monster_name(monster_role: str) -> str:
     """
-    Удобная функция для генерации имени монстра с использованием
-    глобального экземпляра генератора.
-
-    Args:
-        monster_role: Роль/тип монстра.
-
-    Returns:
-        Сгенерированное имя.
+    Удобная функция для генерации имени монстра.
     """
-    return get_default_namer().generate_name(monster_role)
+    namer = create_default_namer()
+    return namer.generate_name(monster_role)

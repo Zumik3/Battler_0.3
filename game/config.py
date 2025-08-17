@@ -11,7 +11,6 @@ from typing import Any, Dict
 @dataclass
 class ExperienceSettings:
     """Настройки системы опыта."""
-
     formula_base: int = 100
     formula_multiplier: float = 1.5
 
@@ -19,7 +18,6 @@ class ExperienceSettings:
 @dataclass
 class CombatSettings:
     """Настройки боевой системы."""
-
     min_damage: int = 1
     defense_reduction_factor: float = 0.5
 
@@ -27,7 +25,6 @@ class CombatSettings:
 @dataclass
 class CharacterSettings:
     """Настройки персонажей."""
-
     base_max_hp: int = 50
     base_max_energy: int = 20
     hp_per_vitality: int = 5
@@ -39,7 +36,6 @@ class CharacterSettings:
 @dataclass
 class UISettings:
     """Настройки пользовательского интерфейса."""
-
     screen_width: int = 80
     screen_height: int = 24
 
@@ -47,7 +43,6 @@ class UISettings:
 @dataclass
 class SystemSettings:
     """Системные настройки."""
-
     enable_debug_logging: bool = False
     log_file: str = "game.log"
     save_directory: str = "saves"
@@ -56,6 +51,7 @@ class SystemSettings:
     characters_data_directory: str = "game/data/characters"
     player_classes_directory: str = "game/data/characters/player_classes"
     monster_classes_directory: str = "game/data/characters/monster_classes"
+    character_names_directory: str = "game/data/names"
 
 
 @dataclass
@@ -73,9 +69,6 @@ class GameConfig:
     def load_from_file(self, config_file: str = "") -> None:
         """
         Загрузить конфигурацию из файла.
-
-        Args:
-            config_file: Путь к файлу конфигурации. Если не указан, используется self.config_file.
         """
         file_path = config_file or self.config_file
         try:
@@ -84,14 +77,11 @@ class GameConfig:
                     data = json.load(f)
                     self._update_from_dict(data)
         except Exception as e:
-            print(f"Ошибка загрузки конфигурации: {e}")
+            print(f"Ошибка загрузки конфигурации из {file_path}: {e}")
 
     def save_to_file(self, config_file: str = "") -> None:
         """
         Сохранить конфигурацию в файл.
-
-        Args:
-            config_file: Путь к файлу конфигурации. Если не указан, используется self.config_file.
         """
         file_path = config_file or self.config_file
         try:
@@ -99,7 +89,7 @@ class GameConfig:
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(self._to_dict(), f, indent=2, ensure_ascii=False)
         except Exception as e:
-            print(f"Ошибка сохранения конфигурации: {e}")
+            print(f"Ошибка сохранения конфигурации в {file_path}: {e}")
 
     def _to_dict(self) -> Dict[str, Any]:
         """Преобразовать конфигурацию в словарь."""
@@ -132,15 +122,14 @@ class GameConfig:
                 'data_directory': self.system.data_directory,
                 'characters_data_directory': self.system.characters_data_directory,
                 'player_classes_directory': self.system.player_classes_directory,
+                'monster_classes_directory': self.system.monster_classes_directory,  # ✅ Добавлено
+                'character_names_directory': self.system.character_names_directory,   # ✅ Добавлено
             }
         }
 
     def _update_from_dict(self, data: Dict[str, Any]) -> None:
         """
         Обновить конфигурацию из словаря.
-
-        Args:
-            data: Словарь с данными конфигурации.
         """
         if 'experience' in data:
             for key, value in data['experience'].items():

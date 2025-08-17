@@ -1,11 +1,11 @@
-# game/ui/screens/battle_screen.py
+# game/ui/battle_screen.py
 """Экран боя.
 Отображает боевую сцену с возможностью взаимодействия."""
 import curses
 from typing import TYPE_CHECKING, Dict, Any, Optional, List, Tuple
 
 # - ДОБАВЛЯЕМ ИМПОРТ МИКСИНА -
-from game.ui.mixins import StandardLayoutMixin
+from game.mixins.ui_mixin import StandardLayoutMixin
 # -
 from game.ui.base_screen import BaseScreen
 from game.ui.rendering.color_manager import Color
