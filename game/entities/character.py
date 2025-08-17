@@ -12,7 +12,8 @@ from game.protocols import (
     Ability,
     StatusEffect
 )
-from game.config import get_config # Импортируем get_config для SimpleAttributes
+from game.config import get_config
+from game.results import ActionResult
 
 if TYPE_CHECKING:
     from game.entities.character import Character as CharacterType
@@ -39,45 +40,69 @@ class CharacterConfig:
     starting_abilities: List[str] = field(default_factory=list)
 
     # Внедрение зависимостей через конструктор
-    stats_factory: Optional[Callable[[], 'Stats']] = None
-    attributes_factory: Optional[Callable[['CharacterType'], 'Attributes']] = None
+    stats_factory: Optional[Callable[[str, int, Dict[str, int], Dict[str, float]], 'Stats']] = None
+    attributes_factory: Optional[Callable[['Stats', Any], 'Attributes']] = None
     ability_manager_factory: Optional[Callable[['CharacterType'], 'AbilityManagerProtocol']] = None
     status_effect_manager_factory: Optional[Callable[['CharacterType'], 'StatusEffectManagerProtocol']] = None
 
+@dataclass
 class SimpleStats:
-    """Простая реализация базовых характеристик."""
-    def __init__(self):
-        self.strength = 0
-        self.agility = 0
-        self.intelligence = 0
-        self.vitality = 0
+    strength: int = 0
+    agility: int = 0
+    intelligence: int = 0
+    vitality: int = 0
 
+
+# class SimpleStats:
+#     """Простая реализация базовых характеристик."""
+#     def __init__(self):
+#         self.strength = 0
+#         self.agility = 0
+#         self.intelligence = 0
+#         self.vitality = 0
+
+
+@dataclass
 class SimpleAttributes:
-    """Простая реализация производных атрибутов."""
-    def __init__(self, character: 'CharacterType', stats: Stats):
-        self.character = character
-        self.stats = stats
-        config = get_config() # Получаем конфигурацию
-        
-        # Расчет производных атрибутов с использованием настроек
+    max_hp: int = 0
+    max_energy: int = 0
+    attack_power: int = 0
+    defense: int = 0
+
+    def recalculate(self, stats: Stats, config: Any) -> None:
+        """Пересчитывает атрибуты на основе новых характеристик."""
         self.max_hp = config.character.base_max_hp + (stats.vitality * config.character.hp_per_vitality)
         self.max_energy = config.character.base_max_energy + (stats.intelligence * config.character.energy_per_intelligence)
         self.attack_power = stats.strength * config.character.attack_per_strength
         self.defense = int(stats.agility * config.character.defense_per_agility)
 
-    def recalculate(self, stats: Stats) -> None:
-        """
-        Пересчитать атрибуты на основе новых базовых характеристик.
-        Это реализация метода, требуемого протоколом Attributes.
-        """
-        config = get_config()
-        # Повторяем логику расчета из __init__
-        self.max_hp = config.character.base_max_hp + (stats.vitality * config.character.hp_per_vitality)
-        self.max_energy = config.character.base_max_energy + (stats.intelligence * config.character.energy_per_intelligence)
-        self.attack_power = stats.strength * config.character.attack_per_strength
-        self.defense = int(stats.agility * config.character.defense_per_agility)
-        # Обновляем ссылку на stats
-        self.stats = stats
+
+# class SimpleAttributes:
+#     """Простая реализация производных атрибутов."""
+#     def __init__(self, character: 'CharacterType', stats: Stats):
+#         self.character = character
+#         self.stats = stats
+#         config = get_config() # Получаем конфигурацию
+        
+#         # Расчет производных атрибутов с использованием настроек
+#         self.max_hp = config.character.base_max_hp + (stats.vitality * config.character.hp_per_vitality)
+#         self.max_energy = config.character.base_max_energy + (stats.intelligence * config.character.energy_per_intelligence)
+#         self.attack_power = stats.strength * config.character.attack_per_strength
+#         self.defense = int(stats.agility * config.character.defense_per_agility)
+
+#     def recalculate(self, stats: Stats) -> None:
+#         """
+#         Пересчитать атрибуты на основе новых базовых характеристик.
+#         Это реализация метода, требуемого протоколом Attributes.
+#         """
+#         config = get_config()
+#         # Повторяем логику расчета из __init__
+#         self.max_hp = config.character.base_max_hp + (stats.vitality * config.character.hp_per_vitality)
+#         self.max_energy = config.character.base_max_energy + (stats.intelligence * config.character.energy_per_intelligence)
+#         self.attack_power = stats.strength * config.character.attack_per_strength
+#         self.defense = int(stats.agility * config.character.defense_per_agility)
+#         # Обновляем ссылку на stats
+#         self.stats = stats
 
 # --- Основной класс персонажа ---
 class Character(ABC):
@@ -98,16 +123,14 @@ class Character(ABC):
         self.base_stats_dict = config.base_stats
         self.growth_rates_dict = config.growth_rates
 
-        # Создаем фабрики по умолчанию если не предоставлены
-        # Это позволяет подклассам переопределить их или использовать реализацию по умолчанию
-        if config.stats_factory is None:
-            stats_factory = self.get_base_stats # Используем реализацию по умолчанию
-        if config.attributes_factory is None:
-            attributes_factory = self._attributes_factory # Используем реализацию по умолчанию
+         # Используем фабрики из конфига или по умолчанию
+        self._stats_factory = config.stats_factory or (lambda role, level, base, growth: Character.default_stats_factory(role, level, base, growth))
+        self._attributes_factory = config.attributes_factory or (lambda stats, config_obj: Character.default_attributes_factory(stats, config_obj))
 
         # Инициализация характеристик
-        self.stats: Stats = stats_factory()
-        self.attributes: Attributes = attributes_factory(self)
+        self.stats: Stats = self._stats_factory(self.role, self.level, self.base_stats_dict, self.growth_rates_dict)
+        self.attributes: Attributes = self._attributes_factory(self.stats, get_config())
+
 
         # Инициализируем hp и энергию
         self.hp = self.attributes.max_hp
@@ -123,59 +146,53 @@ class Character(ABC):
             self._status_manager = config.status_effect_manager_factory(self)
 
     # ==================== Вспомогательные методы для фабрик (по умолчанию) ====================
-    # Переносим из Player/Monster
-    def _attributes_factory(self, character: 'CharacterType') -> Attributes:
-        """Фабрика по умолчанию для создания атрибутов."""
-        return self.calculate_attributes()
+    # Вспомогательные фабрики (можно разместить внутри класса или отдельно)
+    @staticmethod
+    def default_stats_factory(role: str, level: int, base_stats_dict: Dict[str, int], growth_rates_dict: Dict[str, float]) -> Stats:
+        """Фабрика по умолчанию для создания Stats."""
+        
+        level_multiplier = level * 0.1
+        return SimpleStats(
+            strength=int(base_stats_dict.get('strength', 10) * (1 + level_multiplier * growth_rates_dict.get('strength', 1.0))),
+            agility=int(base_stats_dict.get('agility', 10) * (1 + level_multiplier * growth_rates_dict.get('agility', 1.0))),
+            intelligence=int(base_stats_dict.get('intelligence', 10) * (1 + level_multiplier * growth_rates_dict.get('intelligence', 1.0))),
+            vitality=int(base_stats_dict.get('vitality', 10) * (1 + level_multiplier * growth_rates_dict.get('vitality', 1.0))),
+        )
 
-    # ==================== Абстрактные методы (частично реализованы) ====================
-    # Реализация по умолчанию перенесена из Player/Monster
-    def get_base_stats(self) -> Stats:
-        """Возвращает базовые характеристики персонажа. Реализация по умолчанию."""
-        stats = SimpleStats()
-        # Масштабируем базовые характеристики в соответствии с уровнем
-        level_multiplier = self.level * 0.1
-        stats.strength = int(self.base_stats_dict.get('strength', 10) * 
-                           (1 + level_multiplier * self.growth_rates_dict.get('strength', 1.0)))
-        stats.agility = int(self.base_stats_dict.get('agility', 10) * 
-                          (1 + level_multiplier * self.growth_rates_dict.get('agility', 1.0)))
-        stats.intelligence = int(self.base_stats_dict.get('intelligence', 10) * 
-                               (1 + level_multiplier * self.growth_rates_dict.get('intelligence', 1.0)))
-        stats.vitality = int(self.base_stats_dict.get('vitality', 10) * 
-                           (1 + level_multiplier * self.growth_rates_dict.get('vitality', 1.0)))
-        return stats
+    @staticmethod
+    def default_attributes_factory(stats: Stats, config: Any) -> Attributes:
+        """Фабрика по умолчанию для создания Attributes."""
+        
+        attr = SimpleAttributes()
+        attr.recalculate(stats, config)
+        return attr
 
-    def calculate_attributes(self) -> Attributes:
-        """Вычисляет атрибуты персонажа на основе его характеристик и уровня. Реализация по умолчанию."""
-        # Используем SimpleAttributes, который требует get_config()
-        return SimpleAttributes(self, self.stats)
+    def _update_attributes(self) -> None:
+        """Обновляет атрибуты на основе текущих характеристик."""
+        config = get_config()
+        self.attributes.recalculate(self.stats, config)
+        # Обновляем hp и энергию до максимума при пересчете
+        self.hp = self.attributes.max_hp
+        self.energy = self.attributes.max_energy
 
-    # ==================== Уровень и характеристики ====================
-    # Логика level_up остается здесь, но может быть расширена в подклассах
-    def level_up(self) -> List[Dict[str, Any]]:
+    def level_up(self) -> List[ActionResult]:
         """
         Повышает уровень персонажа.
         Возвращает список сообщений/результатов.
         """
         self.level += 1
-
-        # Сохраняем текущие проценты HP и энергии
-        hp_ratio = self.hp / self.attributes.max_hp if self.attributes.max_hp > 0 else 1.0
-        energy_ratio = self.energy / self.attributes.max_energy if self.attributes.max_energy > 0 else 1.0
-
-        # Пересчитываем характеристики и атрибуты через методы (которые могут быть переопределены)
-        try:
-            self.stats = self.get_base_stats()
-            self.attributes = self.calculate_attributes()
-        except NotImplementedError:
-            # fallback если абстрактные методы не реализованы корректно
-            pass
-
-        # Обновляем текущие значения с учетом новых максимумов
-        self.hp = max(1, int(self.attributes.max_hp * hp_ratio))
-        self.energy = int(self.attributes.max_energy * energy_ratio)
-
-        return [{"type": "level_up", "message": f"{self.name} достиг уровня {self.level}!"}]
+        
+        # Пересчитываем характеристики
+        self.stats = self._stats_factory(self.role, self.level, self.base_stats_dict, self.growth_rates_dict)
+        
+        # Пересчитываем атрибуты
+        self._update_attributes()
+        
+        # Возвращаем результат как ActionResult
+        return [ActionResult(
+            type="level_up",
+            message=f"{self.name} достиг уровня {self.level}!"
+        )]
 
     # ==================== Свойства ====================
     @property

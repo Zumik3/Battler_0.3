@@ -1,19 +1,15 @@
 # game/protocols.py
 """Протоколы, определяющие интерфейсы для различных компонентов игры."""
 
-from collections.abc import Callable
-import traceback
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Protocol, Optional
-
-# Импорты с TYPE_CHECKING для избежания циклических импортов
-# в аннотациях типов на уровне модуля
-# (импортируем только при аннотации типов, а не во время выполнения)
-from typing import TYPE_CHECKING
+from typing import List, Dict, Any, Protocol, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from game.entities.character import Character as CharacterType
+    from game.results import ActionResult, ExperienceGainedResult
+    from game.config import GameConfig
 
+# ==================== Базовые протоколы данных ====================
 
 class Stats(Protocol):
     """Протокол для базовых характеристик персонажа."""
@@ -22,7 +18,6 @@ class Stats(Protocol):
     intelligence: int
     vitality: int
 
-
 class Attributes(Protocol):
     """Протокол для производных атрибутов персонажа."""
     max_hp: int
@@ -30,10 +25,11 @@ class Attributes(Protocol):
     attack_power: int
     defense: int
 
-    def recalculate(self, stats: Stats) -> None:
+    def recalculate(self, stats: Stats, config: 'GameConfig') -> None:
         """Пересчитать атрибуты на основе базовых характеристик."""
         ...
 
+# ==================== Протоколы игровых систем ====================
 
 class AbilityManagerProtocol(Protocol):
     """Протокол для менеджера способностей."""
@@ -44,7 +40,6 @@ class AbilityManagerProtocol(Protocol):
     def get_available_abilities(self) -> List[str]:
         """Получить список доступных способностей."""
         ...
-
 
 class StatusEffectManagerProtocol(Protocol):
     """Протокол для менеджера статус-эффектов."""
@@ -68,33 +63,51 @@ class StatusEffectManagerProtocol(Protocol):
         """Очистить все эффекты и вернуть список результатов."""
         ...
 
+# ==================== Протоколы систем опыта и уровней ====================
 
-# Протоколы для системы уровней/опыта
-# Эти протоколы позволят нам в будущем легко подменить систему роста
 class ExperienceCalculatorProtocol(Protocol):
-    """Протокол для калькулятора опыта."""
     def calculate_exp_for_next_level(self, current_level: int) -> int:
-        """Рассчитать опыт, необходимый для следующего уровня."""
+        """Рассчитывает опыт, необходимый для следующего уровня."""
         ...
-
-    def calculate_stat_increase(self, base_stat: int, growth_rate: float, level: int) -> int:
-        """Рассчитать увеличение характеристики."""
-        ...
-
 
 class LevelUpHandlerProtocol(Protocol):
-    """Протокол для обработчика повышения уровня."""
-    def handle_level_up(self, character: 'CharacterType') -> List[Dict[str, Any]]:
-        """Обработать повышение уровня и вернуть список результатов."""
+    def handle_level_up(self, character: 'CharacterType') -> List['ActionResult']:
+        """Обрабатывает повышение уровня и возвращает результаты."""
         ...
 
+class ExperienceSystemProtocol(Protocol):
+    def add_experience(self, character: 'CharacterType', amount: int) -> List['ExperienceGainedResult']:
+        """Добавляет опыт персонажу и возвращает результаты."""
+        ...
 
-# Базовые абстрактные классы
+class LevelingSystemProtocol(Protocol):
+    def try_level_up(self, character: 'CharacterType') -> List['ActionResult']:
+        """Проверяет и выполняет повышение уровня, если возможно."""
+        ...
+
+# ==================== Протоколы генераторов ====================
+
+class MonsterNamerProtocol(Protocol):
+    """Протокол для генератора имен монстров."""
+    
+    def generate_name(self, monster_role: str) -> str:
+        """
+        Генерирует имя для монстра на основе его роли.
+
+        Args:
+            monster_role: Роль/тип монстра (например, 'goblin', 'dragon').
+
+        Returns:
+            Сгенерированное имя.
+        """
+        ...
+
+# ==================== Базовые абстрактные классы ====================
+
 class Character(ABC):
     """Абстрактный базовый класс, представляющий персонажа в игре."""
     # (Определение класса находится в game/entities/character.py)
-    pass # fallback если абстрактные методы не реализованы корректно
-
+    pass
 
 class Ability(ABC):
     """Абстрактный базовый класс для способностей."""
@@ -107,7 +120,6 @@ class Ability(ABC):
     def activate(self, caster: 'CharacterType', target: 'CharacterType') -> List[Dict[str, Any]]:
         """Активировать способность."""
         ...
-
 
 class StatusEffect(ABC):
     """Абстрактный базовый класс для статус-эффектов."""
@@ -133,19 +145,3 @@ class StatusEffect(ABC):
         if self.duration <= 0:
             return target.status_manager.remove_effect(self.name) # type: ignore
         return []
-
-# --- Протокол для генератора имен монстров ---
-class MonsterNamerProtocol(Protocol):
-    """Протокол для генератора имен монстров."""
-    
-    def generate_name(self, monster_role: str) -> str:
-        """
-        Генерирует имя для монстра на основе его роли.
-
-        Args:
-            monster_role: Роль/тип монстра (например, 'goblin', 'dragon').
-
-        Returns:
-            Сгенерированное имя.
-        """
-        ... # Тело метода в протоколе пустое, описывает интерфейс

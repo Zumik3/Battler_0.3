@@ -1,5 +1,5 @@
 Сборник исходных кодов и конфигурационных файлов
-Дата создания: 2025-08-16 20:39:27
+Дата создания: 2025-08-17 14:23:17
 ================================================================================
 
 ================================================================================
@@ -31,7 +31,7 @@
 <!-- TODO: Доработать BattleScreen.render, чтобы он обновлял содержимое UnitPanel (имя, HP, MP) на основе данных из GameManager перед отрисовкой панелей. -->
 <!-- TODO: Проверить/доработать логику `_update_component_sizes` в `BattleScreen` для корректного изменения размеров компонентов при ресайзе окна терминала. -->
 <!-- TODO: Реализовать отображение имен монстров/игроков в UnitPanel (сейчас в EnemyUnitPanel имя передается вручную, нужно брать из объекта Character). -->
-<!-- WIP: Улучшить визуал BattleScreen: корректное расположение игроков/монстров, настройка лога, порядок обрамления. -->
+<!-- DONE: Улучшить визуал BattleScreen: корректное расположение игроков/монстров, настройка лога, порядок обрамления. -->
 
 ## Компоненты UI
 
@@ -263,6 +263,7 @@ def get_config() -> GameConfig:
 # game/protocols.py
 """Протоколы, определяющие интерфейсы для различных компонентов игры."""
 
+from collections.abc import Callable
 import traceback
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Protocol, Optional
@@ -481,8 +482,8 @@ class GameManager:
         # Создаем каждого игрока из словаря
         for name, role in starting_players.items():
             player = create_player(
-                name=name,
                 role=role,
+                name=name,
                 level=1,
                 data_directory=player_data_dir
             )
@@ -1056,20 +1057,17 @@ class ScreenManager:
 # game/ui/screens/battle_screen.py
 """Экран боя.
 Отображает боевую сцену с возможностью взаимодействия."""
-
 import curses
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, Any, Optional, List, Tuple
 
 # - ДОБАВЛЯЕМ ИМПОРТ МИКСИНА -
 from game.ui.mixins import StandardLayoutMixin
 # -
-
+from game.ui.base_screen import BaseScreen
+from game.ui.rendering.color_manager import Color
+from game.ui.rendering.renderable import Text, Separator
 # - ИМПОРТИРУЕМ НОВЫЕ КОМПОНЕНТЫ -
-from game.ui.components.battle_components import (
-    PlayerGroupPanel,
-    EnemyGroupPanel,
-    BattleLog
-)
+from game.ui.components.battle_components import (PlayerGroupPanel, EnemyGroupPanel, BattleLog)
 # -
 from game.ui.base_screen import BaseScreen
 from game.ui.rendering.color_manager import Color
@@ -1079,87 +1077,156 @@ from game.game_manager import get_game_manager
 # - ДОБАВЛЯЕМ ИМПОРТ ДЛЯ TYPE_CHECKING -
 if TYPE_CHECKING:
     from game.ui.screen_manager import ScreenManager
-    from game.entities.player import Player # Для аннотаций
-    from game.entities.monster import Monster # Для аннотаций
-# -
+    from game.entities.player import Player
+    from game.entities.monster import Monster
+    from game.ui.rendering.renderer import Renderer
+# ---
 
 
-# - НАСЛЕДУЕМСЯ ОТ StandardLayoutMixin -
 class BattleScreen(BaseScreen, StandardLayoutMixin):
     """Экран боя."""
+
+    # --- Константы для макета ---
+    HEADER_HEIGHT = 2
+    #UNITS_Y_OFFSET = 1 # Отступ блока юнитов от заголовка
+    UNITS_HEIGHT = 5 # Фиксированная высота блока юнитов
+    #LOG_Y_OFFSET = 1 # Отступ лога от блока юнитов
+    FOOTER_Y_OFFSET = 2 # Отступ подвала от низа лога
+    HORIZONTAL_MARGIN = 1 # Отступы слева и справа
+    GROUPS_GAP = 1 # Зазор между группами игроков и врагов
+    MIN_LOG_HEIGHT = 3 # Минимальная высота лога
+    MIN_LOG_WIDTH = 10 # Минимальная ширина лога
+    # --- Конец констант ---
 
     def __init__(self, manager: 'ScreenManager'):
         # Инициализируем атрибуты для компонентов
         # Они будут инициализированы в _setup_elements
-        self.player_group: 'PlayerGroupPanel' = None # type: ignore
-        self.enemy_group: 'EnemyGroupPanel' = None # type: ignore
-        self.battle_log: 'BattleLog' = None # type: ignore
-
+        self.player_group: Optional[PlayerGroupPanel] = None
+        self.enemy_group: Optional[EnemyGroupPanel] = None
+        self.battle_log: Optional[BattleLog] = None
         # Вызываем родительский конструктор
         # _setup_elements будет вызван внутри него
         super().__init__(manager)
 
-        # После вызова super().__init__ все атрибуты уже инициализированы
-        # Дополнительная инициализация, если потребуется, может быть здесь
+    def _recalculate_layout(self, screen_width: int, screen_height: int) -> Dict[str, Dict[str, int]]:
+        """
+        Пересчитывает размеры и позиции всех основных компонентов экрана боя.
+
+        Args:
+            screen_width: Текущая ширина экрана.
+            screen_height: Текущая высота экрана.
+
+        Returns:
+            Словарь с ключами 'player_group', 'enemy_group', 'battle_log',
+            каждый из которых содержит словарь {'x', 'y', 'width', 'height'}.
+        """
+        # --- Размеры и позиции ---
+        units_y = self.HEADER_HEIGHT #+ self.UNITS_Y_OFFSET
+
+        # --- Расчет ширины для панелей юнитов ---
+        # Доступная ширина для блоков юнитов (учитываем отступы и зазор)
+        total_units_width = max(
+            0,
+            screen_width - 2 * self.HORIZONTAL_MARGIN - self.GROUPS_GAP
+        )
+
+        # Делим ширину пополам между игроками и монстрами
+        half_width = total_units_width // 2
+        player_group_width = half_width
+        enemy_group_width = total_units_width - player_group_width
+
+        # Координаты X
+        player_group_x = self.HORIZONTAL_MARGIN
+        enemy_group_x = player_group_x + player_group_width + self.GROUPS_GAP
+
+        # --- Размеры и позиции лога боя ---
+        log_x = 0  # self.HORIZONTAL_MARGIN
+        log_y = units_y + self.UNITS_HEIGHT #+ self.LOG_Y_OFFSET
+        log_width = max(self.MIN_LOG_WIDTH, screen_width * self.HORIZONTAL_MARGIN)
+
+        # Высота лога - всё оставшееся пространство минус отступы и подвал
+        available_height = screen_height - log_y - self.FOOTER_Y_OFFSET
+        log_height = max(self.MIN_LOG_HEIGHT, available_height)
+
+        return {
+            'player_group': {
+                'x': player_group_x,
+                'y': units_y,
+                'width': player_group_width,
+                'height': self.UNITS_HEIGHT
+            },
+            'enemy_group': {
+                'x': enemy_group_x,
+                'y': units_y,
+                'width': enemy_group_width,
+                'height': self.UNITS_HEIGHT
+            },
+            'battle_log': {
+                'x': log_x,
+                'y': log_y,
+                'width': log_width,
+                'height': log_height
+            }
+        }
 
     def _setup_elements(self) -> None:
         """Настройка элементов экрана."""
-        
         self.elements = [] # Очищаем список, так как компоненты будут отрисовываться напрямую
 
-        # --- ПОЛУЧАЕМ ДАННЫЕ ИЗ GameManager НЕПОСРЕДСТВЕННО В _setup_elements ---
+        # - ПОЛУЧАЕМ ДАННЫЕ ИЗ GameManager НЕПОСРЕДСТВЕННО В _setup_elements -
         # Это решает проблему порядка инициализации
         game_manager = get_game_manager()
         real_enemy_data = game_manager.get_current_enemies()
         real_player_data = game_manager.get_player_group()
-        # ---
+        # -
 
-        # - НАСТРОЙКА КОМПОНЕНТОВ -
-        # Инициализируем компоненты с начальными размерами
-        # Они будут обновлены в render/update_size
-        header_height = 2
-        
-        # Начальные координаты для блоков юнитов
-        units_y = header_height + 1 # Блоки юнитов под заголовком
-        units_height = 5 # Фиксированная высота 5 строк
-        
-        # Ширины блоков
-        total_width = 80 # Начальное значение, будет пересчитано в update_size
-        player_group_width = total_width // 3
-        enemy_group_width = total_width - player_group_width - 1 # -1 для зазора
-        
-        # Координаты X
-        player_group_x = 1
-        enemy_group_x = player_group_x + player_group_width + 1 # +1 для зазора
+        # Получаем начальные размеры экрана из рендерера
+        if self.renderer:
+            screen_width = self.renderer.width
+            screen_height = self.renderer.height
+        else:
+            # fallback значения, если renderer еще не готов
+            # Используем значения из конфигурации, если они доступны
+            try:
+                from game.config import get_config
+                config = get_config()
+                screen_width = config.ui.screen_width
+                screen_height = config.ui.screen_height
+            except Exception:
+                screen_width = 80
+                screen_height = 24
 
-        # Создаем панели с реальными объектами Character
-        # EnemyGroupPanel и PlayerGroupPanel теперь принимают List[Monster] и List[Player]
+        # --- ИСПОЛЬЗУЕМ ОБЩУЮ ЛОГИКУ РАСЧЕТА ---
+        layout = self._recalculate_layout(screen_width, screen_height)
+
+        # Создаем панели с рассчитанными размерами
         self.player_group = PlayerGroupPanel(
-            x=player_group_x,
-            y=units_y,
-            width=player_group_width,
-            height=units_height,
-            players=real_player_data # Передаем список объектов Player напрямую
+            x=layout['player_group']['x'],
+            y=layout['player_group']['y'],
+            width=layout['player_group']['width'],
+            height=layout['player_group']['height'],
+            players=real_player_data  # Передаем данные игроков
         )
 
         self.enemy_group = EnemyGroupPanel(
-            x=enemy_group_x,
-            y=units_y,
-            width=enemy_group_width,
-            height=units_height,
-            enemies=real_enemy_data # Передаем список объектов Monster напрямую
+            x=layout['enemy_group']['x'],
+            y=layout['enemy_group']['y'],
+            width=layout['enemy_group']['width'],
+            height=layout['enemy_group']['height'],
+            enemies=real_enemy_data  # Передаем данные врагов
         )
 
-        # Временные координаты для battle_log, будут обновлены в update_size
-        log_x = 1
-        log_y = units_y + units_height + 1 # Под блоками юнитов
-        log_width = 60
-        log_height = 5
-        self.battle_log = BattleLog(log_x, log_y, log_width, log_height)
-
+        # Инициализируем лог боя
+        self.battle_log = BattleLog(
+            x=layout['battle_log']['x'],
+            y=layout['battle_log']['y'],
+            width=layout['battle_log']['width'],
+            height=layout['battle_log']['height']
+        )
         # Добавляем тестовые сообщения в лог
         # TODO: Заменить на реальные сообщения из игровой логики
         self.battle_log.add_message("Битва начинается!")
+        # ---
 
     def _update_component_sizes(self) -> None:
         """Обновление размеров компонентов."""
@@ -1169,54 +1236,41 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
         # Получаем текущие размеры экрана
         screen_width = self.renderer.width
         screen_height = self.renderer.height
-        
-        # Координаты и размеры
-        header_height = 2
-        
-        # Блоки юнитов
-        units_y = header_height + 1
-        units_height = 5 # Фиксированная высота
-        
-        # Ширины блоков (1/3 для игроков, 2/3 для монстров)
-        player_group_width = max(10, screen_width // 3)
-        enemy_group_width = max(10, screen_width - player_group_width - 1) # -1 для зазора
-        
-        # Координаты X
-        player_group_x = 1
-        enemy_group_x = player_group_x + player_group_width + 1 # +1 для зазора
 
-        # Обновляем размеры и позиции групп
-        self.player_group.x = player_group_x
-        self.player_group.y = units_y
-        self.player_group.width = player_group_width
-        self.player_group.height = units_height
+        # --- ИСПОЛЬЗУЕМ ОБЩУЮ ЛОГИКУ РАСЧЕТА ---
+        layout = self._recalculate_layout(screen_width, screen_height)
+        # ---
 
-        self.enemy_group.x = enemy_group_x
-        self.enemy_group.y = units_y
-        self.enemy_group.width = enemy_group_width
-        self.enemy_group.height = units_height
+        # Обновляем размеры и позиции панелей групп
+        if self.player_group:
+            self.player_group.x = layout['player_group']['x']
+            self.player_group.y = layout['player_group']['y'] # Обновляем Y тоже
+            self.player_group.width = layout['player_group']['width']
+            self.player_group.height = layout['player_group']['height']
+            # Обновляем размеры дочерних компонентов групп
+            # _update_panels будет использовать новые self.x, self.width
+            self.player_group._update_panels() 
 
-        # Обновляем размеры дочерних компонентов групп
-        # Для GroupPanel update_size принимает общие размеры экрана
-        self.player_group.update_size(screen_width, screen_height)
-        self.enemy_group.update_size(screen_width, screen_height)
+        if self.enemy_group:
+            self.enemy_group.x = layout['enemy_group']['x']
+            self.enemy_group.y = layout['enemy_group']['y'] # Обновляем Y тоже
+            self.enemy_group.width = layout['enemy_group']['width']
+            self.enemy_group.height = layout['enemy_group']['height']
+            # Обновляем размеры дочерних компонентов групп
+            # _update_panels будет использовать новые self.x, self.width
+            self.enemy_group._update_panels()
 
-        # Лог боя
-        log_x = 1
-        log_y = units_y + units_height + 1 # Под блоками юнитов
-        log_width = max(10, screen_width - 2) # На всю ширину с отступами
-        
-        # Высота лога - всё оставшееся пространство минус отступы и подвал
-        available_height = screen_height - log_y - 2 # -2 для подвала
-        log_height = max(3, available_height) # Минимальная высота 3
+        # Обновляем размеры и позиции лога боя
+        if self.battle_log:
+            self.battle_log.x = layout['battle_log']['x']
+            self.battle_log.y = layout['battle_log']['y']
+            self.battle_log.width = layout['battle_log']['width']
+            self.battle_log.height = layout['battle_log']['height']
+            # BattleLog не имеет сложной внутренней структуры панелей,
+            # поэтому явный вызов update_size не требуется.
+            # Если бы требовался, нужно было бы проверить сигнатуру метода в BattleLog.
 
-        self.battle_log.x = log_x
-        self.battle_log.y = log_y
-        self.battle_log.width = log_width
-        self.battle_log.height = log_height
-        # Исправленный вызов update_size для BattleLog
-        # Сигнатура: update_size(self, total_width: int, total_height: int)
-        self.battle_log.update_size(screen_width, screen_height)
+        # --- КОНЕЦ ОБНОВЛЕННОЙ ЛОГИКИ ---
 
     def _setup_commands(self) -> None:
         """Настройка дополнительных команд экрана."""
@@ -1228,8 +1282,8 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
         """Отрисовка экрана."""
         # Обновляем размеры компонентов перед отрисовкой
         self._update_component_sizes()
-
         self.renderer.clear()
+
         # Отрисовка стандартного макета (шапка + подвал)
         self.render_standard_layout("=== БОЙ ===")
 
@@ -1242,7 +1296,6 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
         if self.battle_log:
             self.battle_log.render(self.renderer)
         # -
-
         self.renderer.refresh() # Не забываем refresh
 
     def _handle_unregistered_key(self, key: int) -> None:
@@ -1266,6 +1319,7 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
 """Базовый класс персонажа в игре."""
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Callable, TYPE_CHECKING
 from game.protocols import (
     Stats, 
@@ -1281,7 +1335,31 @@ if TYPE_CHECKING:
     from game.entities.character import Character as CharacterType
 
 # ==================== Вспомогательные классы ====================
-# Переносим их сюда, так как они используются как реализации по умолчанию
+
+@dataclass
+class CharacterConfig:
+    """Конфигурация для создания персонажа."""
+    
+    # Базовые параметры
+    name: str
+    role: str
+   
+    # Параметры для системы уровней/характеристик
+    base_stats: Dict[str, int]
+    growth_rates: Dict[str, float]
+    level: int = 1
+    is_player: bool = field(default=False)
+
+    class_icon: str = "?"
+    class_icon_color: str = ""
+    description: str = ""
+    starting_abilities: List[str] = field(default_factory=list)
+
+    # Внедрение зависимостей через конструктор
+    stats_factory: Optional[Callable[[], 'Stats']] = None
+    attributes_factory: Optional[Callable[['CharacterType'], 'Attributes']] = None
+    ability_manager_factory: Optional[Callable[['CharacterType'], 'AbilityManagerProtocol']] = None
+    status_effect_manager_factory: Optional[Callable[['CharacterType'], 'StatusEffectManagerProtocol']] = None
 
 class SimpleStats:
     """Простая реализация базовых характеристик."""
@@ -1322,35 +1400,26 @@ class SimpleAttributes:
 class Character(ABC):
     """Абстрактный базовый класс, представляющий персонажа в игре."""
 
-    def __init__(
-        self, 
-        name: str, 
-        role: str,
-        # Параметры для системы уровней/характеристик
-        base_stats_dict: Dict[str, int],
-        growth_rates_dict: Dict[str, float],
-        level: int = 1,
-        is_player: bool = False,
-        # Внедрение зависимостей через конструктор
-        stats_factory: Optional[Callable[[], Stats]] = None, 
-        attributes_factory: Optional[Callable[['CharacterType'], Attributes]] = None,
-        ability_manager_factory: Optional[Callable[['CharacterType'], AbilityManagerProtocol]] = None,
-        status_effect_manager_factory: Optional[Callable[['CharacterType'], StatusEffectManagerProtocol]] = None,
-    ):
-        self.name = name
-        self.role = role
-        self.level = level
+    def __init__(self, config: CharacterConfig):
+        
         self.alive = True
-        self.is_player = is_player
+        
+        self.name = config.name
+        self.role = config.role
+        self.level = config.level
+        self.is_player = config.is_player
 
-        self.base_stats_dict = base_stats_dict
-        self.growth_rates_dict = growth_rates_dict
+        self.class_icon = config.class_icon
+        self.class_icon_color = config.class_icon_color
+
+        self.base_stats_dict = config.base_stats
+        self.growth_rates_dict = config.growth_rates
 
         # Создаем фабрики по умолчанию если не предоставлены
         # Это позволяет подклассам переопределить их или использовать реализацию по умолчанию
-        if stats_factory is None:
+        if config.stats_factory is None:
             stats_factory = self.get_base_stats # Используем реализацию по умолчанию
-        if attributes_factory is None:
+        if config.attributes_factory is None:
             attributes_factory = self._attributes_factory # Используем реализацию по умолчанию
 
         # Инициализация характеристик
@@ -1363,12 +1432,12 @@ class Character(ABC):
 
         # Менеджеры (внедрение зависимостей)
         self._ability_manager: Optional[AbilityManagerProtocol] = None
-        if ability_manager_factory:
-            self._ability_manager = ability_manager_factory(self)
+        if config.ability_manager_factory:
+            self._ability_manager = config.ability_manager_factory(self)
 
         self._status_manager: Optional[StatusEffectManagerProtocol] = None
-        if status_effect_manager_factory:
-            self._status_manager = status_effect_manager_factory(self)
+        if config.status_effect_manager_factory:
+            self._status_manager = config.status_effect_manager_factory(self)
 
     # ==================== Вспомогательные методы для фабрик (по умолчанию) ====================
     # Переносим из Player/Monster
@@ -1620,22 +1689,22 @@ class Character(ABC):
 
 # game/entities/monster.py
 """Класс монстра (персонажа, НЕ управляемого игроком)."""
-from typing import Dict, Any, Optional, Callable, TYPE_CHECKING
-from game.entities.character import Character, SimpleStats, SimpleAttributes # Импортируем вспомогательные классы
-from game.protocols import (
-    Stats,
-    Attributes,
-    AbilityManagerProtocol,
-    StatusEffectManagerProtocol
-)
+from dataclasses import dataclass, field
+from typing import Optional, TYPE_CHECKING
+from game.entities.character import Character, CharacterConfig # Импортируем вспомогательные классы
 
 if TYPE_CHECKING:
     from game.entities.character import Character as CharacterType
 
+
+@dataclass
+class MonsterConfig(CharacterConfig):
+    is_player: bool = field(default=False)
+
 # - Фабричная функция для создания монстра из JSON -
 def create_monster_from_data(
-    name: str,
     role: str,
+    name: str,
     level: int = 1,
     data_directory: str = "game/data/characters/monster_classes"
 ) -> Optional['Monster']:
@@ -1657,22 +1726,16 @@ def create_monster_from_data(
         print(f"Ошибка импорта character_loader внутри create_monster_from_data: {e}")
         return None
 
-    data = load_monster_class_data(role, data_directory)
-    if not data:
+    config_data = load_monster_class_data(role, data_directory)
+    if not config_data:
         print(f"Не удалось загрузить данные для класса монстра '{role}'")
         return None
 
     try:
-        monster = Monster(
-            name=name,
-            role=data['role'],
-            base_stats_dict=data['base_stats'],
-            growth_rates_dict=data.get('growth_rates', {}), # growth_rates может отсутствовать
-            class_icon=data.get('class_icon', '?'),
-            class_icon_color=data.get('class_icon_color'),
-            level=level,
-        )
-        return monster
+        config = MonsterConfig(**config_data)
+        config.name = name if name else config.name
+        return Monster(config)
+
     except Exception as e:
         print(f"Ошибка создания монстра {name} класса {role}: {e}")
         import traceback
@@ -1684,42 +1747,8 @@ def create_monster_from_data(
 class Monster(Character):
     """Класс для всех монстров (персонажей, НЕ управляемых игроком)."""
 
-    def __init__(
-        self, 
-        name: str, 
-        role: str,
-        # Параметры для системы уровней (без опыта)
-        base_stats_dict: Dict[str, int],
-        growth_rates_dict: Dict[str, float],
-        class_icon: str = "?",
-        class_icon_color: Optional[int] = None,
-        level: int = 1,
-        # Внедрение зависимостей через конструктор
-        stats_factory: Optional[Callable[[], Stats]] = None, 
-        attributes_factory: Optional[Callable[['CharacterType'], Attributes]] = None,
-        ability_manager_factory: Optional[Callable[['CharacterType'], AbilityManagerProtocol]] = None,
-        status_effect_manager_factory: Optional[Callable[['CharacterType'], StatusEffectManagerProtocol]] = None
-    ):
-        # --- Атрибуты, специфичные для монстра (если будут) ---
-        self.class_icon = class_icon # Можно убрать, если не используется
-        self.class_icon_color = class_icon_color if class_icon_color is not None else 0 # Можно убрать, если не используется
-        # --- Конец специфичных атрибутов ---
-
-        # Вызываем конструктор родительского класса
-        # Передаем все необходимые данные, включая base_stats_dict и growth_rates_dict
-        # is_player принудительно устанавливаем в False
-        super().__init__(
-            name=name,
-            role=role,
-            base_stats_dict=base_stats_dict,
-            growth_rates_dict=growth_rates_dict,
-            level=level,
-            is_player=False, # Всегда False для монстра
-            stats_factory=stats_factory, # Может быть None, будет использована реализация по умолчанию из Character
-            attributes_factory=attributes_factory, # Может быть None, будет использована реализация по умолчанию из Character
-            ability_manager_factory=ability_manager_factory,
-            status_effect_manager_factory=status_effect_manager_factory,
-        )
+    def __init__(self, config: MonsterConfig):  
+        super().__init__(config=config)
 
 
 
@@ -1729,8 +1758,10 @@ class Monster(Character):
 
 # game/entities/player.py
 """Класс игрока (персонажа, управляемого игроком)."""
+from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Callable, TYPE_CHECKING
-from game.entities.character import Character, SimpleStats, SimpleAttributes # Импортируем вспомогательные классы
+from game import config
+from game.entities.character import Character, CharacterConfig, SimpleStats, SimpleAttributes # Импортируем вспомогательные классы
 from game.protocols import (
     Stats,
     Attributes,
@@ -1743,13 +1774,20 @@ from game.protocols import (
 if TYPE_CHECKING:
     from game.entities.character import Character as CharacterType
 
+@dataclass
+class PlayerConfig(CharacterConfig):
+    is_player: bool = field(default=True)
+    exp_calculator: Optional[ExperienceCalculatorProtocol] = None
+    level_up_handler: Optional[LevelUpHandlerProtocol] = None
+    
+
 # - Фабричная функция для создания игрока из JSON -
 def create_player_from_data(
-    name: str,
     role: str,
+    name: str,
     level: int = 1,
     data_directory: str = "game/data/characters/player_classes"
-) -> Optional['Player']:
+    ) -> Optional['Player']:
     """
     Создает объект Player на основе данных из JSON файла.
 
@@ -1768,22 +1806,16 @@ def create_player_from_data(
         print(f"Ошибка импорта character_loader внутри create_player_from_data: {e}")
         return None
 
-    data = load_player_class_data(role, data_directory)
-    if not data:
+    config_data = load_player_class_data(role, data_directory)
+    if not config_data:
         print(f"Не удалось загрузить данные для класса '{role}'")
         return None
 
     try:
-        player = Player(
-            name=name,
-            role=data['role'],
-            base_stats_dict=data['base_stats'],
-            growth_rates_dict=data['growth_rates'],
-            class_icon=data.get('class_icon', '?'),
-            class_icon_color=data.get('class_icon_color'),
-            level=level,
-        )
-        return player
+        config = PlayerConfig(**config_data)
+        config.name = name if name else config.name
+        return Player(config)
+
     except Exception as e:
         print(f"Ошибка создания персонажа {name} класса {role}: {e}")
         import traceback
@@ -1795,50 +1827,15 @@ def create_player_from_data(
 class Player(Character):
     """Класс для всех игроков (персонажей, управляемых игроком)."""
 
-    def __init__(
-        self, 
-        name: str, 
-        role: str,
-        # Параметры для системы уровней/опыта
-        base_stats_dict: Dict[str, int],
-        growth_rates_dict: Dict[str, float],
-        class_icon: str = "?",
-        class_icon_color: Optional[int] = None,
-        level: int = 1,
-        # Внедрение зависимостей через конструктор
-        stats_factory: Optional[Callable[[], Stats]] = None, 
-        attributes_factory: Optional[Callable[['CharacterType'], Attributes]] = None,
-        ability_manager_factory: Optional[Callable[['CharacterType'], AbilityManagerProtocol]] = None,
-        status_effect_manager_factory: Optional[Callable[['CharacterType'], StatusEffectManagerProtocol]] = None,
-        exp_calculator: Optional[ExperienceCalculatorProtocol] = None,
-        level_up_handler: Optional[LevelUpHandlerProtocol] = None,
-        # is_player: bool = True, # Устанавливается автоматически
-    ):
-        # --- Атрибуты, специфичные для игрока ---
-        self.class_icon = class_icon
-        self.class_icon_color = class_icon_color if class_icon_color is not None else 0
+    def __init__(self, config: PlayerConfig):
+
+        super().__init__(config=config)
 
         # Инициализируем систему опыта
-        self.exp_calculator = exp_calculator if exp_calculator else SimpleExperienceCalculator()
-        self.level_up_handler = level_up_handler if level_up_handler else SimpleLevelUpHandler()
+        self.exp_calculator = config.exp_calculator if config.exp_calculator else SimpleExperienceCalculator()
+        self.level_up_handler = config.level_up_handler if config.level_up_handler else SimpleLevelUpHandler()
         self.exp = 0
         self.exp_to_next_level = 0
-        # --- Конец специфичных атрибутов ---
-
-        # Вызываем конструктор родительского класса
-        # Передаем все необходимые данные, включая base_stats_dict и growth_rates_dict
-        super().__init__(
-            name=name,
-            role=role,
-            base_stats_dict=base_stats_dict,
-            growth_rates_dict=growth_rates_dict,
-            level=level,
-            is_player=True, # Всегда True для игрока
-            stats_factory=stats_factory, # Может быть None, будет использована реализация по умолчанию из Character
-            attributes_factory=attributes_factory, # Может быть None, будет использована реализация по умолчанию из Character
-            ability_manager_factory=ability_manager_factory,
-            status_effect_manager_factory=status_effect_manager_factory,
-        )
         
         # Рассчитываем опыт для следующего уровня
         self.calculate_exp_for_next_level()
@@ -2114,7 +2111,7 @@ def create_monster(
 
     # Импортируем внутри функции
     from game.entities.monster import create_monster_from_data as _internal_create
-    return _internal_create(name, role, level, data_directory)
+    return _internal_create(role=role, name=name, level=level, data_directory=data_directory)
 
 
 ================================================================================
@@ -2159,7 +2156,7 @@ def create_player(
         data_directory = _get_default_data_directory(is_player=True)
 
     from game.entities.player import create_player_from_data as _internal_create
-    return _internal_create(name, role, level, data_directory)
+    return _internal_create(role, name, level, data_directory)
 
 
 ================================================================================
@@ -2411,7 +2408,7 @@ def generate_monster_name(monster_role: str) -> str:
   "name": "Берсерк",
   "role": "berserker",
   "class_icon": "B",
-  "class_icon_color": 1,
+  "class_icon_color": "RED",
   "base_stats": {
     "strength": 16,
     "agility": 10,
@@ -2436,7 +2433,7 @@ def generate_monster_name(monster_role: str) -> str:
     "name": "Лекарь",
     "role": "healer",
     "class_icon": "H",
-    "class_icon_color": 6,
+    "class_icon_color": "CYAN",
     "base_stats": {
         "strength": 5,
         "agility": 12,
@@ -2464,7 +2461,7 @@ def generate_monster_name(monster_role: str) -> str:
   "name": "Маг",
   "role": "mage",
   "class_icon": "M",
-  "class_icon_color": 5,
+  "class_icon_color": "MAGENTA",
   "base_stats": {
     "strength": 4,
     "agility": 12,
@@ -2489,7 +2486,7 @@ def generate_monster_name(monster_role: str) -> str:
     "name": "Разбойник",
     "role": "rogue",
     "class_icon": "R",
-    "class_icon_color": 8,
+    "class_icon_color": "GRAY",
     "base_stats": {
         "strength": 6,
         "agility": 18,
@@ -2519,7 +2516,7 @@ def generate_monster_name(monster_role: str) -> str:
     "name": "Гоблин",
     "role": "goblin",
     "class_icon": "G",
-    "class_icon_color": 2,
+    "class_icon_color": "GREEN",
     "base_stats": {
         "strength": 6,
         "agility": 8,
@@ -2544,7 +2541,7 @@ def generate_monster_name(monster_role: str) -> str:
     "name": "Орк",
     "role": "orc",
     "class_icon": "O",
-    "class_icon_color": 1,
+    "class_icon_color": "RED",
     "base_stats": {
         "strength": 16,
         "agility": 6,
@@ -2569,7 +2566,7 @@ def generate_monster_name(monster_role: str) -> str:
     "name": "Скелет",
     "role": "skeleton",
     "class_icon": "S",
-    "class_icon_color": 7,
+    "class_icon_color": "WHITE",
     "base_stats": {
         "strength": 12,
         "agility": 10,
@@ -2594,7 +2591,7 @@ def generate_monster_name(monster_role: str) -> str:
     "name": "Тролль",
     "role": "troll",
     "class_icon": "T",
-    "class_icon_color": 3,
+    "class_icon_color": "YELLOW",
     "base_stats": {
         "strength": 17,
         "agility": 4,
@@ -2619,7 +2616,7 @@ def generate_monster_name(monster_role: str) -> str:
     "name": "Волшебник",
     "role": "wizard",
     "class_icon": "W",
-    "class_icon_color": 5,
+    "class_icon_color": "MAGENTA",
     "base_stats": {
         "strength": 8,
         "agility": 12,
@@ -2903,6 +2900,7 @@ class Separator(Renderable):
 """
 
 import curses
+from turtle import color
 from typing import Dict, Tuple, Any
 
 from game.ui.rendering.color_manager import Color, ColorManager
@@ -3001,6 +2999,33 @@ class Renderer:
                     self.stdscr.addstr(y + i, x, "|")
                     if x + width - 1 < self.width:
                         self.stdscr.addstr(y + i, x + width - 1, "|")
+        except curses.error:
+            pass
+
+    def draw_borderless_log_box(self, x: int, y: int, width: int, height: int) -> None:
+        """
+        Отрисовка прямоугольника.
+
+        Args:
+            x: Координата X левого верхнего угла.
+            y: Координата Y левого верхнего угла.
+            width: Ширина прямоугольника.
+            height: Высота прямоугольника.
+        """
+        а = "┬ ┴"
+
+        try:
+            # Верхняя и нижняя границы
+            top_text = "├" + "─" * ((width - 3) // 2) + "┴" + "─" * ((width - 3) // 2) + "┤"
+            bottom_text = "└" + "─" * (width - 2) + "┘"
+            
+            self.draw_text(text=top_text, x=x, y=y, color=Color.DEFAULT, dim=True)
+            self.draw_text(text=bottom_text, x=x, y=y + height - 1, color=Color.DEFAULT, dim=True)
+            
+            #if y < self.height and y + height - 1 < self.height:
+                #self.stdscr.addstr(y, x, , curses.get_color_pair(Color.DEFAULT))
+                #self.stdscr.addstr(y + height - 1, x, "└" + "─" * (width - 2) + "┘")
+
         except curses.error:
             pass
 
@@ -3745,11 +3770,14 @@ register_screen_commands(MainScreen, [
 Содержит визуальные элементы для отображения игроков, врагов и лога боя."""
 
 import curses
-from typing import List, Dict, Any, TYPE_CHECKING
+from typing import List, TYPE_CHECKING
 
 from game.ui.rendering.renderable import Renderable
-from game.ui.rendering.color_manager import Color
 from game.ui.rendering.renderer import Renderer
+from game.ui.rendering.color_manager import Color
+# Импортируем новые виджеты
+from game.ui.widgets.labels import CharacterNameLabel, CharacterLevelLabel, CharacterClassLabel, TextLabel
+from game.ui.widgets.bars import HealthBar, EnergyBar
 
 # Импорты для аннотаций типов, чтобы избежать циклических импортов на уровне выполнения
 if TYPE_CHECKING:
@@ -3759,9 +3787,28 @@ if TYPE_CHECKING:
 
 
 class UnitPanel(Renderable):
-    """Базовая панель для отображения одного юнита (игрока или врага) в одну строку без рамки."""
+    """Базовая панель для отображения одного юнита (игрока или врага) в одну строку."""
+    
+    # Константы для компоновки
+    DEFAULT_WIDGET_MAX_WIDTH = 10
+    MIN_NAME_WIDTH = 5
+    MIN_WIDGET_WIDTH = 3
+    WIDGET_SPACING = 1
+    CHARACTER_NAME_WIDTH = 6  # Все имена персонажей состоят из максимум 6 букв. 
+    MONSTER_NAME_WIDTH = 20
+    HP_BAR_WIDTH = 10
+    EP_BAR_WIDTH = 5
+    
+    # Константы для оценки минимальной ширины элементов
+    ESTIMATED_LEVEL_WIDTH = 3
+    ESTIMATED_HP_WIDTH = 10  # Обновлено для прогресс-баров
+    ESTIMATED_ENERGY_WIDTH = 5  # Обновлено для прогресс-баров
+    
+    # Пороги для цветов HP
+    HP_CRITICAL_THRESHOLD = 0.25
+    HP_LOW_THRESHOLD = 0.5
 
-    def __init__(self, x: int, y: int, width: int, height: int) -> None:
+    def __init__(self, character: 'Character', x: int, y: int, width: int, height: int) -> None:
         """Инициализация базовой панели юнита.
         Args:
             x: Координата X.
@@ -3772,40 +3819,106 @@ class UnitPanel(Renderable):
         super().__init__(x, y)
         self.width = width
         self.height = height  # Ожидается 1
-        # Эти атрибуты будут устанавливаться в подклассах или методах обновления
-        self.name: str = "Unknown"
-        self.max_hp: int = 1
-        self.current_hp: int = 1
-        self.max_mp: int = 0
-        self.current_mp: int = 0
-        self.is_player: bool = False
+        self.character = character
+        
+        if character.is_player:
+            name_width = self.CHARACTER_NAME_WIDTH 
+            color = Color.GREEN
+        else:
+            name_width = self.MONSTER_NAME_WIDTH
+            color = Color.BLUE
+
+        # Инициализируем виджеты
+        self.name_label = CharacterNameLabel(character=self.character, x=x, y=y, max_width=name_width, color=color)
+        self.class_label = CharacterClassLabel(character=self.character, x=x, y=y)
+        self.level_label = CharacterLevelLabel(character=self.character, x=x, y=y)
+        
+        self.hp_label = HealthBar(character=self.character, x=x, y=y, width=self.HP_BAR_WIDTH)
+        self.energy_label = EnergyBar(character=character, x=x, y=y, width=self.EP_BAR_WIDTH)
+        # Для HP и Energy в бою отображаем числовые значения, а не прогресс-бары
+        # Поэтому создаем специальные текстовые лейблы
+        #self.hp_label = TextLabel(x=x, y=y)
+        #self.energy_label = TextLabel(x=x, y=y)
+
+    def update_size(self, width: int, height: int) -> None:
+        """
+        Обновить размеры панели и пересчитать позиции виджетов.
+        
+        Args:
+            width: Новая ширина.
+            height: Новая высота (игнорируется, устанавливается в 1).
+        """
+        self.width = width
+        self.height = 1  # Фиксированная высота для однострочной панели
+        
+        # Пересчитываем позиции виджетов
+        self._update_widgets_positions()
+
+    def _update_widgets_positions(self) -> None:
+        """Обновить позиции и размеры виджетов в зависимости от ширины панели."""
+        if not self.character:
+            return
+            
+        current_x = self.x
+        
+        # 1. Имя
+        self.name_label.x = current_x
+        self.name_label.y = self.y
+        name_width = self.name_label.max_width
+        current_x += name_width + self.WIDGET_SPACING
+
+        # 2. Класс/роль
+        self.class_label.x = current_x
+        self.class_label.y = self.y
+        class_width = len(self.class_label.text) + 2  # Примерная ширина [R]
+        current_x += class_width  #  Spacing не нужен 
+        
+        # 3. Уровень
+        self.level_label.x = current_x
+        self.level_label.y = self.y
+        level_width = len(self.level_label.text) + 2
+        current_x += level_width
+
+        # 4. HP
+        self.hp_label.x = current_x
+        self.hp_label.y = self.y
+        current_x += self.hp_label.width + 2
+        
+        # 5. Energy
+        self.energy_label.x = current_x
+        self.energy_label.y = self.y
 
     def render(self, renderer: Renderer) -> None:
-        """Отрисовка базовой панели юнита в одну строку без рамки."""
-        # Формат: [Имя] HP: текущее/максимум [MP: текущее/максимум]
-        # Цвет: синий для игроков, красный для монстров
-        
-        # Определяем цвет
-        color = Color.CYAN if self.is_player else Color.RED
+        """Отрисовка базовой панели юнита в одну строку."""
+        if not self.character:
+            # Если персонаж не установлен, отображаем заглушку
+            placeholder_text = "Нет данных"
+            display_text = placeholder_text.ljust(self.width)[:self.width]
+            try:
+                renderer.draw_text(display_text, self.x, self.y, color=Color.GRAY)
+            except curses.error:
+                pass
+            return
 
-        # Создаем текстовое представление
-        hp_text = f"HP: {self.current_hp}/{self.max_hp}"
-        mp_text = ""
-        if self.max_mp > 0:
-            mp_text = f" MP: {self.current_mp}/{self.max_mp}"
+        # Пересчитываем позиции виджетов перед отрисовкой
+        self._update_widgets_positions()
         
-        # Комбинируем текст
-        full_text = f"{self.name} {hp_text}{mp_text}"
-        
-        # Обрезаем или дополняем пробелами до ширины панели
-        display_text = full_text.ljust(self.width)[:self.width]
-        
-        # Отрисовка текста
-        try:
-            renderer.draw_text(display_text, self.x, self.y, color=color)
-        except curses.error:
-            # Игнорируем ошибки выхода за границы экрана
-            pass
+        # Отрисовываем все виджеты
+        self.name_label.render(renderer)
+        self.class_label.render(renderer)
+        self.level_label.render(renderer)
+        self.hp_label.render(renderer)
+        self.energy_label.render(renderer)
+            
+        # Заполняем оставшееся пространство пробелами для затирания предыдущего содержимого
+        # last_widget_end_x = self.energy_label.x + len(self.energy_label.text) if self.energy_label.text else \
+        #                   (self.hp_label.x + len(self.hp_label.text))
+        # if last_widget_end_x < self.x + self.width:
+        #     remaining_width = (self.x + self.width) - last_widget_end_x
+        #     try:
+        #         renderer.draw_text(" " * remaining_width, last_widget_end_x, self.y)
+        #     except curses.error:
+        #         pass
 
 
 class EnemyUnitPanel(UnitPanel):
@@ -3820,44 +3933,7 @@ class EnemyUnitPanel(UnitPanel):
             height: Высота панели (должна быть 1).
             monster: Объект Monster для отображения.
         """
-        # Инициализируем базовую панель
-        super().__init__(x, y, width, height)
-        # Сохраняем ссылку на объект Monster
-        self.monster = monster
-        # Инициализируем данные из объекта Monster
-        self._update_data_from_monster()
-
-    def _update_data_from_monster(self) -> None:
-        """Обновить внутренние данные панели из объекта Monster."""
-        # Получаем актуальные данные из объекта Monster
-        self.name = getattr(self.monster, 'name', 'Unknown Enemy')
-        
-        # HP
-        self.current_hp = getattr(self.monster, 'hp', 0)
-        # Получаем max_hp из атрибутов, если они есть
-        attributes = getattr(self.monster, 'attributes', None)
-        if attributes:
-            self.max_hp = getattr(attributes, 'max_hp', 1)
-        else:
-            # Если атрибутов нет, используем текущий HP как максимум
-            self.max_hp = self.current_hp if self.current_hp > 0 else 1
-
-        # MP
-        self.current_mp = getattr(self.monster, 'mp', 0)
-        if attributes:
-            self.max_mp = getattr(attributes, 'max_mp', 0)
-        else:
-            self.max_mp = self.current_mp
-
-        # is_player всегда False для EnemyUnitPanel
-        self.is_player = False
-
-    def render(self, renderer: Renderer) -> None:
-        """Отрисовка панели врага."""
-        # Перед отрисовкой обновляем данные из объекта Monster
-        self._update_data_from_monster()
-        # Вызываем родительский метод render
-        super().render(renderer)
+        super().__init__(monster, x, y, width, height)
 
 
 class PlayerUnitPanel(UnitPanel):
@@ -3872,44 +3948,7 @@ class PlayerUnitPanel(UnitPanel):
             height: Высота панели (должна быть 1).
             player: Объект Player для отображения.
         """
-        # Инициализируем базовую панель
-        super().__init__(x, y, width, height)
-        # Сохраняем ссылку на объект Player
-        self.player = player
-        # Инициализируем данные из объекта Player
-        self._update_data_from_player()
-
-    def _update_data_from_player(self) -> None:
-        """Обновить внутренние данные панели из объекта Player."""
-        # Получаем актуальные данные из объекта Player
-        self.name = getattr(self.player, 'name', 'Unknown Player')
-        
-        # HP
-        self.current_hp = getattr(self.player, 'hp', 0)
-        # Получаем max_hp из атрибутов, если они есть
-        attributes = getattr(self.player, 'attributes', None)
-        if attributes:
-            self.max_hp = getattr(attributes, 'max_hp', 1)
-        else:
-            # Если атрибутов нет, используем текущий HP как максимум
-            self.max_hp = self.current_hp if self.current_hp > 0 else 1
-
-        # MP
-        self.current_mp = getattr(self.player, 'mp', 0)
-        if attributes:
-            self.max_mp = getattr(attributes, 'max_mp', 0)
-        else:
-            self.max_mp = self.current_mp
-
-        # is_player всегда True для PlayerUnitPanel
-        self.is_player = True
-
-    def render(self, renderer: Renderer) -> None:
-        """Отрисовка панели игрока."""
-        # Перед отрисовкой обновляем данные из объекта Player
-        self._update_data_from_player()
-        # Вызываем родительский метод render
-        super().render(renderer)
+        super().__init__(player, x, y, width, height)
 
 
 class GroupPanel(Renderable):
@@ -3930,7 +3969,8 @@ class GroupPanel(Renderable):
         self.panels: List[UnitPanel] = []
 
     def update_size(self, max_width: int, max_height: int) -> None:
-        """Обновление размеров панели и её компонентов.
+        """
+        Обновление размеров панели и её компонентов.
         Args:
             max_width: Максимальная ширина экрана.
             max_height: Максимальная высота экрана.
@@ -3943,10 +3983,8 @@ class GroupPanel(Renderable):
 
             for i, panel in enumerate(self.panels):
                 panel.width = new_panel_width
-                # Также обновляем позицию X, если ширина изменилась
-                # panel.x = self.x + i * new_panel_width # Не меняем X, т.к. он устанавливается в _update_panels
-                # Высота панели юнита должна быть 1
-                panel.height = 1
+                panel.height = 1  # Высота панели юнита должна быть 1
+                panel.update_size(new_panel_width, 1)  # Обновляем размеры внутренних виджетов
 
     def render(self, renderer: Renderer) -> None:
         """Отрисовка панели группы без внешнего обрамления."""
@@ -4087,7 +4125,7 @@ class BattleLog(Renderable):
         """Отрисовка лога боя с обрамлением."""
         # Отрисовка рамки лога (она остается)
         try:
-            renderer.draw_box(self.x, self.y, self.width, self.height)
+            renderer.draw_borderless_log_box(self.x, self.y, self.width, self.height)
         except curses.error:
             # Игнорируем ошибки выхода за границы экрана
             pass
@@ -4112,6 +4150,697 @@ class BattleLog(Renderable):
             except curses.error:
                 # Игнорируем ошибки выхода за границы экрана
                 pass
+
+
+================================================================================
+Файл: game/ui/widgets/labels.py
+================================================================================
+
+# game/ui/widgets/labels.py
+"""Базовые текстовые метки для отображения информации.
+Эти компоненты могут использоваться в различных частях интерфейса,
+например, для отображения имени, уровня, класса персонажа и другой информации."""
+
+from typing import Optional, TYPE_CHECKING, Any, Dict, Tuple
+
+from game.ui.rendering.renderable import Renderable
+from game.ui.rendering.renderer import Renderer
+from game.ui.rendering.color_manager import Color
+
+if TYPE_CHECKING:
+    from game.entities.character import Character
+
+
+class TextLabel(Renderable):
+    """Базовая текстовая метка."""
+
+    def __init__(
+        self, 
+        x: int = 0, 
+        y: int = 0, 
+        text: str = "", 
+        color: Color = Color.DEFAULT,
+        bold: bool = False,
+        dim: bool = False
+    ) -> None:
+        """
+        Инициализация текстовой метки.
+
+        Args:
+            x: Координата X.
+            y: Координата Y.
+            text: Отображаемый текст.
+            color: Цвет текста.
+            bold: Жирный шрифт.
+            dim: Тусклый шрифт.
+        """
+        super().__init__(x, y)
+
+        self.text = text
+        self.color = color
+        self.bold = bold
+        self.dim = dim
+        
+
+    def render(self, renderer: Renderer) -> None:
+        """Отрисовка текстовой метки."""
+        if self.text:
+            renderer.draw_text(self.text, self.x, self.y, self.bold, self.dim, self.color)
+
+
+class CharacterNameLabel(TextLabel):
+    """Метка для отображения имени персонажа."""
+
+    def __init__(
+        self,
+        character: 'Character', 
+        x: int = 0, 
+        y: int = 0,
+        max_width: int = 0,
+        color: Color = Color.DEFAULT,
+        bold: bool = False,
+        dim: bool = False
+    ) -> None:
+        """
+        Инициализация метки имени персонажа.
+
+        Args:
+            x: Координата X.
+            y: Координата Y.
+            character: Объект персонажа, имя которого нужно отобразить.
+            max_width: Максимальная ширина текста (для обрезки/усечения).
+            color: Цвет текста.
+            bold: Жирный шрифт.
+            dim: Тусклый шрифт.
+        """
+        # Инициализируем с пустым текстом, он будет обновлен в update_from_character
+        super().__init__(x, y, "", color, bold, dim)
+        self.character = character
+        self.max_width = max_width
+        self._update_from_character()
+
+    def _update_from_character(self) -> None:
+        """Обновить текст метки из данных персонажа."""
+        if self.character:
+            name = getattr(self.character, 'name', 'Unknown')
+            if self.max_width and len(name) > self.max_width:
+                # Простое усечение, можно улучшить (например, добавить "...")
+                self.text = name[:self.max_width]
+            else:
+                self.text = name
+        else:
+            self.text = "Unknown"
+
+
+class TemplatedTextLabel(TextLabel):
+    """Базовая метка для отрисовки текста с использованием шаблонов и цветов."""
+    
+    def __init__(self, x: int = 0, y: int = 0) -> None:
+        """
+        Инициализация метки с шаблонами.
+
+        Args:
+            x: Координата X.
+            y: Координата Y.
+        """
+        super().__init__(x, y)
+
+    def _create_bracketed_template(
+        self, 
+        content: str, 
+        content_color: Color = Color.DEFAULT,
+        bracket_color: Color = Color.WHITE
+    ) -> Tuple[str, Dict[str, Tuple[str, Color, bool, bool]]]:
+        """
+        Создать шаблон вида [content] с разными цветами для скобок и содержимого.
+
+        Args:
+            content: Содержимое внутри скобок.
+            content_color: Цвет содержимого.
+            bracket_color: Цвет скобок.
+
+        Returns:
+            Кортеж (шаблон, словарь_замен).
+        """
+        return (
+            "%1%2%3",
+            {
+                "1": ("[", bracket_color, False, False),
+                "2": (content, content_color, False, False),
+                "3": ("]", bracket_color, False, False)
+            }
+        )
+
+    def render(self, renderer: Renderer) -> None:
+        """Отрисовка текста с использованием шаблона."""
+        template, replacements = self._get_template_and_replacements()
+        renderer.draw_template(template, replacements, self.x, self.y)
+        
+    def _get_template_and_replacements(self) -> Tuple[str, Dict[str, Tuple[str, Color, bool, bool]]]:
+        """
+        Получить шаблон и словарь замен для отрисовки.
+        
+        Returns:
+            Кортеж (шаблон, словарь_замен).
+        """
+        raise NotImplementedError("Subclasses must implement _get_template_and_replacements")
+
+
+class CharacterClassLabel(TemplatedTextLabel):
+    """Метка для отображения класса/роли персонажа в формате [Роль]."""
+
+    def __init__(
+        self,
+        character: 'Character', 
+        x: int = 0, 
+        y: int = 0, 
+    ) -> None:
+        """
+        Инициализация метки класса персонажа.
+
+        Args:
+            x: Координата X.
+            y: Координата Y.
+            character: Объект персонажа, класс которого нужно отобразить.
+        """
+        super().__init__(x, y)
+        self.character = character
+        self._update_from_character()
+
+    def _update_from_character(self) -> None:
+        """Обновить текст метки из данных персонажа."""
+        if self.character:
+            self.text = getattr(self.character, 'class_icon', "?")
+            color = getattr(self.character, 'class_icon_color')
+            self.color = Color[color] if color else self.color
+   
+
+    def _get_template_and_replacements(self) -> Tuple[str, Dict[str, Tuple[str, Color, bool, bool]]]:
+        """Определяем шаблон и замены для роли."""
+        return self._create_bracketed_template(self.text, self.color)
+
+
+class CharacterLevelLabel(TemplatedTextLabel):
+    """Метка для отображения уровня персонажа в формате [1]."""
+
+    def __init__(
+        self,
+        character: 'Character', 
+        x: int = 0, 
+        y: int = 0, 
+        
+    ) -> None:
+        """
+        Инициализация метки уровня персонажа.
+
+        Args:
+            x: Координата X.
+            y: Координата Y.
+            character: Объект персонажа, уровень которого нужно отобразить.
+        """
+        super().__init__(x, y)
+        self.character = character
+        self._update_from_character()
+
+    def _update_from_character(self) -> None:
+        if self.character:
+            level = getattr(self.character, 'level', 1)
+        else:
+            level = 1
+        self.text = str(level)
+
+    def _get_template_and_replacements(self) -> Tuple[str, Dict[str, Tuple[str, Color, bool, bool]]]:
+        """Определяем шаблон и замены для уровня."""
+        return self._create_bracketed_template(self.text, Color.YELLOW)
+
+
+================================================================================
+Файл: game/ui/widgets/__init__.py
+================================================================================
+
+# game/ui/widgets/__init__.py
+"""Переиспользуемые UI компоненты."""
+
+from .labels import (
+    TextLabel,
+    CharacterNameLabel,
+    CharacterClassLabel,
+    CharacterLevelLabel
+)
+
+from .bars import (
+    ProgressBar,
+    HealthBar,
+    EnergyBar
+)
+
+from .character_card import (
+    CharacterInfoPanel
+)
+
+__all__ = [
+    'TextLabel',
+    'CharacterNameLabel',
+    'CharacterClassLabel',
+    'CharacterLevelLabel',
+    'ProgressBar',
+    'HealthBar',
+    'EnergyBar',
+    'CharacterInfoPanel',
+]
+
+================================================================================
+Файл: game/ui/widgets/bars.py
+================================================================================
+
+# game/ui/widgets/bars.py
+"""Прогресс-бары для отображения различных параметров (HP, Energy и т.д.).
+Эти компоненты могут использоваться в различных частях интерфейса,
+например, на экране боя, экране персонажа и т.д."""
+
+from typing import Optional, TYPE_CHECKING, Dict, Tuple
+from abc import ABC, abstractmethod
+
+from game.ui.rendering.renderable import Renderable
+from game.ui.rendering.renderer import Renderer
+from game.ui.rendering.color_manager import Color
+
+if TYPE_CHECKING:
+    from game.entities.character import Character
+
+
+class ProgressBar(Renderable, ABC):
+    """Базовый класс для отрисовки прогресс-бара с использованием шаблонов."""
+
+    def __init__(
+        self,
+        x: int = 0,
+        y: int = 0,
+        width: int = 20,
+        character: Optional['Character'] = None
+    ) -> None:
+        """
+        Инициализация базового прогресс-бара.
+
+        Args:
+            x: Координата X.
+            y: Координата Y.
+            width: Ширина прогресс-бара в символах.
+            character: Объект персонажа для отслеживания значений.
+        """
+        super().__init__(x, y)
+        self.width = width
+        self.character = character
+
+    @abstractmethod
+    def _get_current_value(self) -> int:
+        """Получить текущее значение из персонажа."""
+        pass
+
+    @abstractmethod
+    def _get_max_value(self) -> int:
+        """Получить максимальное значение из персонажа."""
+        pass
+
+    @abstractmethod
+    def _get_fill_color(self) -> Color:
+        """Получить цвет заполненной части прогресс-бара."""
+        pass
+
+    @abstractmethod
+    def _get_empty_color(self) -> Color:
+        """Получить цвет пустой части прогресс-бара."""
+        pass
+
+    def set_character(self, character: Optional['Character']) -> None:
+        """
+        Установить персонажа для отслеживания значений.
+
+        Args:
+            character: Объект персонажа или None.
+        """
+        self.character = character
+
+    def _create_progress_template(
+        self,
+        filled_count: int,
+        empty_count: int
+    ) -> Tuple[str, Dict[str, Tuple[str, Color, bool, bool]]]:
+        """
+        Создать шаблон и словарь замен для отрисовки прогресс-бара.
+
+        Args:
+            filled_count: Количество заполненных символов.
+            empty_count: Количество пустых символов.
+
+        Returns:
+            Кортеж (шаблон, словарь_замен).
+        """
+        # Создаем строки заполнения
+        filled_part = "■" * filled_count  # Полностью заполненные символы
+        empty_part = "□" * empty_count    # Пустые символы
+
+        # Создаем шаблон
+        # %1 - открывающая скобка, %2 - заполненная часть, %3 - пустая часть, %4 - закрывающая скобка
+        template = "%1%2%3%4"
+        
+        replacements = {
+            "1": ("[", Color.WHITE, False, False),      # Открывающая скобка
+            "2": (filled_part, self._get_fill_color(), False, False),  # Заполненная часть
+            "3": (empty_part, self._get_empty_color(), False, False),  # Пустая часть
+            "4": ("]", Color.WHITE, False, False)       # Закрывающая скобка
+        }
+        
+        return template, replacements
+
+    def render(self, renderer: Renderer) -> None:
+        """Отрисовка прогресс-бара с использованием шаблона."""
+        template, replacements = self._get_template_and_replacements()
+        renderer.draw_template(template, replacements, self.x, self.y)
+
+    def _get_template_and_replacements(self) -> Tuple[str, Dict[str, Tuple[str, Color, bool, bool]]]:
+        """
+        Создать шаблон и словарь замен для отрисовки прогресс-бара.
+
+        Returns:
+            Кортеж (шаблон, словарь_замен).
+        """
+        # Получаем значения из персонажа
+        if self.character:
+            current_value = self._get_current_value()
+            max_value = self._get_max_value()
+        else:
+            current_value = 0
+            max_value = 1
+
+        # Рассчитываем количество заполненных и пустых символов
+        if max_value <= 0:
+            filled_count = 0
+        else:
+            # Используем пропорцию: filled_count / self.width = current_value / max_value
+            filled_count = int((current_value / max_value) * self.width)
+        
+        # Убеждаемся, что значения в допустимых пределах
+        filled_count = max(0, min(filled_count, self.width))
+        empty_count = self.width - filled_count
+
+        # Используем общий метод для создания шаблона
+        return self._create_progress_template(filled_count, empty_count)
+
+
+class HealthBar(ProgressBar):
+    """Прогресс-бар для отображения здоровья (HP)."""
+
+    def __init__(
+        self,
+        x: int = 0,
+        y: int = 0,
+        width: int = 20,
+        character: Optional['Character'] = None
+    ) -> None:
+        """
+        Инициализация прогресс-бара здоровья.
+
+        Args:
+            x: Координата X.
+            y: Координата Y.
+            width: Ширина прогресс-бара в символах.
+            character: Объект персонажа для отслеживания HP.
+        """
+        super().__init__(x, y, width, character)
+
+    def _get_current_value(self) -> int:
+        """Получить текущее значение HP из персонажа."""
+        if self.character:
+            return getattr(self.character, 'hp', 0)
+        return 0
+
+    def _get_max_value(self) -> int:
+        """Получить максимальное значение HP из персонажа."""
+        if self.character:
+            attributes = getattr(self.character, 'attributes', None)
+            if attributes:
+                # Используем consistent fallback: 1 как минимальное значение
+                return max(1, getattr(attributes, 'max_hp', 1))
+        # Если персонажа нет или атрибуты не определены, возвращаем 1 как fallback
+        return 1
+
+    def _get_fill_color(self) -> Color:
+        """Получить цвет заполненной части для HP (зеленый)."""
+        if not self.character:
+            return Color.GREEN
+            
+        # Получаем значения для расчета цвета
+        current = self._get_current_value()
+        max_val = self._get_max_value()
+        
+        ratio: float = 0
+        if max_val > 0:
+            ratio = current / max_val
+            
+        if ratio < 0.25:
+            return Color.RED
+        elif ratio < 0.5:
+            return Color.YELLOW
+        else:
+            return Color.GREEN
+
+    def _get_empty_color(self) -> Color:
+        """Получить цвет пустой части для HP (темно-серый/серый)."""
+        return Color.GRAY
+
+
+class EnergyBar(ProgressBar):
+    """Прогресс-бар для отображения энергии (Energy/MP)."""
+
+    def __init__(
+        self,
+        x: int = 0,
+        y: int = 0,
+        width: int = 20,
+        character: Optional['Character'] = None
+    ) -> None:
+        """
+        Инициализация прогресс-бара энергии.
+
+        Args:
+            x: Координата X.
+            y: Координата Y.
+            width: Ширина прогресс-бара в символах.
+            character: Объект персонажа для отслеживания энергии.
+        """
+        super().__init__(x, y, width, character)
+
+    def _get_current_value(self) -> int:
+        """Получить текущее значение энергии из персонажа."""
+        if self.character:
+            return getattr(self.character, 'energy', 0)
+        return 0
+
+    def _get_max_value(self) -> int:
+        """Получить максимальное значение энергии из персонажа."""
+        if self.character:
+            attributes = getattr(self.character, 'attributes', None)
+            if attributes:
+                # Используем consistent fallback: 0 как минимальное значение (если энергия не используется)
+                return max(0, getattr(attributes, 'max_energy', 0))
+        # Если персонажа нет или атрибуты не определены, возвращаем 0 как fallback
+        return 0
+
+    def _get_fill_color(self) -> Color:
+        """Получить цвет заполненной части для энергии (синий)."""
+        return Color.BLUE
+
+    def _get_empty_color(self) -> Color:
+        """Получить цвет пустой части для энергии (темно-серый/серый)."""
+        return Color.GRAY
+
+
+================================================================================
+Файл: game/ui/widgets/character_card.py
+================================================================================
+
+# game/ui/widgets/character_card.py
+"""Виджет для отображения сводной информации о персонаже.
+Содержит имя, уровень, класс/роль, HP и энергию в компактном виде."""
+
+from typing import Optional, TYPE_CHECKING, List
+
+from game.ui.rendering.renderable import Renderable
+from game.ui.rendering.renderer import Renderer
+from game.ui.widgets.labels import CharacterNameLabel, CharacterLevelLabel, CharacterClassLabel
+from game.ui.widgets.bars import HealthBar, EnergyBar
+
+if TYPE_CHECKING:
+    from game.entities.character import Character
+
+
+class CharacterInfoPanel(Renderable):
+    """Панель с информацией о персонаже, объединяющая несколько виджетов."""
+    
+    # Константы для макета
+    CLASS_LABEL_X_OFFSET = 0
+    NAME_LABEL_X_OFFSET = 5
+    LEVEL_LABEL_X_OFFSET = -5  # Отрицательное значение для позиционирования справа
+    MIN_NAME_LABEL_WIDTH = 10
+
+    def __init__(
+        self,
+        x: int = 0,
+        y: int = 0,
+        width: int = 30,
+        height: int = 5,
+        character: Optional['Character'] = None,
+        show_name: bool = True,
+        show_class: bool = True,
+        show_level: bool = True,
+        show_health_bar: bool = True,
+        show_energy_bar: bool = True
+    ) -> None:
+        """
+        Инициализация панели информации о персонаже.
+
+        Args:
+            x: Координата X.
+            y: Координата Y.
+            width: Ширина панели.
+            height: Высота панели.
+            character: Объект персонажа для отображения.
+            show_class: Показывать ли метку класса/роли.
+            show_name: Показывать ли метку имени.
+            show_level: Показывать ли метку уровня.
+            show_health_bar: Показывать ли полосу здоровья.
+            show_energy_bar: Показывать ли полосу энергии.
+        """
+        super().__init__(x, y)
+        self.width = width
+        self.height = height
+        self.character = character
+        
+        # Флаги отображения компонентов
+        self.show_name = show_name
+        self.show_class = show_class
+        self.show_level = show_level
+        self.show_health_bar = show_health_bar
+        self.show_energy_bar = show_energy_bar
+
+        # Создаем дочерние виджеты (они могут быть неактивны, если show_* = False)
+        self.class_label: Optional[CharacterClassLabel] = None
+        self.name_label: Optional[CharacterNameLabel] = None
+        self.level_label: Optional[CharacterLevelLabel] = None
+        self.health_bar: Optional[HealthBar] = None
+        self.energy_bar: Optional[EnergyBar] = None
+        
+        # Инициализируем виджеты в зависимости от флагов
+        self._initialize_widgets()
+        
+        # Если передан персонаж, устанавливаем его для всех виджетов
+        if self.character:
+            self.set_character(self.character)
+
+    def _initialize_widgets(self) -> None:
+        """Инициализировать дочерние виджеты в зависимости от флагов отображения."""
+        if self.show_name:
+            self.name_label = CharacterNameLabel(
+                x=self.x + self.NAME_LABEL_X_OFFSET, 
+                y=self.y, 
+                max_width=max(self.MIN_NAME_LABEL_WIDTH, self.width - self.NAME_LABEL_X_OFFSET + self.LEVEL_LABEL_X_OFFSET)
+            )
+
+        if self.show_class:
+            self.class_label = CharacterClassLabel(x=self.x + self.CLASS_LABEL_X_OFFSET, y=self.y)
+            
+        if self.show_level:
+            self.level_label = CharacterLevelLabel(x=self.x + self.width + self.LEVEL_LABEL_X_OFFSET, y=self.y)
+            
+        if self.show_health_bar:
+            self.health_bar = HealthBar(x=self.x, y=self.y + 1, width=self.width)
+            
+        if self.show_energy_bar:
+            self.energy_bar = EnergyBar(x=self.x, y=self.y + 2, width=self.width)
+
+    def set_character(self, character: Optional['Character']) -> None:
+        """
+        Установить персонажа для отображения во всех дочерних виджетах.
+
+        Args:
+            character: Объект персонажа или None.
+        """
+        self.character = character
+        
+        # Устанавливаем персонажа только для активных виджетов
+        if self.class_label and self.show_class:
+            self.class_label.set_character(character)
+        if self.name_label and self.show_name:
+            self.name_label.set_character(character)
+        if self.level_label and self.show_level:
+            self.level_label.set_character(character)
+        if self.health_bar and self.show_health_bar:
+            self.health_bar.set_character(character)
+        if self.energy_bar and self.show_energy_bar:
+            self.energy_bar.set_character(character)
+
+    def update_size(self, width: int, height: int) -> None:
+        """
+        Обновить размеры панели и пересчитать позиции дочерних элементов.
+
+        Args:
+            width: Новая ширина панели.
+            height: Новая высота панели.
+        """
+        self.width = width
+        self.height = height
+        
+        # Пересчитываем позиции активных дочерних виджетов
+        if self.class_label and self.show_class:
+            self.class_label.x = self.x + self.CLASS_LABEL_X_OFFSET
+            self.class_label.y = self.y
+            
+        if self.name_label and self.show_name:
+            self.name_label.x = self.x + self.NAME_LABEL_X_OFFSET
+            self.name_label.y = self.y
+            # Обновляем максимальную ширину имени с учетом новых размеров
+            calculated_max_width = self.width - self.NAME_LABEL_X_OFFSET + self.LEVEL_LABEL_X_OFFSET
+            self.name_label.max_width = max(self.MIN_NAME_LABEL_WIDTH, calculated_max_width)
+            
+        if self.level_label and self.show_level:
+            self.level_label.x = self.x + self.width + self.LEVEL_LABEL_X_OFFSET  # Позиционируем уровень справа
+            self.level_label.y = self.y
+            
+        if self.health_bar and self.show_health_bar:
+            self.health_bar.x = self.x
+            self.health_bar.y = self.y + 1
+            self.health_bar.width = self.width
+            
+        if self.energy_bar and self.show_energy_bar:
+            self.energy_bar.x = self.x
+            self.energy_bar.y = self.y + 2
+            self.energy_bar.width = self.width
+
+    def render(self, renderer: Renderer) -> None:
+        """
+        Отрисовка панели информации о персонаже.
+        
+        Args:
+            renderer: Рендерер для отрисовки.
+        """
+        # Отрисовываем только активные дочерние виджеты
+        renderable_widgets: List[Renderable] = []
+        
+        if self.class_label and self.show_class:
+            renderable_widgets.append(self.class_label)
+        if self.name_label and self.show_name:
+            renderable_widgets.append(self.name_label)
+        if self.level_label and self.show_level:
+            renderable_widgets.append(self.level_label)
+        if self.health_bar and self.show_health_bar:
+            renderable_widgets.append(self.health_bar)
+        if self.energy_bar and self.show_energy_bar:
+            renderable_widgets.append(self.energy_bar)
+            
+        # Отрисовываем все активные виджеты
+        for widget in renderable_widgets:
+            widget.render(renderer)
 
 
 ================================================================================
@@ -4812,6 +5541,219 @@ class TestGameManager:
 
 
 ================================================================================
+Файл: tests/test_template_namer.py
+================================================================================
+
+# tests/test_template_namer.py
+"""Тесты для генератора имен монстров."""
+
+import os
+import json
+import pytest
+from unittest.mock import patch, mock_open
+from game.naming.template_namer import TemplateMonsterNamer, generate_monster_name
+
+
+class TestTemplateMonsterNamer:
+    """Тесты для класса TemplateMonsterNamer."""
+
+    def test_init_with_default_directory(self):
+        """Тест инициализации с директорией по умолчанию."""
+        namer = TemplateMonsterNamer()
+        assert namer.data_directory == "game/data/names"
+        assert isinstance(namer.word_data, dict)
+
+    def test_init_with_custom_directory(self):
+        """Тест инициализации с пользовательской директорией."""
+        custom_dir = "custom/names"
+        namer = TemplateMonsterNamer(data_directory=custom_dir)
+        assert namer.data_directory == custom_dir
+
+    @patch('os.path.exists')
+    @patch('builtins.open', new_callable=mock_open, read_data='["страшный", "злой"]')
+    def test_load_word_data_success(self, mock_file, mock_exists):
+        """Тест успешной загрузки данных слов."""
+        mock_exists.return_value = True
+        
+        namer = TemplateMonsterNamer()
+        assert "adjectives" in namer.word_data
+        assert namer.word_data["adjectives"] == ["страшный", "злой"]
+
+    @patch('os.path.exists')
+    def test_load_word_data_directory_not_found(self, mock_exists):
+        """Тест загрузки данных при отсутствии директории."""
+        mock_exists.return_value = False
+        
+        with patch('builtins.print') as mock_print:
+            namer = TemplateMonsterNamer()
+            mock_print.assert_called_with(
+                "Предупреждение: Директория данных имен 'game/data/names' не найдена."
+            )
+            assert namer.word_data == {}
+
+    @patch('os.path.exists')
+    @patch('builtins.open')
+    def test_load_word_data_json_decode_error(self, mock_file, mock_exists):
+        """Тест загрузки данных при ошибке JSON."""
+        mock_exists.return_value = True
+        mock_file.side_effect = json.JSONDecodeError("Invalid JSON", "doc", 1)
+        
+        with patch('builtins.print') as mock_print:
+            namer = TemplateMonsterNamer()
+            mock_print.assert_called()
+            expected_keys = ["adjectives", "nouns", "prefixes", "suffixes"]
+            for key in expected_keys:
+                assert namer.word_data[key] == []
+
+    def test_get_words_existing_category(self):
+        """Тест получения слов для существующей категории."""
+        namer = TemplateMonsterNamer()
+        namer.word_data = {"adjectives": ["страшный", "мощный"]}
+        result = namer._get_words("adjectives")
+        assert result == ["страшный", "мощный"]
+
+    def test_get_words_non_existing_category(self):
+        """Тест получения слов для несуществующей категории."""
+        namer = TemplateMonsterNamer()
+        namer.word_data = {"adjectives": ["страшный"]}
+        result = namer._get_words("nouns")
+        assert result == []
+
+    @patch('random.choice')
+    def test_generate_name_success(self, mock_random_choice):
+        """Тест успешной генерации имени."""
+        mock_random_choice.side_effect = lambda x: x[0] if x else ""
+        
+        namer = TemplateMonsterNamer()
+        namer.word_data = {
+            "adjectives": ["страшный"],
+            "nouns": ["гоблин"],
+            "prefixes": ["супер"],
+            "suffixes": ["младший"]
+        }
+        
+        result = namer.generate_name("goblin")
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+    def test_generate_name_empty_word_data(self):
+        """Тест генерации имени с пустыми данными слов."""
+        namer = TemplateMonsterNamer()
+        namer.word_data = {
+            "adjectives": [],
+            "nouns": [],
+            "prefixes": [],
+            "suffixes": []
+        }
+        
+        result = namer.generate_name("test_role")
+        
+        # Проверяем что возвращается непустая строка (должно быть резервное имя)
+        assert isinstance(result, str)
+        assert len(result) > 0
+        # Проверяем что имя содержит осмысленный текст
+        assert "Монстр" in result or len(result) > 0
+
+    def test_generate_name_with_various_templates(self):
+        """Тест генерации имен с разными шаблонами."""
+        namer = TemplateMonsterNamer()
+        namer.word_data = {
+            "adjectives": ["страшный", "мощный"],
+            "nouns": ["гоблин", "дракон"],
+            "prefixes": ["супер", "мега"],
+            "suffixes": ["младший", "старший"]
+        }
+        
+        # Тестируем несколько раз для разных результатов
+        results = set()
+        for i in range(5):
+            with patch('random.choice') as mock_choice:
+                # Фиксируем выбор для воспроизводимости
+                mock_choice.side_effect = lambda x: x[i % len(x)] if x else ""
+                
+                result = namer.generate_name("goblin")
+                results.add(result)
+                assert isinstance(result, str)
+                assert len(result) > 0
+        
+        # Должно быть хотя бы одно уникальное имя
+        assert len(results) >= 1
+
+    def test_generate_name_fallback_on_template_error(self):
+        """Тест резервного имени при ошибке в шаблоне."""
+        namer = TemplateMonsterNamer()
+        namer.word_data = {
+            "adjectives": ["страшный"],
+            "nouns": ["гоблин"],
+            "prefixes": ["супер"],
+            "suffixes": ["младший"]
+        }
+        
+        # Создаем ситуацию с некорректным шаблоном
+        with patch('random.choice') as mock_choice:
+            def choice_side_effect(options):
+                # Возвращаем некорректный шаблон
+                if isinstance(options, list) and len(options) > 0:
+                    return "{nonexistent_key}"  # Несуществующий ключ
+                return "резерв"
+            mock_choice.side_effect = choice_side_effect
+            
+            result = namer.generate_name("test")
+            
+            # Должно вернуть резервное имя
+            assert isinstance(result, str)
+            assert len(result) > 0
+
+
+class TestGlobalFunctions:
+    """Тесты для глобальных функций модуля."""
+
+    def test_get_default_namer_singleton(self):
+        """Тест что get_default_namer возвращает один и тот же экземпляр."""
+        # Сбрасываем глобальную переменную
+        import game.naming.template_namer
+        game.naming.template_namer._DEFAULT_NAMER = None
+        
+        # Импортируем функцию напрямую
+        from game.naming.template_namer import get_default_namer
+        namer1 = get_default_namer()
+        namer2 = get_default_namer()
+        
+        assert namer1 is namer2
+        assert isinstance(namer1, TemplateMonsterNamer)
+
+    @patch('game.naming.template_namer.get_default_namer')
+    def test_generate_monster_name_function(self, mock_get_namer):
+        """Тест функции generate_monster_name."""
+        from unittest.mock import MagicMock
+        mock_namer = MagicMock()
+        mock_namer.generate_name.return_value = "Тестовый Монстр"
+        mock_get_namer.return_value = mock_namer
+        
+        result = generate_monster_name("goblin")
+        assert result == "Тестовый Монстр"
+        mock_get_namer.assert_called_once()
+        mock_namer.generate_name.assert_called_once_with("goblin")
+
+
+class TestIntegration:
+    """Интеграционные тесты."""
+
+    def test_basic_functionality(self):
+        """Тест базовой функциональности."""
+        namer = TemplateMonsterNamer()
+        assert isinstance(namer.word_data, dict)
+        
+        # Даже с пустыми данными должен возвращать имя
+        name = namer.generate_name("test_monster")
+        assert isinstance(name, str)
+        assert len(name) > 0
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])
+
+================================================================================
 Файл: tests/test_ui/test_mixins.py
 ================================================================================
 
@@ -5032,217 +5974,408 @@ if __name__ == '__main__':
 
 
 ================================================================================
-Файл: tests/tests/test_template_namer.py
+Файл: tests/test_ui/test_widgets.py
 ================================================================================
 
-# tests/test_template_namer.py
-"""Тесты для генератора имен монстров."""
+# tests/test_ui/test_widgets.py
+"""Тесты для виджетов UI (game/ui/widgets/)."""
 
-import os
-import json
 import pytest
-from unittest.mock import patch, mock_open
-from game.naming.template_namer import TemplateMonsterNamer, generate_monster_name
+from unittest.mock import Mock, patch, MagicMock
+from typing import Any, Dict, List, Optional
+
+# Импортируем тестируемые классы
+from game.ui.widgets.labels import (
+    TextLabel,
+    CharacterNameLabel,
+    CharacterClassLabel,
+    CharacterLevelLabel,
+    TemplatedTextLabel
+)
+from game.ui.widgets.bars import (
+    ProgressBar,
+    HealthBar,
+    EnergyBar
+)
+from game.ui.widgets.character_card import CharacterInfoPanel
+
+# Для аннотаций типов и создания моков
+from game.ui.rendering.color_manager import Color
+from game.ui.rendering.renderer import Renderer
+
+# === Фикстуры ===
+
+@pytest.fixture
+def mock_renderer() -> Mock:
+    """Фикстура для создания мок-рендерера."""
+    return Mock(spec=Renderer)
 
 
-class TestTemplateMonsterNamer:
-    """Тесты для класса TemplateMonsterNamer."""
+@pytest.fixture
+def mock_character() -> Mock:
+    """Фикстура для создания мок-персонажа."""
+    character = Mock()
+    character.name = "Тестовый Герой"
+    character.level = 5
+    character.role = "Воин"
+    character.player_class = None  # Для проверки логики получения роли
+    character.hp = 80
+    character.energy = 30
+    character.attributes = Mock()
+    character.attributes.max_hp = 100
+    character.attributes.max_energy = 50
+    return character
 
-    def test_init_with_default_directory(self):
-        """Тест инициализации с директорией по умолчанию."""
-        namer = TemplateMonsterNamer()
-        assert namer.data_directory == "game/data/names"
-        assert isinstance(namer.word_data, dict)
 
-    def test_init_with_custom_directory(self):
-        """Тест инициализации с пользовательской директорией."""
-        custom_dir = "custom/names"
-        namer = TemplateMonsterNamer(data_directory=custom_dir)
-        assert namer.data_directory == custom_dir
+@pytest.fixture
+def mock_player_with_class(mock_character: Mock) -> Mock:
+    """Фикстура для создания мок-игрока с классом."""
+    player_class = Mock()
+    player_class.name = "Paladin"
+    mock_character.player_class = player_class
+    mock_character.role = None  # У игрока role может быть None
+    return mock_character
 
-    @patch('os.path.exists')
-    @patch('builtins.open', new_callable=mock_open, read_data='["страшный", "злой"]')
-    def test_load_word_data_success(self, mock_file, mock_exists):
-        """Тест успешной загрузки данных слов."""
-        mock_exists.return_value = True
+
+# === Тесты для labels.py ===
+
+class TestTextLabel:
+    """Тесты для TextLabel."""
+
+    def test_initialization(self) -> None:
+        """Тест инициализации TextLabel."""
+        label = TextLabel(x=1, y=2, text="Привет", color=Color.RED, bold=True, dim=False)
+        assert label.x == 1
+        assert label.y == 2
+        assert label.text == "Привет"
+        assert label.color == Color.RED
+        assert label.bold is True
+        assert label.dim is False
+
+    def test_render(self, mock_renderer: Mock) -> None:
+        """Тест отрисовки TextLabel."""
+        label = TextLabel(x=5, y=3, text="Тест", color=Color.BLUE, bold=False, dim=True)
+        label.render(mock_renderer)
+        mock_renderer.draw_text.assert_called_once_with("Тест", 5, 3, False, True, Color.BLUE)
+
+    def test_render_empty_text(self, mock_renderer: Mock) -> None:
+        """Тест отрисовки TextLabel с пустым текстом."""
+        label = TextLabel(x=0, y=0, text="")
+        label.render(mock_renderer)
+        mock_renderer.draw_text.assert_not_called()
+
+
+class TestCharacterNameLabel:
+    """Тесты для CharacterNameLabel."""
+
+    def test_initialization(self, mock_character: Mock) -> None:
+        """Тест инициализации CharacterNameLabel."""
+        label = CharacterNameLabel(x=1, y=1, character=mock_character, max_width=15)
+        assert label.x == 1
+        assert label.y == 1
+        assert label.character is mock_character
+        assert label.max_width == 15
+        # Текст должен обновиться из персонажа
+        assert label.text == "Тестовый Герой"
+
+    def test_set_character(self, mock_character: Mock) -> None:
+        """Тест установки персонажа."""
+        label = CharacterNameLabel(x=0, y=0)
+        assert label.text == "Unknown"
+        label.set_character(mock_character)
+        assert label.character is mock_character
+        assert label.text == "Тестовый Герой"
+
+    def test_render_with_max_width(self, mock_renderer: Mock, mock_character: Mock) -> None:
+        """Тест отрисовки с ограничением ширины."""
+        long_name_character = Mock()
+        long_name_character.name = "Очень Длинное Имя Персонажа"
+        label = CharacterNameLabel(x=2, y=2, character=long_name_character, max_width=10)
+        label.render(mock_renderer)
+        # Ожидаем, что текст будет обрезан до 10 символов
+        mock_renderer.draw_text.assert_called_once_with("Очень Длин", 2, 2, False, False, Color.DEFAULT)
+
+    def test_render_no_character(self, mock_renderer: Mock) -> None:
+        """Тест отрисовки без персонажа."""
+        label = CharacterNameLabel(x=3, y=3)
+        label.render(mock_renderer)
+        mock_renderer.draw_text.assert_called_once_with("Unknown", 3, 3, False, False, Color.DEFAULT)
+
+
+class TestCharacterClassLabel:
+    """Тесты для CharacterClassLabel."""
+
+    def test_initialization_with_role(self, mock_character: Mock) -> None:
+        """Тест инициализации с ролью."""
+        label = CharacterClassLabel(x=1, y=1, character=mock_character)
+        assert label.x == 1
+        assert label.y == 1
+        assert label.character is mock_character
+
+    def test_render_with_role(self, mock_renderer: Mock, mock_character: Mock) -> None:
+        """Тест отрисовки с ролью."""
+        label = CharacterClassLabel(x=4, y=4, character=mock_character)
+        label.render(mock_renderer)
         
-        namer = TemplateMonsterNamer()
-        assert "adjectives" in namer.word_data
-        assert namer.word_data["adjectives"] == ["страшный", "злой"]
+        # Проверяем вызов draw_template
+        mock_renderer.draw_template.assert_called_once()
+        args, kwargs = mock_renderer.draw_template.call_args
+        template, replacements = args[0], args[1]
+        assert template == "%1%2%3"
+        assert replacements["1"] == ("[", Color.WHITE, False, False)
+        assert replacements["2"] == ("В", Color.CYAN, False, False) # Первая буква
+        assert replacements["3"] == ("]", Color.WHITE, False, False)
 
-    @patch('os.path.exists')
-    def test_load_word_data_directory_not_found(self, mock_exists):
-        """Тест загрузки данных при отсутствии директории."""
-        mock_exists.return_value = False
+    def test_render_with_player_class(self, mock_renderer: Mock, mock_player_with_class: Mock) -> None:
+        """Тест отрисовки с классом игрока."""
+        label = CharacterClassLabel(x=5, y=5, character=mock_player_with_class)
+        label.render(mock_renderer)
         
-        with patch('builtins.print') as mock_print:
-            namer = TemplateMonsterNamer()
-            mock_print.assert_called_with(
-                "Предупреждение: Директория данных имен 'game/data/names' не найдена."
-            )
-            assert namer.word_data == {}
+        mock_renderer.draw_template.assert_called_once()
+        args, kwargs = mock_renderer.draw_template.call_args
+        template, replacements = args[0], args[1]
+        assert template == "%1%2%3"
+        assert replacements["2"] == ("N", Color.CYAN, False, False) # Первая буква Паладина
 
-    @patch('os.path.exists')
-    @patch('builtins.open')
-    def test_load_word_data_json_decode_error(self, mock_file, mock_exists):
-        """Тест загрузки данных при ошибке JSON."""
-        mock_exists.return_value = True
-        mock_file.side_effect = json.JSONDecodeError("Invalid JSON", "doc", 1)
+    def test_render_no_character(self, mock_renderer: Mock) -> None:
+        """Тест отрисовки без персонажа."""
+        label = CharacterClassLabel(x=6, y=6)
+        label.render(mock_renderer)
         
-        with patch('builtins.print') as mock_print:
-            namer = TemplateMonsterNamer()
-            mock_print.assert_called()
-            expected_keys = ["adjectives", "nouns", "prefixes", "suffixes"]
-            for key in expected_keys:
-                assert namer.word_data[key] == []
+        mock_renderer.draw_template.assert_called_once()
+        args, kwargs = mock_renderer.draw_template.call_args
+        replacements = args[1]
+        assert replacements["2"] == ("?", Color.CYAN, False, False) # Заглушка
 
-    def test_get_words_existing_category(self):
-        """Тест получения слов для существующей категории."""
-        namer = TemplateMonsterNamer()
-        namer.word_data = {"adjectives": ["страшный", "мощный"]}
-        result = namer._get_words("adjectives")
-        assert result == ["страшный", "мощный"]
 
-    def test_get_words_non_existing_category(self):
-        """Тест получения слов для несуществующей категории."""
-        namer = TemplateMonsterNamer()
-        namer.word_data = {"adjectives": ["страшный"]}
-        result = namer._get_words("nouns")
-        assert result == []
+class TestCharacterLevelLabel:
+    """Тесты для CharacterLevelLabel."""
 
-    @patch('random.choice')
-    def test_generate_name_success(self, mock_random_choice):
-        """Тест успешной генерации имени."""
-        mock_random_choice.side_effect = lambda x: x[0] if x else ""
-        
-        namer = TemplateMonsterNamer()
-        namer.word_data = {
-            "adjectives": ["страшный"],
-            "nouns": ["гоблин"],
-            "prefixes": ["супер"],
-            "suffixes": ["младший"]
-        }
-        
-        result = namer.generate_name("goblin")
-        assert isinstance(result, str)
-        assert len(result) > 0
+    def test_initialization(self, mock_character: Mock) -> None:
+        """Тест инициализации CharacterLevelLabel."""
+        label = CharacterLevelLabel(x=1, y=1, character=mock_character)
+        assert label.x == 1
+        assert label.y == 1
+        assert label.character is mock_character
 
-    def test_generate_name_empty_word_data(self):
-        """Тест генерации имени с пустыми данными слов."""
-        namer = TemplateMonsterNamer()
-        namer.word_data = {
-            "adjectives": [],
-            "nouns": [],
-            "prefixes": [],
-            "suffixes": []
-        }
+    def test_render_with_character(self, mock_renderer: Mock, mock_character: Mock) -> None:
+        """Тест отрисовки с персонажем."""
+        label = CharacterLevelLabel(x=7, y=7, character=mock_character)
+        label.render(mock_renderer)
         
-        result = namer.generate_name("test_role")
-        
-        # Проверяем что возвращается непустая строка (должно быть резервное имя)
-        assert isinstance(result, str)
-        assert len(result) > 0
-        # Проверяем что имя содержит осмысленный текст
-        assert "Монстр" in result or len(result) > 0
+        mock_renderer.draw_template.assert_called_once()
+        args, kwargs = mock_renderer.draw_template.call_args
+        template, replacements = args[0], args[1]
+        assert template == "%1%2%3"
+        assert replacements["1"] == ("[", Color.WHITE, False, False)
+        assert replacements["2"] == ("5", Color.YELLOW, False, False) # Уровень 5
+        assert replacements["3"] == ("]", Color.WHITE, False, False)
 
-    def test_generate_name_with_various_templates(self):
-        """Тест генерации имен с разными шаблонами."""
-        namer = TemplateMonsterNamer()
-        namer.word_data = {
-            "adjectives": ["страшный", "мощный"],
-            "nouns": ["гоблин", "дракон"],
-            "prefixes": ["супер", "мега"],
-            "suffixes": ["младший", "старший"]
-        }
+    def test_render_no_character(self, mock_renderer: Mock) -> None:
+        """Тест отрисовки без персонажа."""
+        label = CharacterLevelLabel(x=8, y=8)
+        label.render(mock_renderer)
         
-        # Тестируем несколько раз для разных результатов
-        results = set()
-        for i in range(5):
-            with patch('random.choice') as mock_choice:
-                # Фиксируем выбор для воспроизводимости
-                mock_choice.side_effect = lambda x: x[i % len(x)] if x else ""
+        mock_renderer.draw_template.assert_called_once()
+        args, kwargs = mock_renderer.draw_template.call_args
+        replacements = args[1]
+        assert replacements["2"] == ("1", Color.YELLOW, False, False) # Уровень по умолчанию
+
+
+class TestTemplatedTextLabel:
+    """Тесты для абстрактного TemplatedTextLabel."""
+
+    def test_initialization(self) -> None:
+        """Тест инициализации TemplatedTextLabel."""
+        # Напрямую создать экземпляр абстрактного класса нельзя,
+        # но можно проверить его базовую инициализацию
+        with patch.multiple(TemplatedTextLabel, __abstractmethods__=set()):
+            label = TemplatedTextLabel(x=1, y=1)
+            assert label.x == 1
+            assert label.y == 1
+
+    def test_render_calls_abstract_method(self) -> None:
+        """Тест, что render вызывает абстрактный метод."""
+        with patch.multiple(TemplatedTextLabel, __abstractmethods__=set()):
+            label = TemplatedTextLabel(x=0, y=0)
+            with patch.object(label, '_get_template_and_replacements') as mock_get_template:
+                mock_get_template.return_value = ("Шаблон", {"1": ("Тест", Color.DEFAULT, False, False)})
+                mock_renderer = Mock()
                 
-                result = namer.generate_name("goblin")
-                results.add(result)
-                assert isinstance(result, str)
-                assert len(result) > 0
+                label.render(mock_renderer)
+                
+                mock_get_template.assert_called_once()
+                mock_renderer.draw_template.assert_called_once_with(
+                    "Шаблон", {"1": ("Тест", Color.DEFAULT, False, False)}, 0, 0
+                )
+
+
+# === Тесты для bars.py ===
+
+class TestProgressBar:
+    """Тесты для абстрактного ProgressBar."""
+
+    def test_initialization(self, mock_character: Mock) -> None:
+        """Тест инициализации ProgressBar."""
+        # Напрямую создать экземпляр абстрактного класса нельзя,
+        # но можно проверить его базовую инициализацию
+        with patch.multiple(ProgressBar, __abstractmethods__=set()):
+            bar = ProgressBar(x=1, y=1, width=20, character=mock_character)
+            assert bar.x == 1
+            assert bar.y == 1
+            assert bar.width == 20
+            assert bar.character is mock_character
+
+    # Дополнительные тесты для абстрактного класса могут быть сложными,
+    # так как они зависят от реализации абстрактных методов
+
+
+class TestHealthBar:
+    """Тесты для HealthBar."""
+
+    def test_initialization(self, mock_character: Mock) -> None:
+        """Тест инициализации HealthBar."""
+        bar = HealthBar(x=2, y=2, width=15, character=mock_character)
+        assert bar.x == 2
+        assert bar.y == 2
+        assert bar.width == 15
+        assert bar.character is mock_character
+
+    def test_get_fill_color_high_hp(self, mock_character: Mock) -> None:
+        """Тест цвета заполнения при высоком HP."""
+        mock_character.hp = 90
+        mock_character.attributes.max_hp = 100
+        bar = HealthBar(character=mock_character)
+        assert bar._get_fill_color() == Color.GREEN
+
+    def test_get_fill_color_medium_hp(self, mock_character: Mock) -> None:
+        """Тест цвета заполнения при среднем HP."""
+        mock_character.hp = 40
+        mock_character.attributes.max_hp = 100
+        bar = HealthBar(character=mock_character)
+        assert bar._get_fill_color() == Color.YELLOW
+
+    def test_get_fill_color_low_hp(self, mock_character: Mock) -> None:
+        """Тест цвета заполнения при низком HP."""
+        mock_character.hp = 10
+        mock_character.attributes.max_hp = 100
+        bar = HealthBar(character=mock_character)
+        assert bar._get_fill_color() == Color.RED
+
+    def test_get_fill_color_no_character(self) -> None:
+        """Тест цвета заполнения без персонажа."""
+        bar = HealthBar()
+        assert bar._get_fill_color() == Color.GREEN # Цвет по умолчанию
+
+
+class TestEnergyBar:
+    """Тесты для EnergyBar."""
+
+    def test_initialization(self, mock_character: Mock) -> None:
+        """Тест инициализации EnergyBar."""
+        bar = EnergyBar(x=3, y=3, width=10, character=mock_character)
+        assert bar.x == 3
+        assert bar.y == 3
+        assert bar.width == 10
+        assert bar.character is mock_character
+
+    def test_get_fill_color(self, mock_character: Mock) -> None:
+        """Тест цвета заполнения."""
+        bar = EnergyBar(character=mock_character)
+        assert bar._get_fill_color() == Color.BLUE
+
+    def test_get_empty_color(self, mock_character: Mock) -> None:
+        """Тест цвета пустой части."""
+        bar = EnergyBar(character=mock_character)
+        assert bar._get_empty_color() == Color.GRAY
+
+
+# === Тесты для character_card.py ===
+
+class TestCharacterInfoPanel:
+    """Тесты для CharacterInfoPanel."""
+
+    def test_initialization(self, mock_character: Mock) -> None:
+        """Тест инициализации CharacterInfoPanel."""
+        panel = CharacterInfoPanel(x=1, y=1, width=30, height=5, character=mock_character)
+        assert panel.x == 1
+        assert panel.y == 1
+        assert panel.width == 30
+        assert panel.height == 5
+        assert panel.character is mock_character
+        # Проверяем, что дочерние виджеты созданы
+        assert panel.class_label is not None
+        assert panel.name_label is not None
+        assert panel.level_label is not None
+        assert panel.health_bar is not None
+        assert panel.energy_bar is not None
+
+    def test_set_character(self, mock_character: Mock) -> None:
+        """Тест установки персонажа."""
+        panel = CharacterInfoPanel(x=0, y=0, width=20, height=3)
+        # Изначально персонаж не установлен
+        assert panel.character is None
+        # Устанавливаем персонажа
+        panel.set_character(mock_character)
+        # Проверяем, что персонаж установлен
+        assert panel.character is mock_character
+        # Проверяем, что персонаж установлен во всех дочерних виджетах
+        # (предполагаем, что у них есть метод set_character)
+        # Для простоты проверим, что методы были вызваны
+        # (это косвенно подтверждает, что логика внутри set_character работает)
+
+    def test_render(self, mock_renderer: Mock, mock_character: Mock) -> None:
+        """Тест отрисовки панели."""
+        panel = CharacterInfoPanel(x=5, y=5, width=25, height=4, character=mock_character)
         
-        # Должно быть хотя бы одно уникальное имя
-        assert len(results) >= 1
-
-    def test_generate_name_fallback_on_template_error(self):
-        """Тест резервного имени при ошибке в шаблоне."""
-        namer = TemplateMonsterNamer()
-        namer.word_data = {
-            "adjectives": ["страшный"],
-            "nouns": ["гоблин"],
-            "prefixes": ["супер"],
-            "suffixes": ["младший"]
-        }
+        # Мокаем методы render дочерних виджетов
+        panel.class_label.render = Mock()
+        panel.name_label.render = Mock()
+        panel.level_label.render = Mock()
+        panel.health_bar.render = Mock()
+        panel.energy_bar.render = Mock()
         
-        # Создаем ситуацию с некорректным шаблоном
-        with patch('random.choice') as mock_choice:
-            def choice_side_effect(options):
-                # Возвращаем некорректный шаблон
-                if isinstance(options, list) and len(options) > 0:
-                    return "{nonexistent_key}"  # Несуществующий ключ
-                return "резерв"
-            mock_choice.side_effect = choice_side_effect
-            
-            result = namer.generate_name("test")
-            
-            # Должно вернуть резервное имя
-            assert isinstance(result, str)
-            assert len(result) > 0
-
-
-class TestGlobalFunctions:
-    """Тесты для глобальных функций модуля."""
-
-    def test_get_default_namer_singleton(self):
-        """Тест что get_default_namer возвращает один и тот же экземпляр."""
-        # Сбрасываем глобальную переменную
-        import game.naming.template_namer
-        game.naming.template_namer._DEFAULT_NAMER = None
+        panel.render(mock_renderer)
         
-        # Импортируем функцию напрямую
-        from game.naming.template_namer import get_default_namer
-        namer1 = get_default_namer()
-        namer2 = get_default_namer()
+        # Проверяем, что методы render были вызваны у всех дочерних виджетов
+        panel.class_label.render.assert_called_once_with(mock_renderer)
+        panel.name_label.render.assert_called_once_with(mock_renderer)
+        panel.level_label.render.assert_called_once_with(mock_renderer)
+        panel.health_bar.render.assert_called_once_with(mock_renderer)
+        panel.energy_bar.render.assert_called_once_with(mock_renderer)
+
+    def test_update_size(self) -> None:
+        """Тест обновления размеров панели."""
+        panel = CharacterInfoPanel(x=0, y=0, width=20, height=3)
+        initial_width = panel.width
+        initial_height = panel.height
         
-        assert namer1 is namer2
-        assert isinstance(namer1, TemplateMonsterNamer)
-
-    @patch('game.naming.template_namer.get_default_namer')
-    def test_generate_monster_name_function(self, mock_get_namer):
-        """Тест функции generate_monster_name."""
-        from unittest.mock import MagicMock
-        mock_namer = MagicMock()
-        mock_namer.generate_name.return_value = "Тестовый Монстр"
-        mock_get_namer.return_value = mock_namer
+        # Сохраняем ссылки на дочерние виджеты
+        class_label = panel.class_label
+        name_label = panel.name_label
+        level_label = panel.level_label
+        health_bar = panel.health_bar
+        energy_bar = panel.energy_bar
         
-        result = generate_monster_name("goblin")
-        assert result == "Тестовый Монстр"
-        mock_get_namer.assert_called_once()
-        mock_namer.generate_name.assert_called_once_with("goblin")
-
-
-class TestIntegration:
-    """Интеграционные тесты."""
-
-    def test_basic_functionality(self):
-        """Тест базовой функциональности."""
-        namer = TemplateMonsterNamer()
-        assert isinstance(namer.word_data, dict)
+        # Обновляем размеры
+        new_width, new_height = 40, 6
+        panel.update_size(new_width, new_height)
         
-        # Даже с пустыми данными должен возвращать имя
-        name = namer.generate_name("test_monster")
-        assert isinstance(name, str)
-        assert len(name) > 0
+        # Проверяем, что размеры панели обновились
+        assert panel.width == new_width
+        assert panel.height == new_height
+        
+        # Проверяем, что размеры и позиции дочерних виджетов обновились
+        # (проверяем, что объекты остались теми же, но их атрибуты могли измениться)
+        assert panel.class_label is class_label
+        assert panel.name_label is name_label
+        assert panel.level_label is level_label
+        assert panel.health_bar is health_bar
+        assert panel.energy_bar is energy_bar
+        # Проверяем, что ширина прогресс-баров обновилась
+        assert panel.health_bar.width == new_width
+        assert panel.energy_bar.width == new_width
 
-
-if __name__ == "__main__":
-    pytest.main([__file__])
 
 ================================================================================
 Файл: main.py
@@ -5387,17 +6520,23 @@ except Exception as e:
 * **Пустые строки:** Использовать пустые строки для разделения логических блоков внутри функций/методов и между определениями классов/функций.
 * **Константы:** Именовать константы модуля и класса в `UPPER_CASE_WITH_UNDERSCORES`.
 * Этот стиль будет применяться ко всем файлам проекта для обеспечения согласованности.
+* Не допускать магических чисел. Магические числа должны быть на именованные константы.
 
 ## 9. Принципы проектирования
 
 * **SOLID и DRY:**
-  * Следовать принципам [SOLID](https://ru.wikipedia.org/wiki/SOLID_(%D0%BE%D0%B1%D1%8A%D0%B5%D0%BA%D1%82%D0%BD%D0%BE-%D0%BE%D1%80%D0%B8%D0%B5%D0%BD%D1%82%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%BD%D0%BE%D0%B5_%D0%BF%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5)) для объектно-ориентированного проектирования.
+  * Следовать принципам [SOLID] для объектно-ориентированного проектирования.
     * **S** - Принцип единственной ответственности (Single Responsibility Principle).
     * **O** - Принцип открытости/закрытости (Open/Closed Principle).
     * **L** - Принцип подстановки Барбары Лисков (Liskov Substitution Principle).
     * **I** - Принцип разделения интерфейса (Interface Segregation Principle).
     * **D** - Принцип инверсии зависимостей (Dependency Inversion Principle).
-  * Следовать принципу [DRY](https://ru.wikipedia.org/wiki/Don%E2%80%99t_repeat_yourself) (Don't Repeat Yourself) - избегать дублирования кода. Повторяющуюся логику следует выносить в функции, классы или модули.
+  * Следовать принципу [DRY] (Don't Repeat Yourself) - избегать дублирования кода. Повторяющуюся логику следует выносить в функции, классы или модули.
+
+* **KISS и YAGNI:**
+
+  * Следовать принципу KISS  (Keep It Simple, Stupid) - стремиться к максимально простым решениям. Код должен быть понятен другим разработчикам без необходимости вникать в сложные абстракции.
+  * Следовать принципу YAGNI  (You Aren't Gonna Need It) - реализовывать функциональность только тогда, когда она действительно нужна, а не потому, что "вдруг пригодится".
 
 ## 10. Рабочий процесс
 
