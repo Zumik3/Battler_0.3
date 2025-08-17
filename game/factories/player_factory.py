@@ -1,26 +1,19 @@
 # game/factories/player_factory.py
-"""Фабрика для создания персонажей-игроков.
-
-Предоставляет функции для создания экземпляров класса Player
-на основе данных из JSON файлов.
-"""
+"""Фабрика для создания персонажей-игроков."""
 
 from typing import Optional, TYPE_CHECKING
-from game.data.character_loader import _get_default_data_directory
 
 if TYPE_CHECKING:
     from game.entities.player import Player
-
 
 def create_player(
     role: str,
     name: str, 
     level: int = 1,
     data_directory: Optional[str] = None
-    ) -> Optional['Player']:
+) -> Optional['Player']:
     """
     Создает объект Player на основе данных из JSON файла.
-    Упрощенный интерфейс для game.entities.player.create_player_from_data.
 
     Args:
         role: Внутренний идентификатор класса.
@@ -32,8 +25,16 @@ def create_player(
     Returns:
         Объект Player или None, если данные не могут быть загружены.
     """
+    # Получаем директорию из конфигурации если не задана
     if data_directory is None:
-        data_directory = _get_default_data_directory(is_player=True)
+        from game.config import get_config
+        data_directory = get_config().system.player_classes_directory
 
-    from game.entities.player import create_player_from_data as _internal_create
-    return _internal_create(name, role, level, data_directory)
+    # Ленивый импорт для избежания циклических импортов
+    from game.entities.player import create_player_from_data
+    return create_player_from_data(
+        role=role, 
+        name=name, 
+        level=level, 
+        data_directory=data_directory
+    )

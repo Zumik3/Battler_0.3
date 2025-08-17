@@ -1,11 +1,11 @@
-# game/ui/screens/battle_screen.py
+# game/ui/battle_screen.py
 """Экран боя.
 Отображает боевую сцену с возможностью взаимодействия."""
 import curses
 from typing import TYPE_CHECKING, Dict, Any, Optional, List, Tuple
 
 # - ДОБАВЛЯЕМ ИМПОРТ МИКСИНА -
-from game.ui.mixins import StandardLayoutMixin
+from game.mixins.ui_mixin import StandardLayoutMixin
 # -
 from game.ui.base_screen import BaseScreen
 from game.ui.rendering.color_manager import Color
@@ -32,9 +32,9 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
 
     # --- Константы для макета ---
     HEADER_HEIGHT = 2
-    UNITS_Y_OFFSET = 1 # Отступ блока юнитов от заголовка
+    #UNITS_Y_OFFSET = 1 # Отступ блока юнитов от заголовка
     UNITS_HEIGHT = 5 # Фиксированная высота блока юнитов
-    LOG_Y_OFFSET = 1 # Отступ лога от блока юнитов
+    #LOG_Y_OFFSET = 1 # Отступ лога от блока юнитов
     FOOTER_Y_OFFSET = 2 # Отступ подвала от низа лога
     HORIZONTAL_MARGIN = 1 # Отступы слева и справа
     GROUPS_GAP = 1 # Зазор между группами игроков и врагов
@@ -65,7 +65,7 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
             каждый из которых содержит словарь {'x', 'y', 'width', 'height'}.
         """
         # --- Размеры и позиции ---
-        units_y = self.HEADER_HEIGHT + self.UNITS_Y_OFFSET
+        units_y = self.HEADER_HEIGHT #+ self.UNITS_Y_OFFSET
 
         # --- Расчет ширины для панелей юнитов ---
         # Доступная ширина для блоков юнитов (учитываем отступы и зазор)
@@ -84,9 +84,9 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
         enemy_group_x = player_group_x + player_group_width + self.GROUPS_GAP
 
         # --- Размеры и позиции лога боя ---
-        log_x = self.HORIZONTAL_MARGIN
-        log_y = units_y + self.UNITS_HEIGHT + self.LOG_Y_OFFSET
-        log_width = max(self.MIN_LOG_WIDTH, screen_width - 2 * self.HORIZONTAL_MARGIN)
+        log_x = 0  # self.HORIZONTAL_MARGIN
+        log_y = units_y + self.UNITS_HEIGHT #+ self.LOG_Y_OFFSET
+        log_width = max(self.MIN_LOG_WIDTH, screen_width * self.HORIZONTAL_MARGIN)
 
         # Высота лога - всё оставшееся пространство минус отступы и подвал
         available_height = screen_height - log_y - self.FOOTER_Y_OFFSET

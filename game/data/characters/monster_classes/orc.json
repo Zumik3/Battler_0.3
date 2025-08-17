@@ -2,7 +2,7 @@
     "name": "Орк",
     "role": "orc",
     "class_icon": "O",
-    "class_icon_color": 1,
+    "class_icon_color": "RED",
     "base_stats": {
         "strength": 16,
         "agility": 6,

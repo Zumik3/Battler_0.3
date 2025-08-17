@@ -2,7 +2,7 @@
     "name": "Разбойник",
     "role": "rogue",
     "class_icon": "R",
-    "class_icon_color": 8,
+    "class_icon_color": "GRAY",
     "base_stats": {
         "strength": 6,
         "agility": 18,

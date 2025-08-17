@@ -6,7 +6,7 @@
 """
 import curses
 # --- ДОБАВЛЯЕМ ИМПОРТ МИКСИНА ---
-from game.ui.mixins import StandardLayoutMixin
+from game.mixins.ui_mixin import StandardLayoutMixin
 # --------------------------------
 from game.ui.base_screen import BaseScreen
 from game.ui.rendering.renderable import Text, Separator

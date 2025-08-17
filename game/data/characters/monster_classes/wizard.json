@@ -2,7 +2,7 @@
     "name": "Волшебник",
     "role": "wizard",
     "class_icon": "W",
-    "class_icon_color": 5,
+    "class_icon_color": "MAGENTA",
     "base_stats": {
         "strength": 8,
         "agility": 12,

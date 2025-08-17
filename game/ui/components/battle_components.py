@@ -3,7 +3,7 @@
 Содержит визуальные элементы для отображения игроков, врагов и лога боя."""
 
 import curses
-from typing import List, Dict, Any, TYPE_CHECKING, Optional
+from typing import List, TYPE_CHECKING
 
 from game.ui.rendering.renderable import Renderable
 from game.ui.rendering.renderer import Renderer
@@ -27,17 +27,21 @@ class UnitPanel(Renderable):
     MIN_NAME_WIDTH = 5
     MIN_WIDGET_WIDTH = 3
     WIDGET_SPACING = 1
+    CHARACTER_NAME_WIDTH = 6  # Все имена персонажей состоят из максимум 6 букв. 
+    MONSTER_NAME_WIDTH = 20
+    HP_BAR_WIDTH = 10
+    EP_BAR_WIDTH = 5
     
     # Константы для оценки минимальной ширины элементов
     ESTIMATED_LEVEL_WIDTH = 3
     ESTIMATED_HP_WIDTH = 10  # Обновлено для прогресс-баров
-    ESTIMATED_ENERGY_WIDTH = 10  # Обновлено для прогресс-баров
+    ESTIMATED_ENERGY_WIDTH = 5  # Обновлено для прогресс-баров
     
     # Пороги для цветов HP
     HP_CRITICAL_THRESHOLD = 0.25
     HP_LOW_THRESHOLD = 0.5
 
-    def __init__(self, x: int, y: int, width: int, height: int) -> None:
+    def __init__(self, character: 'Character', x: int, y: int, width: int, height: int) -> None:
         """Инициализация базовой панели юнита.
         Args:
             x: Координата X.
@@ -48,33 +52,26 @@ class UnitPanel(Renderable):
         super().__init__(x, y)
         self.width = width
         self.height = height  # Ожидается 1
+        self.character = character
         
+        if character.is_player:
+            name_width = self.CHARACTER_NAME_WIDTH 
+            color = Color.GREEN
+        else:
+            name_width = self.MONSTER_NAME_WIDTH
+            color = Color.BLUE
+
         # Инициализируем виджеты
-        self.class_label = CharacterClassLabel(x=x, y=y)
-        self.name_label = CharacterNameLabel(x=x, y=y, max_width=self.DEFAULT_WIDGET_MAX_WIDTH)
-        self.level_label = CharacterLevelLabel(x=x, y=y)
+        self.name_label = CharacterNameLabel(character=self.character, x=x, y=y, max_width=name_width, color=color)
+        self.class_label = CharacterClassLabel(character=self.character, x=x, y=y)
+        self.level_label = CharacterLevelLabel(character=self.character, x=x, y=y)
         
+        self.hp_label = HealthBar(character=self.character, x=x, y=y, width=self.HP_BAR_WIDTH)
+        self.energy_label = EnergyBar(character=character, x=x, y=y, width=self.EP_BAR_WIDTH)
         # Для HP и Energy в бою отображаем числовые значения, а не прогресс-бары
         # Поэтому создаем специальные текстовые лейблы
-        self.hp_label = TextLabel(x=x, y=y)
-        self.energy_label = TextLabel(x=x, y=y)
-        
-        # Персонаж, отображаемый в панели
-        self.character: Optional['Character'] = None
-
-    def set_character(self, character: Optional['Character']) -> None:
-        """
-        Установить персонажа для отображения.
-        
-        Args:
-            character: Объект Character для отображения или None.
-        """
-        self.character = character
-        if character:
-            self.class_label.set_character(character)
-            self.name_label.set_character(character)
-            self.level_label.set_character(character)
-            # Для HP/Energy обновляем текст напрямую в render
+        #self.hp_label = TextLabel(x=x, y=y)
+        #self.energy_label = TextLabel(x=x, y=y)
 
     def update_size(self, width: int, height: int) -> None:
         """
@@ -97,42 +94,32 @@ class UnitPanel(Renderable):
             
         current_x = self.x
         
-        # 2. Имя
+        # 1. Имя
         self.name_label.x = current_x
         self.name_label.y = self.y
-        # Ограничиваем имя, чтобы оставить место для остальных элементов
-        estimated_other_elements_width = (
-            self.ESTIMATED_LEVEL_WIDTH + 
-            self.ESTIMATED_HP_WIDTH + 
-            self.ESTIMATED_ENERGY_WIDTH
-        )
-        available_width_for_name = max(
-            self.MIN_NAME_WIDTH, 
-            self.width - (current_x - self.x) - estimated_other_elements_width
-        )
-        self.name_label.max_width = available_width_for_name
-        name_width = min(len(self.name_label.text), available_width_for_name) if self.name_label.text else 5
+        name_width = self.name_label.max_width
         current_x += name_width + self.WIDGET_SPACING
 
-        # 1. Класс/роль
+        # 2. Класс/роль
         self.class_label.x = current_x
         self.class_label.y = self.y
-        class_width = 3  # Примерная ширина [R]
-        current_x += class_width + self.WIDGET_SPACING
+        class_width = len(self.class_label.text) + 2  # Примерная ширина [R]
+        current_x += class_width  #  Spacing не нужен 
         
         # 3. Уровень
         self.level_label.x = current_x
         self.level_label.y = self.y
-        level_width = 3  # Примерная ширина [1]
-        current_x += level_width + self.WIDGET_SPACING
+        level_width = len(self.level_label.text) + 2
+        current_x += level_width
 
         # 4. HP
         self.hp_label.x = current_x
         self.hp_label.y = self.y
-        # Ширина будет обновлена в render на основе содержимого
+        current_x += self.hp_label.width + 2
         
         # 5. Energy
-        # Позиция будет рассчитана в render после определения ширины hp_label
+        self.energy_label.x = current_x
+        self.energy_label.y = self.y
 
     def render(self, renderer: Renderer) -> None:
         """Отрисовка базовой панели юнита в одну строку."""
@@ -146,74 +133,25 @@ class UnitPanel(Renderable):
                 pass
             return
 
-        # Обновляем текстовые лейблы HP и Energy
-        hp = getattr(self.character, 'hp', 0)
-        attributes = getattr(self.character, 'attributes', None)
-        max_hp = 1
-        if attributes:
-            max_hp = getattr(attributes, 'max_hp', 1)
-        else:
-            max_hp = hp if hp > 0 else 1
-            
-        # Определяем цвет HP в зависимости от уровня
-        hp_ratio = hp / max_hp if max_hp > 0 else 0
-        hp_color = Color.GREEN
-        if hp_ratio <= self.HP_CRITICAL_THRESHOLD:
-            hp_color = Color.RED
-        elif hp_ratio <= self.HP_LOW_THRESHOLD:
-            hp_color = Color.YELLOW
-            
-        hp_text = f"HP:{hp}/{max_hp}"
-        self.hp_label.text = hp_text
-        self.hp_label.color = hp_color
-        
-        # Energy
-        energy = getattr(self.character, 'energy', 0)
-        max_energy = 0
-        if attributes:
-            max_energy = getattr(attributes, 'max_energy', 0)
-        else:
-            max_energy = energy
-            
-        if max_energy > 0:
-            energy_text = f"E:{energy}/{max_energy}"
-            self.energy_label.text = energy_text
-            self.energy_label.color = Color.BLUE
-        else:
-            self.energy_label.text = ""
-            
         # Пересчитываем позиции виджетов перед отрисовкой
         self._update_widgets_positions()
         
         # Отрисовываем все виджеты
-        self.class_label.render(renderer)
         self.name_label.render(renderer)
+        self.class_label.render(renderer)
         self.level_label.render(renderer)
         self.hp_label.render(renderer)
-        if self.energy_label.text:  # Отрисовываем energy label только если он не пуст
-            # Позиция energy label сразу после hp label
-            self.energy_label.x = self.hp_label.x + len(self.hp_label.text) + self.WIDGET_SPACING
-            self.energy_label.y = self.y
-            self.energy_label.render(renderer)
+        self.energy_label.render(renderer)
             
         # Заполняем оставшееся пространство пробелами для затирания предыдущего содержимого
-        last_widget_end_x = self.energy_label.x + len(self.energy_label.text) if self.energy_label.text else \
-                          (self.hp_label.x + len(self.hp_label.text))
-        if last_widget_end_x < self.x + self.width:
-            remaining_width = (self.x + self.width) - last_widget_end_x
-            try:
-                renderer.draw_text(" " * remaining_width, last_widget_end_x, self.y)
-            except curses.error:
-                pass
-
-    def _get_role_character(self) -> str:
-        """Получить символ роли/класса персонажа."""
-        if not self.character:
-            return "?"
-            
-        # Используем ту же логику, что и в CharacterClassLabel
-        from game.ui.widgets.labels import _get_character_role_icon
-        return _get_character_role_icon(self.character)
+        # last_widget_end_x = self.energy_label.x + len(self.energy_label.text) if self.energy_label.text else \
+        #                   (self.hp_label.x + len(self.hp_label.text))
+        # if last_widget_end_x < self.x + self.width:
+        #     remaining_width = (self.x + self.width) - last_widget_end_x
+        #     try:
+        #         renderer.draw_text(" " * remaining_width, last_widget_end_x, self.y)
+        #     except curses.error:
+        #         pass
 
 
 class EnemyUnitPanel(UnitPanel):
@@ -228,8 +166,7 @@ class EnemyUnitPanel(UnitPanel):
             height: Высота панели (должна быть 1).
             monster: Объект Monster для отображения.
         """
-        super().__init__(x, y, width, height)
-        self.set_character(monster)
+        super().__init__(monster, x, y, width, height)
 
 
 class PlayerUnitPanel(UnitPanel):
@@ -244,8 +181,7 @@ class PlayerUnitPanel(UnitPanel):
             height: Высота панели (должна быть 1).
             player: Объект Player для отображения.
         """
-        super().__init__(x, y, width, height)
-        self.set_character(player)
+        super().__init__(player, x, y, width, height)
 
 
 class GroupPanel(Renderable):
@@ -422,7 +358,7 @@ class BattleLog(Renderable):
         """Отрисовка лога боя с обрамлением."""
         # Отрисовка рамки лога (она остается)
         try:
-            renderer.draw_box(self.x, self.y, self.width, self.height)
+            renderer.draw_borderless_log_box(self.x, self.y, self.width, self.height)
         except curses.error:
             # Игнорируем ошибки выхода за границы экрана
             pass

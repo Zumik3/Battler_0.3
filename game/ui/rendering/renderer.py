@@ -6,6 +6,7 @@
 """
 
 import curses
+from turtle import color
 from typing import Dict, Tuple, Any
 
 from game.ui.rendering.color_manager import Color, ColorManager
@@ -104,6 +105,33 @@ class Renderer:
                     self.stdscr.addstr(y + i, x, "|")
                     if x + width - 1 < self.width:
                         self.stdscr.addstr(y + i, x + width - 1, "|")
+        except curses.error:
+            pass
+
+    def draw_borderless_log_box(self, x: int, y: int, width: int, height: int) -> None:
+        """
+        Отрисовка прямоугольника.
+
+        Args:
+            x: Координата X левого верхнего угла.
+            y: Координата Y левого верхнего угла.
+            width: Ширина прямоугольника.
+            height: Высота прямоугольника.
+        """
+        а = "┬ ┴"
+
+        try:
+            # Верхняя и нижняя границы
+            top_text = "├" + "─" * ((width - 3) // 2) + "┴" + "─" * ((width - 3) // 2) + "┤"
+            bottom_text = "└" + "─" * (width - 2) + "┘"
+            
+            self.draw_text(text=top_text, x=x, y=y, color=Color.DEFAULT, dim=True)
+            self.draw_text(text=bottom_text, x=x, y=y + height - 1, color=Color.DEFAULT, dim=True)
+            
+            #if y < self.height and y + height - 1 < self.height:
+                #self.stdscr.addstr(y, x, , curses.get_color_pair(Color.DEFAULT))
+                #self.stdscr.addstr(y + height - 1, x, "└" + "─" * (width - 2) + "┘")
+
         except curses.error:
             pass
 

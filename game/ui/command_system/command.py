@@ -34,30 +34,22 @@ class Command(ABC):
         self.display_key = display_key if display_key else (str(keys[0]) if keys else "")
 
     def get_key_codes(self) -> Set[int]:
-        """
-        Получение кодов клавиш для регистрации.
-
-        Returns:
-            Множество кодов клавиш.
-        """
-        key_codes = set()
-        for key in self.keys:
-            if isinstance(key, int):
-                key_codes.add(key)
-            else:
-                key_codes.add(ord(str(key)))
-            # TODO: Можно добавить обработку других специальных клавиш curses, если потребуется
-        return key_codes
+        """Получение множества кодов клавиш команды."""
+        # ord работает только со строками, числа возвращаем как есть
+        return {key if isinstance(key, int) else ord(key) for key in self.keys}
 
     @abstractmethod
-    def execute(self, context: Optional[Any] = None) -> None:
+    def execute(self, context: Any = None) -> bool:
         """
         Выполнение команды.
-
+        
         Args:
-            context: Контекст выполнения (обычно экран).
+            context: Контекст выполнения команды.
+            
+        Returns:
+            bool: True если команда выполнена успешно, False в противном случае.
         """
-        pass
+        raise NotImplementedError("Метод execute должен быть реализован в подклассе.")
 
 
 class CommandRegistry:
