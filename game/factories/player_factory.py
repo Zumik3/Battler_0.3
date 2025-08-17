@@ -36,4 +36,4 @@ def create_player(
         data_directory = _get_default_data_directory(is_player=True)
 
     from game.entities.player import create_player_from_data as _internal_create
-    return _internal_create(name, role, level, data_directory)
+    return _internal_create(role, name, level, data_directory)

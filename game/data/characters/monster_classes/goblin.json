@@ -2,7 +2,7 @@
     "name": "Гоблин",
     "role": "goblin",
     "class_icon": "G",
-    "class_icon_color": 2,
+    "class_icon_color": "GREEN",
     "base_stats": {
         "strength": 6,
         "agility": 8,

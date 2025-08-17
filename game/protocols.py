@@ -1,6 +1,7 @@
 # game/protocols.py
 """Протоколы, определяющие интерфейсы для различных компонентов игры."""
 
+from collections.abc import Callable
 import traceback
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Protocol, Optional

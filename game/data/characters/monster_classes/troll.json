@@ -2,7 +2,7 @@
     "name": "Тролль",
     "role": "troll",
     "class_icon": "T",
-    "class_icon_color": 3,
+    "class_icon_color": "YELLOW",
     "base_stats": {
         "strength": 17,
         "agility": 4,

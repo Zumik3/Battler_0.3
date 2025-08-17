@@ -2,7 +2,7 @@
   "name": "Берсерк",
   "role": "berserker",
   "class_icon": "B",
-  "class_icon_color": 1,
+  "class_icon_color": "RED",
   "base_stats": {
     "strength": 16,
     "agility": 10,

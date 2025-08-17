@@ -2,7 +2,7 @@
     "name": "Лекарь",
     "role": "healer",
     "class_icon": "H",
-    "class_icon_color": 6,
+    "class_icon_color": "CYAN",
     "base_stats": {
         "strength": 5,
         "agility": 12,

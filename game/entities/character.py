@@ -2,6 +2,7 @@
 """Базовый класс персонажа в игре."""
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Callable, TYPE_CHECKING
 from game.protocols import (
     Stats, 
@@ -17,7 +18,31 @@ if TYPE_CHECKING:
     from game.entities.character import Character as CharacterType
 
 # ==================== Вспомогательные классы ====================
-# Переносим их сюда, так как они используются как реализации по умолчанию
+
+@dataclass
+class CharacterConfig:
+    """Конфигурация для создания персонажа."""
+    
+    # Базовые параметры
+    name: str
+    role: str
+   
+    # Параметры для системы уровней/характеристик
+    base_stats: Dict[str, int]
+    growth_rates: Dict[str, float]
+    level: int = 1
+    is_player: bool = field(default=False)
+
+    class_icon: str = "?"
+    class_icon_color: str = ""
+    description: str = ""
+    starting_abilities: List[str] = field(default_factory=list)
+
+    # Внедрение зависимостей через конструктор
+    stats_factory: Optional[Callable[[], 'Stats']] = None
+    attributes_factory: Optional[Callable[['CharacterType'], 'Attributes']] = None
+    ability_manager_factory: Optional[Callable[['CharacterType'], 'AbilityManagerProtocol']] = None
+    status_effect_manager_factory: Optional[Callable[['CharacterType'], 'StatusEffectManagerProtocol']] = None
 
 class SimpleStats:
     """Простая реализация базовых характеристик."""
@@ -58,35 +83,26 @@ class SimpleAttributes:
 class Character(ABC):
     """Абстрактный базовый класс, представляющий персонажа в игре."""
 
-    def __init__(
-        self, 
-        name: str, 
-        role: str,
-        # Параметры для системы уровней/характеристик
-        base_stats_dict: Dict[str, int],
-        growth_rates_dict: Dict[str, float],
-        level: int = 1,
-        is_player: bool = False,
-        # Внедрение зависимостей через конструктор
-        stats_factory: Optional[Callable[[], Stats]] = None, 
-        attributes_factory: Optional[Callable[['CharacterType'], Attributes]] = None,
-        ability_manager_factory: Optional[Callable[['CharacterType'], AbilityManagerProtocol]] = None,
-        status_effect_manager_factory: Optional[Callable[['CharacterType'], StatusEffectManagerProtocol]] = None,
-    ):
-        self.name = name
-        self.role = role
-        self.level = level
+    def __init__(self, config: CharacterConfig):
+        
         self.alive = True
-        self.is_player = is_player
+        
+        self.name = config.name
+        self.role = config.role
+        self.level = config.level
+        self.is_player = config.is_player
 
-        self.base_stats_dict = base_stats_dict
-        self.growth_rates_dict = growth_rates_dict
+        self.class_icon = config.class_icon
+        self.class_icon_color = config.class_icon_color
+
+        self.base_stats_dict = config.base_stats
+        self.growth_rates_dict = config.growth_rates
 
         # Создаем фабрики по умолчанию если не предоставлены
         # Это позволяет подклассам переопределить их или использовать реализацию по умолчанию
-        if stats_factory is None:
+        if config.stats_factory is None:
             stats_factory = self.get_base_stats # Используем реализацию по умолчанию
-        if attributes_factory is None:
+        if config.attributes_factory is None:
             attributes_factory = self._attributes_factory # Используем реализацию по умолчанию
 
         # Инициализация характеристик
@@ -99,12 +115,12 @@ class Character(ABC):
 
         # Менеджеры (внедрение зависимостей)
         self._ability_manager: Optional[AbilityManagerProtocol] = None
-        if ability_manager_factory:
-            self._ability_manager = ability_manager_factory(self)
+        if config.ability_manager_factory:
+            self._ability_manager = config.ability_manager_factory(self)
 
         self._status_manager: Optional[StatusEffectManagerProtocol] = None
-        if status_effect_manager_factory:
-            self._status_manager = status_effect_manager_factory(self)
+        if config.status_effect_manager_factory:
+            self._status_manager = config.status_effect_manager_factory(self)
 
     # ==================== Вспомогательные методы для фабрик (по умолчанию) ====================
     # Переносим из Player/Monster

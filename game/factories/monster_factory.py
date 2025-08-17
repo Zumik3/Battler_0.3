@@ -40,4 +40,4 @@ def create_monster(
 
     # Импортируем внутри функции
     from game.entities.monster import create_monster_from_data as _internal_create
-    return _internal_create(name, role, level, data_directory)
+    return _internal_create(role=role, name=name, level=level, data_directory=data_directory)

@@ -13,22 +13,6 @@ if TYPE_CHECKING:
     from game.entities.character import Character
 
 
-def _get_character_role_icon(character: 'Character') -> str:
-    """
-    Получить первую букву роли или класса персонажа для отображения в виде иконки.
-    
-    Args:
-        character: Объект персонажа.
-        
-    Returns:
-        Первая буква роли или класса персонажа, или '?' если не удалось определить.
-    """
-    # Пытаемся получить роль
-    role = getattr(character, 'role', "?")
-    role_str = str(role)
-    return role_str[0] if role_str else '?'
-
-
 class TextLabel(Renderable):
     """Базовая текстовая метка."""
 
@@ -53,10 +37,12 @@ class TextLabel(Renderable):
             dim: Тусклый шрифт.
         """
         super().__init__(x, y)
+
         self.text = text
         self.color = color
         self.bold = bold
         self.dim = dim
+        
 
     def render(self, renderer: Renderer) -> None:
         """Отрисовка текстовой метки."""
@@ -68,11 +54,11 @@ class CharacterNameLabel(TextLabel):
     """Метка для отображения имени персонажа."""
 
     def __init__(
-        self, 
+        self,
+        character: 'Character', 
         x: int = 0, 
-        y: int = 0, 
-        character: Optional['Character'] = None,
-        max_width: Optional[int] = None,
+        y: int = 0,
+        max_width: int = 0,
         color: Color = Color.DEFAULT,
         bold: bool = False,
         dim: bool = False
@@ -93,16 +79,6 @@ class CharacterNameLabel(TextLabel):
         super().__init__(x, y, "", color, bold, dim)
         self.character = character
         self.max_width = max_width
-        self._update_from_character()
-
-    def set_character(self, character: Optional['Character']) -> None:
-        """
-        Установить персонажа для отображения и обновить текст метки.
-
-        Args:
-            character: Объект персонажа или None.
-        """
-        self.character = character
         self._update_from_character()
 
     def _update_from_character(self) -> None:
@@ -176,10 +152,10 @@ class CharacterClassLabel(TemplatedTextLabel):
     """Метка для отображения класса/роли персонажа в формате [Роль]."""
 
     def __init__(
-        self, 
+        self,
+        character: 'Character', 
         x: int = 0, 
         y: int = 0, 
-        character: Optional['Character'] = None,
     ) -> None:
         """
         Инициализация метки класса персонажа.
@@ -191,35 +167,30 @@ class CharacterClassLabel(TemplatedTextLabel):
         """
         super().__init__(x, y)
         self.character = character
+        self._update_from_character()
 
-    def set_character(self, character: Optional['Character']) -> None:
-        """
-        Установить персонажа для отображения.
-
-        Args:
-            character: Объект персонажа или None.
-        """
-        self.character = character
+    def _update_from_character(self) -> None:
+        """Обновить текст метки из данных персонажа."""
+        if self.character:
+            self.text = getattr(self.character, 'class_icon', "?")
+            color = getattr(self.character, 'class_icon_color')
+            self.color = Color[color] if color else self.color
+   
 
     def _get_template_and_replacements(self) -> Tuple[str, Dict[str, Tuple[str, Color, bool, bool]]]:
         """Определяем шаблон и замены для роли."""
-        
-        if self.character:
-            role = _get_character_role_icon(self.character)
-        else:
-            role = '?'
-
-        return self._create_bracketed_template(str(role), Color.CYAN)
+        return self._create_bracketed_template(self.text, self.color)
 
 
 class CharacterLevelLabel(TemplatedTextLabel):
     """Метка для отображения уровня персонажа в формате [1]."""
 
     def __init__(
-        self, 
+        self,
+        character: 'Character', 
         x: int = 0, 
         y: int = 0, 
-        character: Optional['Character'] = None,
+        
     ) -> None:
         """
         Инициализация метки уровня персонажа.
@@ -231,21 +202,15 @@ class CharacterLevelLabel(TemplatedTextLabel):
         """
         super().__init__(x, y)
         self.character = character
+        self._update_from_character()
 
-    def set_character(self, character: Optional['Character']) -> None:
-        """
-        Установить персонажа для отображения.
-
-        Args:
-            character: Объект персонажа или None.
-        """
-        self.character = character
-
-    def _get_template_and_replacements(self) -> Tuple[str, Dict[str, Tuple[str, Color, bool, bool]]]:
-        """Определяем шаблон и замены для уровня."""
+    def _update_from_character(self) -> None:
         if self.character:
             level = getattr(self.character, 'level', 1)
         else:
             level = 1
+        self.text = str(level)
 
-        return self._create_bracketed_template(str(level), Color.YELLOW)
+    def _get_template_and_replacements(self) -> Tuple[str, Dict[str, Tuple[str, Color, bool, bool]]]:
+        """Определяем шаблон и замены для уровня."""
+        return self._create_bracketed_template(self.text, Color.YELLOW)

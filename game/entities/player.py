@@ -1,7 +1,9 @@
 # game/entities/player.py
 """Класс игрока (персонажа, управляемого игроком)."""
+from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Callable, TYPE_CHECKING
-from game.entities.character import Character, SimpleStats, SimpleAttributes # Импортируем вспомогательные классы
+from game import config
+from game.entities.character import Character, CharacterConfig, SimpleStats, SimpleAttributes # Импортируем вспомогательные классы
 from game.protocols import (
     Stats,
     Attributes,
@@ -14,13 +16,20 @@ from game.protocols import (
 if TYPE_CHECKING:
     from game.entities.character import Character as CharacterType
 
+@dataclass
+class PlayerConfig(CharacterConfig):
+    is_player: bool = field(default=True)
+    exp_calculator: Optional[ExperienceCalculatorProtocol] = None
+    level_up_handler: Optional[LevelUpHandlerProtocol] = None
+    
+
 # - Фабричная функция для создания игрока из JSON -
 def create_player_from_data(
-    name: str,
     role: str,
+    name: str,
     level: int = 1,
     data_directory: str = "game/data/characters/player_classes"
-) -> Optional['Player']:
+    ) -> Optional['Player']:
     """
     Создает объект Player на основе данных из JSON файла.
 
@@ -39,22 +48,16 @@ def create_player_from_data(
         print(f"Ошибка импорта character_loader внутри create_player_from_data: {e}")
         return None
 
-    data = load_player_class_data(role, data_directory)
-    if not data:
+    config_data = load_player_class_data(role, data_directory)
+    if not config_data:
         print(f"Не удалось загрузить данные для класса '{role}'")
         return None
 
     try:
-        player = Player(
-            name=name,
-            role=data['role'],
-            base_stats_dict=data['base_stats'],
-            growth_rates_dict=data['growth_rates'],
-            class_icon=data.get('class_icon', '?'),
-            class_icon_color=data.get('class_icon_color'),
-            level=level,
-        )
-        return player
+        config = PlayerConfig(**config_data)
+        config.name = name if name else config.name
+        return Player(config)
+
     except Exception as e:
         print(f"Ошибка создания персонажа {name} класса {role}: {e}")
         import traceback
@@ -66,50 +69,15 @@ def create_player_from_data(
 class Player(Character):
     """Класс для всех игроков (персонажей, управляемых игроком)."""
 
-    def __init__(
-        self, 
-        name: str, 
-        role: str,
-        # Параметры для системы уровней/опыта
-        base_stats_dict: Dict[str, int],
-        growth_rates_dict: Dict[str, float],
-        class_icon: str = "?",
-        class_icon_color: Optional[int] = None,
-        level: int = 1,
-        # Внедрение зависимостей через конструктор
-        stats_factory: Optional[Callable[[], Stats]] = None, 
-        attributes_factory: Optional[Callable[['CharacterType'], Attributes]] = None,
-        ability_manager_factory: Optional[Callable[['CharacterType'], AbilityManagerProtocol]] = None,
-        status_effect_manager_factory: Optional[Callable[['CharacterType'], StatusEffectManagerProtocol]] = None,
-        exp_calculator: Optional[ExperienceCalculatorProtocol] = None,
-        level_up_handler: Optional[LevelUpHandlerProtocol] = None,
-        # is_player: bool = True, # Устанавливается автоматически
-    ):
-        # --- Атрибуты, специфичные для игрока ---
-        self.class_icon = class_icon
-        self.class_icon_color = class_icon_color if class_icon_color is not None else 0
+    def __init__(self, config: PlayerConfig):
+
+        super().__init__(config=config)
 
         # Инициализируем систему опыта
-        self.exp_calculator = exp_calculator if exp_calculator else SimpleExperienceCalculator()
-        self.level_up_handler = level_up_handler if level_up_handler else SimpleLevelUpHandler()
+        self.exp_calculator = config.exp_calculator if config.exp_calculator else SimpleExperienceCalculator()
+        self.level_up_handler = config.level_up_handler if config.level_up_handler else SimpleLevelUpHandler()
         self.exp = 0
         self.exp_to_next_level = 0
-        # --- Конец специфичных атрибутов ---
-
-        # Вызываем конструктор родительского класса
-        # Передаем все необходимые данные, включая base_stats_dict и growth_rates_dict
-        super().__init__(
-            name=name,
-            role=role,
-            base_stats_dict=base_stats_dict,
-            growth_rates_dict=growth_rates_dict,
-            level=level,
-            is_player=True, # Всегда True для игрока
-            stats_factory=stats_factory, # Может быть None, будет использована реализация по умолчанию из Character
-            attributes_factory=attributes_factory, # Может быть None, будет использована реализация по умолчанию из Character
-            ability_manager_factory=ability_manager_factory,
-            status_effect_manager_factory=status_effect_manager_factory,
-        )
         
         # Рассчитываем опыт для следующего уровня
         self.calculate_exp_for_next_level()

@@ -63,8 +63,8 @@ class GameManager:
         # Создаем каждого игрока из словаря
         for name, role in starting_players.items():
             player = create_player(
-                name=name,
                 role=role,
+                name=name,
                 level=1,
                 data_directory=player_data_dir
             )

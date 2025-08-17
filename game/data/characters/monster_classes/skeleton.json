@@ -2,7 +2,7 @@
     "name": "Скелет",
     "role": "skeleton",
     "class_icon": "S",
-    "class_icon_color": 7,
+    "class_icon_color": "WHITE",
     "base_stats": {
         "strength": 12,
         "agility": 10,
