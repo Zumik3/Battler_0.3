@@ -14,7 +14,6 @@ class ActionResult:
 class ExperienceGainedResult(ActionResult):
     """Результат получения опыта."""
     type: str = field(default="exp_gained")
-    character: str = ""
     exp_amount: int = 0
     total_exp: int = 0
 

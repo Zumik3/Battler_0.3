@@ -8,7 +8,7 @@ from game.protocols import (
 )
 
 from game.results import ActionResult, LevelUpHealResult
-from game.config import get_config
+from game.config import GameConfig, get_config
 
 if TYPE_CHECKING:
     from game.entities.character import Character
@@ -16,10 +16,26 @@ if TYPE_CHECKING:
 class SimpleExperienceCalculator(ExperienceCalculatorProtocol):
     """Простой калькулятор опыта для следующего уровня."""
     
+    def __init__(self, game_config: 'GameConfig'):
+        """
+        Инициализация калькулятора опыта.
+
+        Args:
+            config: Объект конфигурации игры (GameConfig).
+        """
+        self.config = game_config
+
     def calculate_exp_for_next_level(self, current_level: int) -> int:
-        """Рассчитывает опыт, необходимый для достижения следующего уровня."""
-        config = get_config()
-        return int(config.experience.formula_base * (current_level ** config.experience.formula_multiplier))
+        """
+        Рассчитывает опыт, необходимый для достижения следующего уровня.
+
+        Args:
+            current_level: Текущий уровень персонажа.
+
+        Returns:
+            Количество опыта, необходимое для следующего уровня.
+        """
+        return int(self.config.experience.formula_base * (current_level ** self.config.experience.formula_multiplier))
 
 class SimpleLevelUpHandler(LevelUpHandlerProtocol):
     """Простой обработчик повышения уровня."""

@@ -2,6 +2,7 @@
 """Протоколы, определяющие интерфейсы для различных компонентов игры."""
 
 from abc import ABC, abstractmethod
+from pyclbr import Class
 from typing import List, Dict, Any, Protocol, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -11,7 +12,7 @@ if TYPE_CHECKING:
 
 # ==================== Базовые протоколы данных ====================
 
-class Stats(Protocol):
+class StatsProtocol(Protocol):
     """Протокол для базовых характеристик персонажа."""
     strength: int
     agility: int
@@ -25,9 +26,24 @@ class Attributes(Protocol):
     attack_power: int
     defense: int
 
-    def recalculate(self, stats: Stats, config: 'GameConfig') -> None:
+    def recalculate(self, stats: StatsProtocol, config: 'GameConfig') -> None:
         """Пересчитать атрибуты на основе базовых характеристик."""
         ...
+
+class HealthPropertyProtocol(Protocol):
+    """Протокол для производных атрибутов персонажа."""
+    max_health: int
+    health: int
+
+class EnergyPropertyProtocol(Protocol):
+    """Протокол для производных атрибутов персонажа."""
+    max_energy: int
+    energy: int
+
+class CombatPropertyProtocol(Protocol):
+    """Протокол для производных атрибутов персонажа."""
+    attack_power: int
+    defence: int
 
 # ==================== Протоколы игровых систем ====================
 
@@ -88,7 +104,7 @@ class LevelUpHandlerProtocol(Protocol):
         ...
 
 class ExperienceSystemProtocol(Protocol):
-    def add_experience(self, character: 'CharacterType', amount: int) -> List['ExperienceGainedResult']:
+    def add_experience(self, amount: int) -> List['ExperienceGainedResult']:
         """Добавляет опыт персонажу и возвращает результаты."""
         ...
 
@@ -161,3 +177,12 @@ class StatusEffect(ABC):
     def is_expired(self) -> bool:
         """Проверить, истек ли эффект."""
         return self.duration <= 0
+
+
+class CharacterAttributesConfig(Protocol):
+    """Протокол для части конфигурации, связанной с расчетом атрибутов."""
+    # Предполагаем, что config.character имеет эти атрибуты
+    hp_per_vitality: int
+    energy_per_intelligence: int
+    attack_per_strength: int
+    defense_per_agility: float
