@@ -2,14 +2,16 @@
 """Свойство характеристик персонажа."""
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from contextlib import contextmanager
 
-# Импорты из других модулей проекта
-from game.entities.properties.base import PublishingAndDependentProperty
-from game.events.character import StatsChangedEvent, LevelUpEvent
 from game.protocols import StatsProtocol
-from game.entities.properties.level import LevelProperty
+from game.events.character import StatsChangedEvent, LevelUpEvent
+from game.entities.properties.base import PublishingAndDependentProperty
+
+if TYPE_CHECKING:
+    from game.protocols import LevelPropertyProtocol, StatsConfigurable
+
 
 @dataclass
 class StatsProperty(PublishingAndDependentProperty, StatsProtocol):
@@ -38,7 +40,8 @@ class StatsProperty(PublishingAndDependentProperty, StatsProtocol):
     vitality: int = field(default=10)
     
     # Добавляем ссылку на LevelProperty для подписки
-    level_property: Optional['LevelProperty'] = field(default=None, repr=False)
+    level_source: Optional['LevelPropertyProtocol'] = field(default=None, repr=False)
+    stats_config: Optional['StatsConfigurable'] = field(default=None, repr=False)
     
     # Атрибуты для пакетного обновления
     _batch_mode: bool = field(default=False, init=False, repr=False)
@@ -48,41 +51,41 @@ class StatsProperty(PublishingAndDependentProperty, StatsProtocol):
     def __post_init__(self) -> None:
         """Инициализация свойства характеристик."""
         super().__post_init__()
+        
+        if self.stats_config and hasattr(self.stats_config, 'base_stats'):
+            for attr_name in ['strength', 'agility', 'intelligence', 'vitality']:
+                if hasattr(self.stats_config.base_stats, attr_name):
+                    setattr(self, attr_name, getattr(self.stats_config.base_stats, attr_name))
     
     def _setup_subscriptions(self) -> None:
         """Подписывается на события повышения уровня."""
         # Проверяем зависимости для подписки
-        if not self._is_subscribed and self.level_property and self.context and self.context.event_bus:
-            self._subscribe_to(self.level_property, LevelUpEvent, self._on_level_up)
+        if not self._is_subscribed and self.level_source and self.context and self.context.event_bus:
+            self._subscribe_to(self.level_source, LevelUpEvent, self._on_level_up)
             self._is_subscribed = True
-            print(f"  StatsProperty#{id(self)} подписался на LevelUpEvent от Level#{id(self.level_property)}")
+            print(f"  StatsProperty#{id(self)} подписался на LevelUpEvent от Level#{id(self.level_source)}")
             
     def _teardown_subscriptions(self) -> None:
         """Отписывается от событий повышения уровня."""
-        if self._is_subscribed and self.level_property and self.context and self.context.event_bus:
-            self._unsubscribe_from(self.level_property, LevelUpEvent, self._on_level_up)
+        if self._is_subscribed and self.level_source and self.context and self.context.event_bus:
+            self._unsubscribe_from(self.level_source, LevelUpEvent, self._on_level_up)
             self._is_subscribed = False
 
     # --- Обработчик события ---
     
-    def _on_level_up(self, event: LevelUpEvent) -> None:
+    def _on_level_up(self, event: 'LevelUpEvent') -> None:
         """Вызывается при получении события повышения уровня.
         
         Может быть использован для добавления бонусов к характеристикам.
         В этом примере добавляется небольшой бонус к случайной характеристике.
         """
-        # TODO: Переделать на загрузку данных из конфига, 
-        # т.к. для разных персонажей уровни поднимаются по разному
-        for i in range(abs(event.new_level - event.old_level)):
-            self.strength += 1
-            self.agility += 1
-            self.intelligence +=1
-            self.vitality += 1
-        # Публикуем событие об изменении, чтобы другие свойства (Health, Energy, Combat) обновились
-        # Поскольку это изменение происходит вне стандартных сеттеров,
-        # нам нужно вручную вызвать публикацию.
-        # В реальном коде это может быть частью более сложной логики.
-        self._publish_stats_changed() # Можно вызвать, если нужно немедленное обновление
+        if self.stats_config:
+            new_stats = self.stats_config.calculate_all_stats_at_level(event.new_level)
+    
+            with self.batch_update():
+                for stat_name, value in new_stats.items():
+                    setattr(self, stat_name, value)
+    
 
     # --- Методы для пакетного обновления ---
     
@@ -130,57 +133,10 @@ class StatsProperty(PublishingAndDependentProperty, StatsProtocol):
             self.end_batch_update()
 
     # --- Модифицированные сеттеры ---
-    
-    def set_strength(self, value: int) -> None:
-        """Устанавливает значение силы."""
-        if self.strength != value:
-            self.strength = value
-            self._mark_changed()
-
-    def set_agility(self, value: int) -> None:
-        """Устанавливает значение ловкости."""
-        if self.agility != value:
-            self.agility = value
-            self._mark_changed()
-
-    def set_intelligence(self, value: int) -> None:
-        """Устанавливает значение интеллекта."""
-        if self.intelligence != value:
-            self.intelligence = value
-            self._mark_changed()
-
-    def set_vitality(self, value: int) -> None:
-        """Устанавливает значение выносливости."""
-        if self.vitality != value:
-            self.vitality = value
-            self._mark_changed()
-
-    def modify_strength(self, delta: int) -> None:
-        """Изменяет значение силы на delta."""
-        new_value = self.strength + delta
-        if self.strength != new_value:
-            self.strength = new_value
-            self._mark_changed()
-
-    def modify_agility(self, delta: int) -> None:
-        """Изменяет значение ловкости на delta."""
-        new_value = self.agility + delta
-        if self.agility != new_value:
-            self.agility = new_value
-            self._mark_changed()
-
-    def modify_intelligence(self, delta: int) -> None:
-        """Изменяет значение интеллекта на delta."""
-        new_value = self.intelligence + delta
-        if self.intelligence != new_value:
-            self.intelligence = new_value
-            self._mark_changed()
-
-    def modify_vitality(self, delta: int) -> None:
-        """Изменяет значение выносливости на delta."""
-        new_value = self.vitality + delta
-        if self.vitality != new_value:
-            self.vitality = new_value
+    def modify_stat(self, stat_name: str, value: int) -> None:
+        current_stat = getattr(self, stat_name)
+        if current_stat and value != current_stat:
+            setattr(self, stat_name, value)
             self._mark_changed()
             
     def _mark_changed(self) -> None:
@@ -197,14 +153,3 @@ class StatsProperty(PublishingAndDependentProperty, StatsProtocol):
         if self.context and hasattr(self.context, 'event_bus') and self.context.event_bus:
             event = StatsChangedEvent(source=self)
             self._publish(event)
-
-    # --- Вспомогательные методы ---
-    
-    def get_stat(self, stat_name: str) -> Optional[int]:
-        """Получает значение характеристики по имени."""
-        return getattr(self, stat_name, None)
-
-    def __str__(self) -> str:
-        """Строковое представление характеристик."""
-        return (f"Stats(strength={self.strength}, agility={self.agility}, "
-                f"intelligence={self.intelligence}, vitality={self.vitality})")

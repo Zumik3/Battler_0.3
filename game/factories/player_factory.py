@@ -3,9 +3,9 @@
 
 from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
-
+# Локальные импорты
 from game.data.character_loader import load_player_class_data
-from game.entities.character import CharacterConfig
+from game.entities.character import CharacterConfig 
 from game.entities.player import Player
 
 if TYPE_CHECKING:
@@ -15,26 +15,32 @@ if TYPE_CHECKING:
 @dataclass
 class PlayerConfig(CharacterConfig):
     """Конфигурация для создания игрока."""
+    
     is_player: bool = field(default=True)
 
 
-class PlayerFactory():
+class PlayerFactory:
+    """Фабрика для создания экземпляров Player."""
 
     @staticmethod
-    def create_player(context: 'GameContext', role: str, level: int = 1) -> Optional['Player']:
+    def create_player(context: 'GameContext', role: str, level: int = 1) -> Player:
         """
         Создает объект Player на основе данных из JSON файла.
 
         Args:
+            context: Контекст игры.
             role: Внутренний идентификатор класса.
             level: Начальный уровень.
 
         Returns:
-            Объект Player или None, если данные не могут быть загружены.
+            Объект Player.
+            
+        Raises:
+            ValueError: Если данные конфигурации для роли не найдены.
         """
         config_data = load_player_class_data(role=role)
         if config_data is None:
             raise ValueError(f"Configuration data for role '{role}' not found.")
+            
         config = PlayerConfig(**config_data)
-
         return Player(context=context, config=config)

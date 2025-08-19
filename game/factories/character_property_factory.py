@@ -6,7 +6,7 @@ from typing import  Dict, Any
 
 # Импорты контекстов и фабрик
 from game.core.context import GameContext
-from game.entities.character import Character
+from game.entities.character import Character, CharacterConfig
 from game.entities.properties.context import GameContextBasedPropertyContext
 
 # Импорты свойств
@@ -16,22 +16,25 @@ from game.entities.properties.energy import EnergyProperty
 from game.entities.properties.combat import CombatProperty
 from game.entities.properties.experience import ExperienceProperty
 from game.entities.properties.level import LevelProperty
+from game.entities.properties.stats_config import BaseStats, GrowthRates, StatsConfigProperty
 
 
 class CharacterPropertyFactory(ABC):
     """Фабрика для создания связанных свойств персонажа."""
     
     @abstractmethod
-    def __init__(self, game_context: GameContext):
+    def __init__(self, context: GameContext):
         """
         Инициализирует фабрику свойств.
         
         Args:
             game_context: Глобальный контекст игры.
         """
-        self.property_context = GameContextBasedPropertyContext(game_context)
+        self.property_context = GameContextBasedPropertyContext(context)
     
-    def create_basic_properties(self, character: Character, initial_data: Dict[str, Any] = {}) -> None:
+    def create_basic_properties(self, 
+        character: 'Character', 
+        config: 'CharacterConfig') -> None:
         """Создает и связывает все свойства персонажа.
         
         Args:
@@ -41,14 +44,18 @@ class CharacterPropertyFactory(ABC):
         Returns:
             Результат выполнения .
         """
-        if initial_data is None:
-            initial_data = {}
-            
-        # 1. Создаем StatsProperty (он не зависит от других свойств при создании)
-        stats_prop = self._create_stats_property(initial_data.get('stats', {}))
-        
-        # 2. Создаем LevelProperty
-        level_prop = self._create_level_property(initial_data.get('level', 1))
+        # 0. Создаем конфиг свойств для обновления статс
+        # это свойство живет внутри статс - и не учествует в интеграциях с шиной
+        stats_config_prop = self._create_stat_config_property(config)
+
+        # 1. Создаем LevelProperty
+        level_prop = self._create_level_property(1)
+
+        # 2. Создаем StatsProperty
+        stats_prop = self._create_stats_property(
+            level_source=level_prop, 
+            stats_config=stats_config_prop
+        )
         
         # 3. Создаем HealthProperty, зависит от StatsProperty
         health_prop = self._create_health_property(stats_prop)
@@ -59,27 +66,29 @@ class CharacterPropertyFactory(ABC):
         # 5. Создаем CombatProperty, зависит от StatsProperty
         combat_prop = self._create_combat_property(stats_prop)
         
-        # 6. Устанавливаем взаимные ссылки между Stats и Level для подписок
-        stats_prop.level_property = level_prop # type: ignore
-        stats_prop._setup_subscriptions()
-        
         character.stats = stats_prop
         character.level = level_prop
         character.health = health_prop
         character.energy = energy_prop
         character.combat = combat_prop
 
+
+    def _create_stat_config_property(self, config: 'CharacterConfig'):
+        return StatsConfigProperty(
+            base_stats=BaseStats(**config.base_stats),
+            growth_rates=GrowthRates(**config.growth_rates)
+        )
     
-    def _create_stats_property(self, stats_data: Dict[str, int]) -> StatsProperty:
+    def _create_stats_property(self, level_source: LevelProperty, stats_config: 'StatsConfigProperty') -> StatsProperty:
         """Создает свойство характеристик."""
         return StatsProperty(
             context=self.property_context,
-            strength=stats_data.get('strength', 10),
-            agility=stats_data.get('agility', 10),
-            intelligence=stats_data.get('intelligence', 10),
-            vitality=stats_data.get('vitality', 10),
-            # level_property будет установлен позже
-        )
+            stats_config=stats_config,
+            strength=10,
+            agility=10,
+            intelligence=10,
+            vitality=10,
+            level_source = level_source)
     
     def _create_level_property(self, initial_level: int) -> LevelProperty:
         """Создает связанные свойства уровня и опыта."""

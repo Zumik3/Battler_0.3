@@ -30,8 +30,8 @@ class Player(Character):
 
         # 2. Создаем и устанавливаем специфичные для игрока свойства
         #    с помощью фабрики
-        property_factory = PlayerPropertyFactory(context, self)
-        property_factory.create_advanced_properties(self)
+        _ = PlayerPropertyFactory(context=context, config=config, player=self)
+        #property_factory.create_advanced_properties(self)
 
         # 3. Дополнительная инициализация, специфичная для Player, может быть здесь
         # ...

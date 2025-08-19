@@ -5,9 +5,6 @@ from abc import ABC
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, TYPE_CHECKING
 
-from game.config import GameConfig
-from game.results import ActionResult
-
 if TYPE_CHECKING:
     from game.entities.properties.combat import CombatProperty
     from game.entities.properties.health import HealthProperty
@@ -39,20 +36,26 @@ class CharacterConfig:
     starting_abilities: List[str] = field(default_factory=list)
 
 
+@dataclass
+class CharacterContext():
+    base_stats: Dict[str, int]
+    growth_rates: Dict[str, float]
+
+
 # ==================== Основной класс персонажа ====================
 class Character(ABC):
     """Абстрактный базовый класс, представляющий персонажа в игре."""
 
     # Объявляем атрибуты на уровне класса для mypy
     context: 'GameContext'
+    char_context: 'CharacterContext'
     name: str
     role: str
     alive: bool
     is_player: bool
     class_icon: str
     class_icon_color: str
-    base_stats_dict: Dict[str, int]
-    growth_rates_dict: Dict[str, float]
+    
     
     # Атрибуты, которые будут заполнены фабрикой свойств
     stats: Optional['StatsProperty']
@@ -65,6 +68,11 @@ class Character(ABC):
 
         self.context = context
 
+        self.char_context = CharacterContext(
+            base_stats=config.base_stats, 
+            growth_rates=config.growth_rates
+        )
+
         self.alive = True
         self.name = config.name
         self.role = config.role
@@ -75,18 +83,6 @@ class Character(ABC):
 
         self.base_stats_dict = config.base_stats
         self.growth_rates_dict = config.growth_rates
-
-        # Используем фабрики из конфига или по умолчанию
-        #self._stats_factory = character_config.stats_factory or (lambda role, level, base, growth: Character.default_stats_factory(role, level, base, growth))
-        #self._attributes_factory = character_config.attributes_factory or (lambda stats, config_obj: Character.default_attributes_factory(stats, config_obj))
-
-        # Инициализация характеристик
-        #self.stats: Stats = self._stats_factory(self.role, self.level, self.base_stats_dict, self.growth_rates_dict)
-        #self.attributes: Attributes = self._attributes_factory(self.stats, game_config)
-
-        # Инициализируем hp и энергию
-        #self.health = HealthProperty(self.attributes.max_hp, 0)
-        #self.energy = EnergyProperty(self.attributes.max_energy, 0)
 
         # Менеджеры (внедрение зависимостей)
         # self._ability_manager: Optional[AbilityManagerProtocol] = None
