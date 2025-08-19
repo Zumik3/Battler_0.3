@@ -4,8 +4,11 @@
 # Предполагаем, что ваши классы находятся в следующих модулях.
 # Пути могут отличаться в вашем проекте.
 from game.core.context import ContextFactory
+from game.entities.properties import base
 from game.entities.properties.context import GameContextBasedPropertyContext
 from game.entities.properties.energy import EnergyProperty
+from game.entities.properties.experience import ExperienceProperty
+from game.entities.properties.level import LevelProperty
 from game.events.bus import EventBus
 from game.entities.properties.stats import StatsProperty
 from game.entities.properties.health import HealthProperty
@@ -39,27 +42,10 @@ def main():
     print(f"EnergyProperty создано: {energy}")
     print(f"  Начальная энергия: {energy.energy}/{energy.max_energy}\n")
 
-    print("--- Изменение характеристик (одиночное) ---")
-    # 4. Изменяем характеристику vitality
-    # Это должно вызвать публикацию события StatsChangedEvent
-    # и автоматическое обновление HealthProperty
-    print("Изменяем vitality с 10 до 15...")
-    stats.set_vitality(15)
-    print(f"После изменения vitality:")
-    print(f"  Stats: str={stats.strength}, agi={stats.agility}, "
-          f"int={stats.intelligence}, vit={stats.vitality}")
-    print(f"  Health: {health.health}/{health.max_health}\n")
-    print(f"  Energy: {energy.energy}/{energy.max_energy}\n")
-    # Ожидается: max_health = 100 + 15 * 10 = 250
-
-    print("--- Изменение характеристик (пакетное) ---")
-    # 5. Изменяем несколько характеристик пакетно
-    # Должно сработать только одно событие и одно обновление здоровья
-    print("Пакетное изменение: str=20, vit=20 (относительно текущих значений)...")
-    with stats.batch_update():
-        stats.set_strength(20)
-        stats.modify_vitality(5) # vitality становится 20
-        stats.modify_intelligence(5)
+    exp = ExperienceProperty(property_context)
+    level = LevelProperty(property_context, exp_property=exp)
+    
+    exp.add_experience(50)
 
     print(f"После пакетного изменения:")
     print(f"  Stats: str={stats.strength}, agi={stats.agility}, "
@@ -67,6 +53,12 @@ def main():
     print(f"  Health: {health.health}/{health.max_health}")
     print(f"  Energy: {energy.energy}/{energy.max_energy}\n")
     # Ожидается: max_health = 100 + 20 * 10 = 300
+
+
+    health.cleanup()
+    energy.cleanup()
+
+    level.cleanup()
 
     print("\n--- Демонстрация завершена ---")
 

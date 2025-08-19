@@ -47,6 +47,20 @@ class CombatPropertyProtocol(Protocol):
     attack_power: int
     defence: int
 
+class ExperiencePropertyProtocol(Protocol):
+    """Протокол для производных атрибутов персонажа."""
+    def add_experience(self, amount: int) -> None:
+        """Добавляет опыт персонажу."""
+        ...
+
+class LevelPropertyProtocol(Protocol):
+    """Протокол для производных атрибутов персонажа."""
+    def level_up(self) -> None:
+        """Добавляет уровень персонажу."""
+        ...
+
+
+
 # ==================== Протоколы игровых систем ====================
 
 class AbilityManagerProtocol(Protocol):
@@ -106,7 +120,7 @@ class LevelUpHandlerProtocol(Protocol):
         ...
 
 class ExperienceSystemProtocol(Protocol):
-    def add_experience(self, amount: int) -> List['ExperienceGainedResult']:
+    def add_experience(self, amount: int) -> None:
         """Добавляет опыт персонажу и возвращает результаты."""
         ...
 

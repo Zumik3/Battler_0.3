@@ -28,7 +28,7 @@ class HasContext(Protocol):
 @dataclass
 class BaseProperty:
     """Базовый dataclass для всех свойств."""
-    context: Optional['PropertyContext'] = None # Используем строковую аннотацию для избежания циклического импорта
+    context: Optional['PropertyContext'] = None
 
 
 class SubscriberPropertyMixin:

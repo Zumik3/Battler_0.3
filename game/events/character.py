@@ -7,9 +7,16 @@ from .bus import Event
 @dataclass
 class LevelUpEvent(Event):
     """Событие повышения уровня персонажа."""
-    character_name: str
     old_level: int
     new_level: int
+
+
+@dataclass
+class ExperienceGainedEvent(Event):
+    """Событие получения опыта персонажем."""
+    exp_to_level: int
+    current_exp: int
+
 
 @dataclass
 class StatsChangedEvent(Event):
