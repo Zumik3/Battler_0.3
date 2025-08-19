@@ -1,44 +1,49 @@
-# game/factories/monster_factory.py
-"""Фабрика для создания монстров."""
+# game/factories/player_factory.py
+"""Фабрика для создания персонажей-игроков."""
 
-from typing import TYPE_CHECKING, Optional
-from game.naming.template_namer import generate_monster_name
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+# Локальные импорты
+from game.data.character_loader import load_monster_class_data
+from game.entities.character import CharacterConfig 
+from game.entities.monster import Monster
 
 if TYPE_CHECKING:
-    from game.entities.monster import Monster
+    from game.core.context import GameContext
+    
 
-def create_monster(
-    role: str,
-    name: Optional[str] = None,
-    level: int = 1,
-    data_directory: Optional[str] = None
-) -> Optional['Monster']:
-    """
-    Создает монстра по его роли (типу).
+@dataclass
+class MonsterConfig(CharacterConfig):
+    """Конфигурация для создания монстра."""
+    
+    is_player: bool = field(default=False)
 
-    Args:
-        role: Внутренний идентификатор класса монстра.
-        name: Имя монстра. Если None, будет сгенерировано автоматически.
-        level: Уровень монстра.
-        data_directory: Путь к директории с JSON файлами классов монстров.
 
-    Returns:
-        Объект Monster или None, если данные не могут быть загружены.
-    """
-    # Получаем директорию из конфигурации если не задана
-    if data_directory is None:
-        from game.config import get_config
-        data_directory = get_config().system.monster_classes_directory
+class MonsterFactory:
+    """Фабрика для создания экземпляров Monster."""
 
-    # Генерируем имя если не задано
-    if not name or not name.strip():
-        name = generate_monster_name(role)
+    @staticmethod
+    def create_monster(context: 'GameContext', role: str, level: int = 1) -> Monster:
+        """
+        Создает объект Monster на основе данных из JSON файла.
 
-    # Ленивый импорт для избежания циклических импортов
-    from game.entities.monster import create_monster_from_data
-    return create_monster_from_data(
-        role=role, 
-        name=name, 
-        level=level, 
-        data_directory=data_directory
-    )
+        Args:
+            context: Контекст игры.
+            role: Внутренний идентификатор класса.
+            level: Начальный уровень.
+
+        Returns:
+            Объект Monster.
+            
+        Raises:
+            ValueError: Если данные конфигурации для роли не найдены.
+        """
+        config_data = load_monster_class_data(role=role)
+        if config_data is None:
+            raise ValueError(f"Configuration data for role '{role}' not found.")
+            
+        config = MonsterConfig(**config_data)
+        monster = Monster(context=context, config=config)
+        if level > 1:
+            monster.level.level_up(level - 1)  # type: ignore
+        return monster 

@@ -2,7 +2,7 @@
 """Протоколы, определяющие интерфейсы для различных компонентов игры."""
 
 from abc import ABC, abstractmethod
-from typing import List, Any, Protocol, Optional, TYPE_CHECKING
+from typing import Dict, List, Any, Protocol, Optional, TYPE_CHECKING, runtime_checkable
 
 
 
@@ -20,6 +20,13 @@ class StatsProtocol(Protocol):
     agility: int
     intelligence: int
     vitality: int
+
+
+@runtime_checkable
+class StatsConfigurable(Protocol):
+    """Протокол для объектов, предоставляющих конфигурацию характеристик."""
+    def calculate_all_stats_at_level(self, level: int) -> Dict[str, int]: ...
+    
 
 class Attributes(Protocol):
     """Протокол для производных атрибутов персонажа."""

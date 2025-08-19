@@ -2,20 +2,24 @@
 """Фабрика для создания и связывания всех свойств персонажа."""
 
 from typing import  TYPE_CHECKING
-from game.core.context import GameContext
+
+
 
 from game.entities.properties.experience import ExperienceProperty
 from game.factories.character_property_factory import CharacterPropertyFactory
 
 if TYPE_CHECKING:
     from game.entities.player import Player
+    from game.core.context import GameContext
+    from game.entities.character import CharacterConfig
 
 class PlayerPropertyFactory(CharacterPropertyFactory):
     """Фабрика для создания связанных свойств персонажа."""
     
-    def __init__(self, game_context: GameContext, player: 'Player'):
-        super().__init__(game_context)
-        self.create_basic_properties(character=player)
+    def __init__(self, context: 'GameContext', config: 'CharacterConfig', player: 'Player'):
+        super().__init__(context)
+        self.create_basic_properties(character=player, config=config)
+        self.create_advanced_properties(player=player)
     
     def create_advanced_properties(self, player: 'Player') -> None:
         """Создает и связывает допольнительные свойства персонажа.
