@@ -1,29 +1,23 @@
 # game/factories/character_property_factory.py
 """Фабрика для создания и связывания всех свойств персонажа."""
 
-from abc import ABC, abstractmethod
-from typing import  Dict, Any
-
-# Импорты контекстов и фабрик
+from typing import  TYPE_CHECKING
 from game.core.context import GameContext
-from game.entities import character
 
-
-# Импорты свойств
-from game.entities.player import Player
 from game.entities.properties.experience import ExperienceProperty
-from game.entities.properties.level import LevelProperty
 from game.factories.character_property_factory import CharacterPropertyFactory
 
+if TYPE_CHECKING:
+    from game.entities.player import Player
 
 class PlayerPropertyFactory(CharacterPropertyFactory):
     """Фабрика для создания связанных свойств персонажа."""
     
-    def __init__(self, game_context: GameContext, player: Player):
+    def __init__(self, game_context: GameContext, player: 'Player'):
         super().__init__(game_context)
         self.create_basic_properties(character=player)
     
-    def create_advanced_properties(self, player: Player) -> None:
+    def create_advanced_properties(self, player: 'Player') -> None:
         """Создает и связывает допольнительные свойства персонажа.
         
         Args:
@@ -41,6 +35,7 @@ class PlayerPropertyFactory(CharacterPropertyFactory):
         exp_prop.level_property = player.level
         exp_prop._setup_subscriptions()
 
+        player.level.exp_property = exp_prop # type: ignore
         player.level._setup_subscriptions() # type: ignore
         
         player.experience = exp_prop

@@ -82,6 +82,10 @@ class SubscriptionLifecycleMixin:
         if getattr(self, '_is_subscribed', False): 
             self._teardown_subscriptions()
 
+    def subscribe(self) -> None:
+        if not getattr(self, '_is_subscribed', True):
+            self._setup_subscriptions()
+
 
 @dataclass
 class DependentProperty(BaseProperty, SubscriberPropertyMixin, SubscriptionLifecycleMixin):
@@ -93,10 +97,6 @@ class DependentProperty(BaseProperty, SubscriberPropertyMixin, SubscriptionLifec
     _is_subscribed: bool = field(default=False)
     
     def __post_init__(self) -> None:
-        """Инициализация после создания.
-        
-        Вызывает _setup_subscriptions, если context и event_bus доступны.
-        """
         self._setup_subscriptions()
 
 

@@ -35,8 +35,6 @@ class LevelProperty(PublishingAndDependentProperty, LevelPropertyProtocol): # ty
     def _setup_subscriptions(self) -> None:
         """Подписывается на события получения опыта."""
         if not self._is_subscribed and self.exp_property and self.context and self.context.event_bus:
-            # Подписываемся на событие ExperienceGainedEvent 
-            # ИСКЛЮЧИТЕЛЬНО от объекта self.exp_property
             self._subscribe_to(self.exp_property, ExperienceGainedEvent, self._on_experience_gained)
             self._is_subscribed = True
             print(f"  LevelProperty#{id(self)} подписался на ExperienceGainedEvent от Experience#{id(self.exp_property)}")

@@ -55,6 +55,7 @@ class StatsProperty(PublishingAndDependentProperty, StatsProtocol):
         if not self._is_subscribed and self.level_property and self.context and self.context.event_bus:
             self._subscribe_to(self.level_property, LevelUpEvent, self._on_level_up)
             self._is_subscribed = True
+            print(f"  StatsProperty#{id(self)} подписался на LevelUpEvent от Level#{id(self.level_property)}")
             
     def _teardown_subscriptions(self) -> None:
         """Отписывается от событий повышения уровня."""

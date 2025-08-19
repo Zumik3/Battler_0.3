@@ -43,6 +43,7 @@ class CombatProperty(DependentProperty, CombatPropertyProtocol):
         if not self._is_subscribed and self.stats and self.context:
             self._subscribe_to(self.stats, StatsChangedEvent, self._on_stats_event)
             self._is_subscribed = True
+            print(f"  CombatProperty#{id(self)} подписался на StatsChangedEvent от Stats#{id(self.stats)}")
 
     def _teardown_subscriptions(self) -> None:
         """Отписывается от изменений статов."""

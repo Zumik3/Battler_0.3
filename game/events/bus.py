@@ -56,6 +56,9 @@ class EventBus:
             self._subscribers[key] = []
         self._subscribers[key].append(callback)
 
+        # debug
+        # print(f"{source.__class__} подписался на {key} - callback {callback}")
+
     def unsubscribe(
         self, 
         source: Any, 

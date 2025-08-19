@@ -17,7 +17,7 @@ class Player(Character):
 
     experience: Optional['ExperienceProperty']
 
-    def __init__(self, context: GameContext, config: PlayerConfig) -> None:
+    def __init__(self, context: GameContext, config: 'PlayerConfig') -> None:
         """
         Инициализирует игрока.
 
