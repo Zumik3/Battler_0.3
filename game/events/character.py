@@ -14,11 +14,6 @@ class LevelUpEvent(Event):
 @dataclass
 class StatsChangedEvent(Event):
     """Событие изменения характеристик персонажа."""
-    character_name: str
-    strength: int
-    agility: int
-    intelligence: int
-    vitality: int
 
 @dataclass
 class HealthChangedEvent(Event):

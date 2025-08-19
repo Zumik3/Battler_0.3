@@ -1,7 +1,7 @@
 # game/core/context.py
 """Игровой контекст - центральный хаб для всех сервисов."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 from game.config import GameConfig
 from game.events.bus import EventBus
@@ -12,14 +12,10 @@ class GameContext:
     """Контекст игры со всеми необходимыми сервисами."""
     
     config: GameConfig
-    event_bus: EventBus
-    
-    def __post_init__(self):
-        """Инициализация контекста."""
-        if self.event_bus is None:
-            self.event_bus = EventBus()
+    # EventBus обязателен, убираем Optional и __post_init__ упрощает логику
+    event_bus: EventBus 
 
-
+# ContextFactory тоже остается, но немного упрощается
 class ContextFactory:
     """Фабрика для создания игрового контекста."""
     
@@ -32,6 +28,7 @@ class ContextFactory:
         
         event_bus = EventBus()
         
+        # Теперь event_bus гарантированно передается
         return GameContext(
             config=config,
             event_bus=event_bus

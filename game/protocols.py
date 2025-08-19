@@ -2,13 +2,15 @@
 """Протоколы, определяющие интерфейсы для различных компонентов игры."""
 
 from abc import ABC, abstractmethod
-from pyclbr import Class
-from typing import List, Dict, Any, Protocol, Optional, TYPE_CHECKING
+from typing import List, Any, Protocol, Optional, TYPE_CHECKING
+
+
 
 if TYPE_CHECKING:
     from game.entities.character import Character as CharacterType
     from game.results import ActionResult, ExperienceGainedResult
     from game.config import GameConfig
+    from game.events.bus import EventBus
 
 # ==================== Базовые протоколы данных ====================
 
@@ -186,3 +188,35 @@ class CharacterAttributesConfig(Protocol):
     energy_per_intelligence: int
     attack_per_strength: int
     defense_per_agility: float
+
+
+class PropertyContext(Protocol):
+    """Интерфейс для контекста, предоставляемого свойству."""
+    
+    @property
+    def event_bus(self) -> Optional['EventBus']:
+        """Получить доступ к шине событий."""
+        ...
+        
+    def get_service(self, service_name: str) -> Any:
+        """Получить доступ к произвольному сервису по имени.
+        
+        Например:
+        - logger = context.get_service('logger')
+        - game_config = context.get_service('game_config')
+        - entity_manager = context.get_service('entity_manager')
+        """
+        ...
+        
+    def trigger_action(self, action_type: str, data: Any) -> None:
+        """Инициировать какое-либо действие в системе.
+        
+        Например:
+        - context.trigger_action('log', {'message': '...', 'level': 'debug'})
+        - context.trigger_action('spawn_effect', {...})
+        """
+        ...
+        
+    # Можно добавить другие общие методы, например:
+    # def get_owner(self) -> Any: ...
+    # def get_property(self, prop_type: type) -> Any: ...
