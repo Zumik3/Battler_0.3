@@ -1,40 +1,40 @@
 # game/factories/player_factory.py
 """Фабрика для создания персонажей-игроков."""
 
+from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
 
+from game.data.character_loader import load_player_class_data
+from game.entities.character import CharacterConfig
+from game.entities.player import Player
+
 if TYPE_CHECKING:
-    from game.entities.player import Player
+    from game.core.context import GameContext
+    
 
-def create_player(
-    role: str,
-    name: str, 
-    level: int = 1,
-    data_directory: Optional[str] = None
-) -> Optional['Player']:
-    """
-    Создает объект Player на основе данных из JSON файла.
+@dataclass
+class PlayerConfig(CharacterConfig):
+    """Конфигурация для создания игрока."""
+    is_player: bool = field(default=True)
 
-    Args:
-        role: Внутренний идентификатор класса.
-        name: Имя персонажа.
-        level: Начальный уровень.
-        data_directory: Путь к директории с JSON файлами.
-                        Если None, используется путь из конфигурации.
 
-    Returns:
-        Объект Player или None, если данные не могут быть загружены.
-    """
-    # Получаем директорию из конфигурации если не задана
-    if data_directory is None:
-        from game.config import get_config
-        data_directory = get_config().system.player_classes_directory
+class PlayerFactory():
 
-    # Ленивый импорт для избежания циклических импортов
-    from game.entities.player import create_player_from_data
-    return create_player_from_data(
-        role=role, 
-        name=name, 
-        level=level, 
-        data_directory=data_directory
-    )
+    @staticmethod
+    def create_player(context: 'GameContext', role: str, level: int = 1) -> Optional['Player']:
+        """
+        Создает объект Player на основе данных из JSON файла.
+
+        Args:
+            role: Внутренний идентификатор класса.
+            level: Начальный уровень.
+
+        Returns:
+            Объект Player или None, если данные не могут быть загружены.
+        """
+        config_data = load_player_class_data(role=role)
+        if config_data is None:
+            raise ValueError(f"Configuration data for role '{role}' not found.")
+        config = PlayerConfig(**config_data)
+
+        return Player(context=context, config=config)

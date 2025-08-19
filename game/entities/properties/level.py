@@ -89,7 +89,7 @@ class LevelProperty(PublishingAndDependentProperty, LevelPropertyProtocol): # ty
 
     # --- Методы управления уровнем ---
     
-    def level_up(self) -> None:
+    def level_up(self, amount: int = 1) -> None:
         """Повышает уровень персонажа и публикует событие.
         
         Returns:
@@ -97,10 +97,9 @@ class LevelProperty(PublishingAndDependentProperty, LevelPropertyProtocol): # ty
             описывающих эффект повышения уровня.
         """
         old_level = self.level
-        self.level += 1
+        self.level += amount
         new_level = self.level
         
-        # Публикуем событие через контекст
         self._publish_level_up(old_level, new_level)
     
     def _publish_level_up(self, old_level: int, new_level: int) -> None:

@@ -79,12 +79,8 @@ class SubscriptionLifecycleMixin:
 
     def cleanup(self) -> None:
         """Отписывается от всех наблюдателей."""
-        # Используем getattr с дефолтным значением для безопасности
         if getattr(self, '_is_subscribed', False): 
             self._teardown_subscriptions()
-            # Предполагаем, что _is_subscribed будет установлен в False в _teardown_subscriptions
-            # или делаем это явно, если логика миксина требует:
-            # self._is_subscribed = False 
 
 
 @dataclass
