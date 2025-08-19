@@ -2,11 +2,13 @@
 """Реализация PropertyContext для свойств, использующая GameContext."""
 
 from typing import Any, Optional, TYPE_CHECKING
+
 from game.protocols import PropertyContext
 
 if TYPE_CHECKING:
     from game.core.context import GameContext
     from game.events.bus import EventBus
+    from game.config import GameConfig
 
 class GameContextBasedPropertyContext(PropertyContext):
     """PropertyContext, реализованный на основе GameContext."""
@@ -25,15 +27,16 @@ class GameContextBasedPropertyContext(PropertyContext):
         """Получить доступ к шине событий из глобального контекста."""
         return self._game_context.event_bus
 
+    @property
+    def config(self) -> Optional['GameConfig']:
+        return self._game_context.config
+
     def get_service(self, service_name: str) -> Any:
         """Получить доступ к сервису по имени из глобального контекста.
         
         Это упрощенный пример. В реальном проекте здесь может быть
         более сложная логика маршрутизации или фильтрации.
         """
-        # Пример: предоставляем доступ к конфигу
-        if service_name == 'config':
-            return self._game_context.config
         # Пример: предоставляем доступ к логгеру (если он есть в GameContext)
         # elif service_name == 'logger':
         #     return self._game_context.logger # Предположим, он есть

@@ -1,7 +1,7 @@
 # game/core/context.py
 """Игровой контекст - центральный хаб для всех сервисов."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 from game.config import GameConfig
 from game.events.bus import EventBus

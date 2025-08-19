@@ -4,6 +4,7 @@
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, List, Optional
 
+from game.core import context
 from game.protocols import HealthPropertyProtocol, StatsProtocol
 from game.entities.properties.base import DependentProperty
 from game.results import ActionResult, DamageTakenResult, HealedResult
@@ -23,7 +24,10 @@ class HealthProperty(DependentProperty, HealthPropertyProtocol):
                (добавлено, так как DependentProperty его не предоставляет)
         # Атрибуты event_bus, _is_subscribed наследуются от DependentProperty.
     """
-    
+    BASE_HEALTH: int = field(default=100, init=False, repr=False)
+    HEALTH_PER_VITALITY: int = field(default=10, init=False, repr=False)
+
+
     max_health: int = field(default=0)
     health: int = field(default=0)
     stats: Optional[StatsProtocol] = field(default=None)
@@ -65,15 +69,13 @@ class HealthProperty(DependentProperty, HealthPropertyProtocol):
         
         if not self.stats:
             # Если по какой-то причине stats нет, устанавливаем базовые значения
-            self.max_health = 100
+            self.max_health = self.BASE_HEALTH
             if self.health > self.max_health or self.health == 0:
                 self.health = self.max_health
             return
             
         # Логика пересчета на основе статов
-        base_hp = 100
-        hp_per_vitality = 10
-        new_max_health = base_hp + (getattr(self.stats, 'vitality', 0) * hp_per_vitality)
+        new_max_health = self.BASE_HEALTH + (getattr(self.stats, 'vitality', 0) * self.HEALTH_PER_VITALITY)
         self.max_health = new_max_health
         
         self.restore_full_health()

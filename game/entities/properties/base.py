@@ -28,7 +28,7 @@ class HasContext(Protocol):
 @dataclass
 class BaseProperty:
     """Базовый dataclass для всех свойств."""
-    context: Optional['PropertyContext'] = None # Используем строковую аннотацию для избежания циклического импорта
+    context: Optional['PropertyContext'] = None
 
 
 class SubscriberPropertyMixin:
@@ -79,12 +79,12 @@ class SubscriptionLifecycleMixin:
 
     def cleanup(self) -> None:
         """Отписывается от всех наблюдателей."""
-        # Используем getattr с дефолтным значением для безопасности
         if getattr(self, '_is_subscribed', False): 
             self._teardown_subscriptions()
-            # Предполагаем, что _is_subscribed будет установлен в False в _teardown_subscriptions
-            # или делаем это явно, если логика миксина требует:
-            # self._is_subscribed = False 
+
+    def subscribe(self) -> None:
+        if not getattr(self, '_is_subscribed', True):
+            self._setup_subscriptions()
 
 
 @dataclass
@@ -97,10 +97,6 @@ class DependentProperty(BaseProperty, SubscriberPropertyMixin, SubscriptionLifec
     _is_subscribed: bool = field(default=False)
     
     def __post_init__(self) -> None:
-        """Инициализация после создания.
-        
-        Вызывает _setup_subscriptions, если context и event_bus доступны.
-        """
         self._setup_subscriptions()
 
 
