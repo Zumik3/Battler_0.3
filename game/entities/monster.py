@@ -3,10 +3,13 @@
 
 from dataclasses import dataclass
 from typing import Optional, TYPE_CHECKING
+
+from game import config
 from game.entities.character import Character, CharacterConfig
 
 if TYPE_CHECKING:
     from game.entities.character import Character as CharacterType
+    from game.config import GameConfig
 
 # MonsterConfig можно не создавать - используем CharacterConfig
 # или если нужна специфика:
@@ -49,11 +52,14 @@ def create_monster_from_data(
         return None
 
     try:
-        config = MonsterConfig(**config_data)
-        config.level = level
-        config.name = name if name else config.name
-        config.is_player = False  # Явно указываем
-        return Monster(config)
+        character_config = MonsterConfig(**config_data)
+        character_config.level = level
+        character_config.name = name if name else character_config.name
+        character_config.is_player = False  # Явно указываем
+
+        game_config = config.get_config()
+
+        return Monster(character_config=character_config, game_config=game_config)
 
     except Exception as e:
         print(f"Ошибка создания монстра {name} класса {role}: {e}")
@@ -64,14 +70,14 @@ def create_monster_from_data(
 class Monster(Character):
     """Класс для всех монстров (персонажей, НЕ управляемых игроком)."""
 
-    def __init__(self, config: MonsterConfig):
+    def __init__(self, character_config: MonsterConfig, game_config: 'GameConfig'):
         """
         Инициализирует монстра.
 
         Args:
             config: Конфигурация монстра.
         """
-        super().__init__(config=config)
+        super().__init__(character_config=character_config, game_config=game_config)
         
         # Здесь можно добавить специфичную для монстров логику
         # Например:

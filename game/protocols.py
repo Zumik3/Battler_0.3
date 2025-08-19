@@ -2,16 +2,19 @@
 """Протоколы, определяющие интерфейсы для различных компонентов игры."""
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Protocol, Optional, TYPE_CHECKING
+from typing import List, Any, Protocol, Optional, TYPE_CHECKING
+
+
 
 if TYPE_CHECKING:
     from game.entities.character import Character as CharacterType
     from game.results import ActionResult, ExperienceGainedResult
     from game.config import GameConfig
+    from game.events.bus import EventBus
 
 # ==================== Базовые протоколы данных ====================
 
-class Stats(Protocol):
+class StatsProtocol(Protocol):
     """Протокол для базовых характеристик персонажа."""
     strength: int
     agility: int
@@ -25,9 +28,24 @@ class Attributes(Protocol):
     attack_power: int
     defense: int
 
-    def recalculate(self, stats: Stats, config: 'GameConfig') -> None:
+    def recalculate(self, stats: StatsProtocol, config: 'GameConfig') -> None:
         """Пересчитать атрибуты на основе базовых характеристик."""
         ...
+
+class HealthPropertyProtocol(Protocol):
+    """Протокол для производных атрибутов персонажа."""
+    max_health: int
+    health: int
+
+class EnergyPropertyProtocol(Protocol):
+    """Протокол для производных атрибутов персонажа."""
+    max_energy: int
+    energy: int
+
+class CombatPropertyProtocol(Protocol):
+    """Протокол для производных атрибутов персонажа."""
+    attack_power: int
+    defence: int
 
 # ==================== Протоколы игровых систем ====================
 
@@ -88,7 +106,7 @@ class LevelUpHandlerProtocol(Protocol):
         ...
 
 class ExperienceSystemProtocol(Protocol):
-    def add_experience(self, character: 'CharacterType', amount: int) -> List['ExperienceGainedResult']:
+    def add_experience(self, amount: int) -> List['ExperienceGainedResult']:
         """Добавляет опыт персонажу и возвращает результаты."""
         ...
 
@@ -161,3 +179,44 @@ class StatusEffect(ABC):
     def is_expired(self) -> bool:
         """Проверить, истек ли эффект."""
         return self.duration <= 0
+
+
+class CharacterAttributesConfig(Protocol):
+    """Протокол для части конфигурации, связанной с расчетом атрибутов."""
+    # Предполагаем, что config.character имеет эти атрибуты
+    hp_per_vitality: int
+    energy_per_intelligence: int
+    attack_per_strength: int
+    defense_per_agility: float
+
+
+class PropertyContext(Protocol):
+    """Интерфейс для контекста, предоставляемого свойству."""
+    
+    @property
+    def event_bus(self) -> Optional['EventBus']:
+        """Получить доступ к шине событий."""
+        ...
+        
+    def get_service(self, service_name: str) -> Any:
+        """Получить доступ к произвольному сервису по имени.
+        
+        Например:
+        - logger = context.get_service('logger')
+        - game_config = context.get_service('game_config')
+        - entity_manager = context.get_service('entity_manager')
+        """
+        ...
+        
+    def trigger_action(self, action_type: str, data: Any) -> None:
+        """Инициировать какое-либо действие в системе.
+        
+        Например:
+        - context.trigger_action('log', {'message': '...', 'level': 'debug'})
+        - context.trigger_action('spawn_effect', {...})
+        """
+        ...
+        
+    # Можно добавить другие общие методы, например:
+    # def get_owner(self) -> Any: ...
+    # def get_property(self, prop_type: type) -> Any: ...

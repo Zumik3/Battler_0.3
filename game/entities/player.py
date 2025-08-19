@@ -3,6 +3,8 @@
 
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
+from game import config
+from game.config import GameConfig, game_config
 from game.entities.character import Character, CharacterConfig
 from game.protocols import (
     ExperienceCalculatorProtocol,
@@ -31,8 +33,8 @@ def create_player_from_data(
     role: str,
     name: str,
     level: int = 1,
-    data_directory: str = "game/data/characters/player_classes"
-) -> Optional['Player']:
+    data_directory: str = ""
+    ) -> Optional['Player']:
     """
     Создает объект Player на основе данных из JSON файла.
 
@@ -57,9 +59,12 @@ def create_player_from_data(
         return None
 
     try:
-        config = PlayerConfig(**config_data)
-        config.name = name if name else config.name
-        return Player(config)
+        character_config = PlayerConfig(**config_data)
+        character_config.name = name if name else character_config.name
+
+        game_config = config.get_config()
+
+        return Player(character_config=character_config, game_config=game_config)
 
     except Exception as e:
         print(f"Ошибка создания персонажа {name} класса {role}: {e}")
@@ -71,18 +76,18 @@ def create_player_from_data(
 class Player(Character):
     """Класс для всех игроков (персонажей, управляемых игроком)."""
 
-    def __init__(self, config: PlayerConfig):
+    def __init__(self, character_config: PlayerConfig, game_config: 'GameConfig'):
         """
         Инициализирует игрока.
 
         Args:
             config: Конфигурация игрока.
         """
-        super().__init__(config=config)
+        super().__init__(character_config=character_config, game_config=game_config)
 
         # Инициализируем системы
-        exp_calculator = config.exp_calculator or SimpleExperienceCalculator()
-        level_up_handler = config.level_up_handler or SimpleLevelUpHandler()
+        exp_calculator = character_config.exp_calculator or SimpleExperienceCalculator(game_config)
+        level_up_handler = character_config.level_up_handler or SimpleLevelUpHandler()
         
         self.experience_system = ExperienceSystem(exp_calculator)
         self.leveling_system = LevelingSystem(level_up_handler)

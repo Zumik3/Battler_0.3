@@ -4,6 +4,8 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Callable, TYPE_CHECKING
+from game.entities.properties.health import HealthProperty
+from game.entities.properties.energy import EnergyProperty
 from game.protocols import (
     Stats, 
     Attributes,
@@ -12,15 +14,13 @@ from game.protocols import (
     Ability,
     StatusEffect
 )
-from game.config import get_config
+from game.config import GameConfig, get_config
 from game.results import (
     ActionResult, 
     DamageTakenResult, 
     HealedResult
 )
 
-if TYPE_CHECKING:
-    from game.entities.character import Character as CharacterType
 
 # ==================== Вспомогательные классы ====================
 
@@ -46,8 +46,8 @@ class CharacterConfig:
     # Внедрение зависимостей через конструктор
     stats_factory: Optional[Callable[[str, int, Dict[str, int], Dict[str, float]], 'Stats']] = None
     attributes_factory: Optional[Callable[['Stats', Any], 'Attributes']] = None
-    ability_manager_factory: Optional[Callable[['CharacterType'], 'AbilityManagerProtocol']] = None
-    status_effect_manager_factory: Optional[Callable[['CharacterType'], 'StatusEffectManagerProtocol']] = None
+    ability_manager_factory: Optional[Callable[['Character'], 'AbilityManagerProtocol']] = None
+    status_effect_manager_factory: Optional[Callable[['Character'], 'StatusEffectManagerProtocol']] = None
 
 @dataclass
 class SimpleStats:
@@ -74,46 +74,66 @@ class SimpleAttributes:
 class Character(ABC):
     """Абстрактный базовый класс, представляющий персонажа в игре."""
 
-    def __init__(self, config: CharacterConfig):
+    def __init__(self, character_config: CharacterConfig, game_config: 'GameConfig'):
+
+        self.game_config = game_config
+
         self.alive = True
-        
-        self.name = config.name
-        self.role = config.role
-        self.level = config.level
-        self.is_player = config.is_player
+        self.name = character_config.name
+        self.role = character_config.role
+        self.level = character_config.level
+        self.is_player = character_config.is_player
 
-        self.class_icon = config.class_icon
-        self.class_icon_color = config.class_icon_color
+        self.class_icon = character_config.class_icon
+        self.class_icon_color = character_config.class_icon_color
 
-        self.base_stats_dict = config.base_stats
-        self.growth_rates_dict = config.growth_rates
+        self.base_stats_dict = character_config.base_stats
+        self.growth_rates_dict = character_config.growth_rates
 
         # Используем фабрики из конфига или по умолчанию
-        self._stats_factory = config.stats_factory or (lambda role, level, base, growth: Character.default_stats_factory(role, level, base, growth))
-        self._attributes_factory = config.attributes_factory or (lambda stats, config_obj: Character.default_attributes_factory(stats, config_obj))
+        self._stats_factory = character_config.stats_factory or (lambda role, level, base, growth: Character.default_stats_factory(role, level, base, growth))
+        self._attributes_factory = character_config.attributes_factory or (lambda stats, config_obj: Character.default_attributes_factory(stats, config_obj))
 
         # Инициализация характеристик
         self.stats: Stats = self._stats_factory(self.role, self.level, self.base_stats_dict, self.growth_rates_dict)
-        self.attributes: Attributes = self._attributes_factory(self.stats, get_config())
+        self.attributes: Attributes = self._attributes_factory(self.stats, game_config)
 
         # Инициализируем hp и энергию
-        self.hp = self.attributes.max_hp
-        self.energy = self.attributes.max_energy
+        self.health = HealthProperty(self.attributes.max_hp, 0)
+        self.energy = EnergyProperty(self.attributes.max_energy, 0)
 
         # Менеджеры (внедрение зависимостей)
         self._ability_manager: Optional[AbilityManagerProtocol] = None
-        if config.ability_manager_factory:
-            self._ability_manager = config.ability_manager_factory(self)
+        if character_config.ability_manager_factory:
+            self._ability_manager = character_config.ability_manager_factory(self)
 
         self._status_manager: Optional[StatusEffectManagerProtocol] = None
-        if config.status_effect_manager_factory:
-            self._status_manager = config.status_effect_manager_factory(self)
+        if character_config.status_effect_manager_factory:
+            self._status_manager = character_config.status_effect_manager_factory(self)
 
     # ==================== Фабричные методы ====================
     @staticmethod
-    def default_stats_factory(role: str, level: int, base_stats_dict: Dict[str, int], growth_rates_dict: Dict[str, float]) -> Stats:
-        """Фабрика по умолчанию для создания Stats."""
+    def default_stats_factory(
+        role: str, 
+        level: int, 
+        base_stats_dict: Dict[str, int], 
+        growth_rates_dict: Dict[str, float]
+        ) -> Stats:
+        """
+        Фабрика по умолчанию для создания Stats.
+        
+        Args:
+            role: Роль персонажа.
+            level: Уровень персонажа.
+            base_stats_dict: Базовые характеристики.
+            growth_rates_dict: Множители роста.
+            config: Объект конфигурации игры (GameConfig).
+            
+        Returns:
+            Экземпляр Stats.
+        """
         level_multiplier = level * 0.1
+
         return SimpleStats(
             strength=int(base_stats_dict.get('strength', 10) * (1 + level_multiplier * growth_rates_dict.get('strength', 1.0))),
             agility=int(base_stats_dict.get('agility', 10) * (1 + level_multiplier * growth_rates_dict.get('agility', 1.0))),
@@ -122,20 +142,20 @@ class Character(ABC):
         )
 
     @staticmethod
-    def default_attributes_factory(stats: Stats, config: Any) -> Attributes:
+    def default_attributes_factory(stats: Stats, config: 'GameConfig') -> Attributes:
         """Фабрика по умолчанию для создания Attributes."""
         attr = SimpleAttributes()
         attr.recalculate(stats, config)
         return attr
 
     # ==================== Вспомогательные методы ====================
-    def _update_attributes(self) -> None:
+    def _update_attributes(self, config: 'GameConfig') -> None:
         """Обновляет атрибуты на основе текущих характеристик."""
-        config = get_config()
+        #config = get_config()
         self.attributes.recalculate(self.stats, config)
         # Обновляем hp и энергию до максимума при пересчете
-        self.hp = self.attributes.max_hp
-        self.energy = self.attributes.max_energy
+        self.health.restore_full_health()
+        self.energy.restore_full_energy()
 
     # ==================== Свойства ====================
     @property
@@ -168,7 +188,7 @@ class Character(ABC):
         self.stats = self._stats_factory(self.role, self.level, self.base_stats_dict, self.growth_rates_dict)
         
         # Пересчитываем атрибуты
-        self._update_attributes()
+        self._update_attributes(self.game_config)
         
         # Возвращаем результат как ActionResult
         return [ActionResult(
@@ -198,42 +218,25 @@ class Character(ABC):
         Наносит урон персонажу, учитывая защиту.
         Возвращает список сообщений/результатов.
         """
-        results: List[ActionResult] = []
+        results = self.health.take_damage(damage, self.attributes.defense)
         
-        # Учитываем защиту из attributes.defense
-        actual_damage = max(0, damage - self.attributes.defense // 2)  # Может быть 0 урон
-        actual_damage = max(1, actual_damage) if damage > 0 else 0  # Минимум 1 урон если был урон
-
-        self.hp -= actual_damage
-        results.append(DamageTakenResult(
-            target=self.name,
-            damage=actual_damage,
-            hp_left=self.hp
-        ))
-
-        if self.hp <= 0:
-            self.hp = 0
-            if self.alive:  # Проверяем, чтобы не вызывать on_death дважды
-                self.alive = False
-                death_results = self.on_death()
-                results.extend(death_results)
-
+        # Обновляем имя в результатах
+        for result in results:
+            if hasattr(result, 'target'):
+                result.target = self.name
+        
+        if not self.health.is_alive() and self.alive:
+            self.alive = False
+            death_results = self.on_death()
+            results.extend(death_results)
+            
         return results
 
     def take_heal(self, heal_amount: int) -> List[ActionResult]:
         """
         Исцеляет персонажа и возвращает список сообщений/результатов.
         """
-        results: List[ActionResult] = []
-        old_hp = self.hp
-        self.hp = min(self.attributes.max_hp, self.hp + heal_amount)
-        actual_heal = self.hp - old_hp
-        results.append(HealedResult(
-            target=self.name,
-            heal_amount=actual_heal,
-            hp_now=self.hp
-        ))
-        return results
+        return self.health.take_heal(heal_amount)
 
     # ==================== Энергия ====================
     def restore_energy(self, amount: Optional[int] = None, 
@@ -244,35 +247,14 @@ class Character(ABC):
         :param percentage: процент от максимальной энергии для восстановления
         Возвращает список сообщений/результатов.
         """
-        results: List[ActionResult] = []
-        old_energy = self.energy
-
-        if percentage is not None:
-            restore_amount = int(self.attributes.max_energy * (percentage / 100.0))
-            self.energy = min(self.attributes.max_energy, self.energy + restore_amount)
-        elif amount is not None:
-            self.energy = min(self.attributes.max_energy, self.energy + amount)
-        else:
-            self.energy = self.attributes.max_energy  # Полное восстановление
-
-        actual_restore = self.energy - old_energy
-        if actual_restore > 0:
-            results.append(ActionResult(
-                type="energy_restored",
-                message=f"{self.name} восстановил {actual_restore} энергии. Текущая энергия: {self.energy}"
-            ))
-
-        return results
+        return self.energy.restore_energy(amount, percentage)
 
     def spend_energy(self, amount: int) -> bool:
         """
         Тратит энергию персонажа.
         Возвращает True, если энергия была потрачена, иначе False.
         """
-        if self.energy >= amount:
-            self.energy -= amount
-            return True
-        return False
+        return self.energy.spend_energy(amount)
 
     # ==================== Способности ====================
     def add_ability(self, name: str, ability: Ability) -> List[ActionResult]:
@@ -292,7 +274,7 @@ class Character(ABC):
             return self._ability_manager.get_available_abilities()
         return []
 
-    def use_ability(self, name: str, targets: List['CharacterType'], **kwargs) -> List[ActionResult]:
+    def use_ability(self, name: str, targets: List['Character'], **kwargs) -> List[ActionResult]:
         """
         Использует способность по имени.
         Возвращает список сообщений/результатов от способности и менеджера.
