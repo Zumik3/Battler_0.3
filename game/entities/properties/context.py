@@ -1,20 +1,20 @@
 # game/entities/properties/context.py
 """Реализация PropertyContext для свойств, использующая GameContext."""
 
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, cast
+
 
 from game.protocols import PropertyContext
 from game.systems.event_bus import get_event_bus
 
 if TYPE_CHECKING:
-    from game.core.context import GameContext
     from game.systems.event_bus import IEventBus
-    from game.config import GameConfig
+    from game.entities.character import Character
 
 class GameContextBasedPropertyContext(PropertyContext):
     """PropertyContext, реализованный на основе GameContext."""
     
-    def __init__(self):
+    def __init__(self, character: 'Character'):
         """
         Инициализирует контекст свойства.
         
@@ -22,11 +22,17 @@ class GameContextBasedPropertyContext(PropertyContext):
             game_context: Экземпляр глобального контекста игры.
         """
         self._event_bus = get_event_bus()
+        self._character = character
 
     @property
     def event_bus(self) -> 'IEventBus':
         """Получить доступ к шине событий из глобального контекста."""
         return self._event_bus
+
+    @property
+    def character(self) -> 'Character':
+        """Получить доступ к персонажу."""
+        return self._character
 
     def get_service(self, service_name: str) -> Any:
         """Получить доступ к сервису по имени из глобального контекста.

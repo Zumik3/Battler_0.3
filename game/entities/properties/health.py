@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, List, Optional
 
 from game.core import context
+from game.events.combat import DamageEvent
 from game.protocols import HealthPropertyProtocol, StatsProtocol
 from game.entities.properties.base import DependentProperty
 from game.results import ActionResult, DamageTakenResult, HealedResult
@@ -46,19 +47,18 @@ class HealthProperty(DependentProperty, HealthPropertyProtocol):
         # Проверяем, не подписаны ли мы уже и существуют ли необходимые зависимости
         if not self._is_subscribed and self.stats and self.context:
             self._subscribe_to(self.stats, StatsChangedEvent, self._on_stats_event)
+            self._subscribe_to(None, DamageEvent, self._on_damage_event)
             self._is_subscribed = True
             print(f"  HealthProperty#{id(self)} подписался на StatsChangedEvent от Stats#{id(self.stats)}")
-
-    def _teardown_subscriptions(self) -> None:
-        """Отписывается от изменений статов."""
-        # Проверяем, подписаны ли мы и существуют ли необходимые зависимости
-        if self._is_subscribed and self.stats and self.context:
-            self._unsubscribe_from(self.stats, StatsChangedEvent, self._on_stats_event)
-            self._is_subscribed = False
 
     def _on_stats_event(self, event: StatsChangedEvent) -> None:
         """Вызывается при получении события изменения статов."""
         self._recalculate_from_stats(event.source)
+
+    def _on_damage_event(self, event: DamageEvent) -> None:
+        """Вызывается при получении события получения урона."""
+        if self.context.character is event.target:
+            self.take_damage(event.amount)
         
     def _recalculate_from_stats(self, stats: StatsProtocol) -> None:
         """Пересчитывает свойство на основе статов."""
@@ -82,9 +82,8 @@ class HealthProperty(DependentProperty, HealthPropertyProtocol):
 
     # --- Методы управления здоровьем ---
     
-    def take_damage(self, damage: int, defense: int = 0) -> List[ActionResult]:
+    def take_damage(self, damage: int, defense: int = 0) -> None:
         """Наносит урон, учитывая защиту."""
-        results: List[ActionResult] = []
         
         actual_damage = max(0, damage - defense // 2)
         actual_damage = max(1, actual_damage) if damage > 0 else 0
@@ -92,27 +91,12 @@ class HealthProperty(DependentProperty, HealthPropertyProtocol):
         self.health -= actual_damage
         # Убеждаемся, что здоровье не уйдет в минус
         self.health = max(0, self.health)
-        
-        results.append(DamageTakenResult(
-            target="",  # Будет заполнен позже системой, использующей результат
-            damage=actual_damage,
-            hp_left=self.health
-        ))
-        
-        return results
     
-    def take_heal(self, heal_amount: int) -> List[ActionResult]:
+    def take_heal(self, heal_amount: int) -> None:
         """Исцеляет персонажа."""
-        results: List[ActionResult] = []
         old_hp = self.health
         self.health = min(self.max_health, self.health + heal_amount)
         actual_heal = self.health - old_hp
-        results.append(HealedResult(
-            target="",  # Будет заполнен позже системой, использующей результат
-            heal_amount=actual_heal,
-            hp_now=self.health
-        ))
-        return results
     
     def is_alive(self) -> bool:
         """Проверяет, жив ли персонаж."""

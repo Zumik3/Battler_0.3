@@ -3,6 +3,7 @@
 
 # Предполагаем, что ваши классы находятся в следующих модулях.
 # Пути могут отличаться в вашем проекте.
+from game.actions.basic_attack import BasicAttack
 from game.core.context import ContextFactory
 from game.factories.player_factory import PlayerFactory
 from game.factories.monster_factory import MonsterFactory
@@ -15,6 +16,10 @@ def main():
     player1 = PlayerFactory.create_player(context, "berserker")
     print("\nPlayer done")
     monster1 = MonsterFactory.create_monster(context, "goblin", 5)
+
+    attack = BasicAttack(player1)
+    attack.target = monster1
+    attack.execute()
 
     print("\n--- Демонстрация завершена ---")
 

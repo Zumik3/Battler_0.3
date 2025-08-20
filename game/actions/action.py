@@ -1,14 +1,12 @@
-# game/actions/action.py
 """
 Модуль определяет абстрактный базовый класс для всех действий в бою.
 Действия представляют собой способности, которые могут использовать персонажи.
 """
 from abc import ABC, abstractmethod
-from typing import List, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from game.entities.character import Character
-    from game.results import ActionResult
 
 
 class Action(ABC):
@@ -66,24 +64,21 @@ class Action(ABC):
         pass
 
     @abstractmethod
-    def _execute(self) -> List['ActionResult']:
+    def _execute(self) -> None:
         """
         Основная логика выполнения действия.
-
-        Returns:
-            Список результатов выполнения действия.
+        Реализует побочные эффекты действия (нанесение урона, применение эффектов и т.д.).
         """
         pass
 
-    def execute(self) -> List['ActionResult']:
+    def execute(self) -> None:
         """
-        Выполняет действие и возвращает результаты.
-
-        Returns:
-            Список результатов выполнения действия.
+        Выполняет действие.
+        Побочные эффекты выполнения реализуются в методе _execute().
 
         Raises:
             ValueError: Если действие уже было выполнено или цель не установлена.
+            RuntimeError: Если действие недоступно для выполнения.
         """
         if self._is_executed:
             raise ValueError("Действие уже было выполнено.")
@@ -92,7 +87,7 @@ class Action(ABC):
             raise ValueError("Цель для действия не установлена.")
         
         if not self.is_available():
-            return []
+            raise RuntimeError("Попытка выполнить недоступное действие.")
 
         self._is_executed = True
-        return self._execute()
+        self._execute()

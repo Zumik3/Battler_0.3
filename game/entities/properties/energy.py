@@ -8,6 +8,7 @@ from game.protocols import EnergyPropertyProtocol, StatsProtocol
 from game.entities.properties.base import DependentProperty 
 from game.results import ActionResult
 from game.events.character import StatsChangedEvent
+from game.events.combat import EnergySpentEvent
 
 @dataclass
 class EnergyProperty(DependentProperty, EnergyPropertyProtocol):
@@ -42,18 +43,17 @@ class EnergyProperty(DependentProperty, EnergyPropertyProtocol):
         # Проверяем, не подписаны ли мы уже и существуют ли необходимые зависимости
         if not self._is_subscribed and self.stats and self.context:
             self._subscribe_to(self.stats, StatsChangedEvent, self._on_stats_event)
+            self._subscribe_to(None, EnergySpentEvent, self._on_energy_spent)
             self._is_subscribed = True
-        print(f"  EnergyProperty#{id(self)} подписался на StatsChangedEvent от Stats#{id(self.stats)}")
-            
-    def _teardown_subscriptions(self) -> None:
-        """Отписывается от изменений статов."""
-        if self._is_subscribed and self.stats and self.context:
-            self._unsubscribe_from(self.stats, StatsChangedEvent, self._on_stats_event)
-            self._is_subscribed = False
 
     def _on_stats_event(self, event: StatsChangedEvent) -> None:
         """Вызывается при получении события изменения статов."""
         self._recalculate_from_stats(event.source)
+
+    def _on_energy_spent(self, event: EnergySpentEvent) -> None:
+        """Вызывается при получении события траты энергии."""
+        if self.context.character is event.character:
+            self.spend_energy(event.amount)
         
     def _recalculate_from_stats(self, stats: StatsProtocol) -> None:
         """Пересчитывает свойство на основе статов."""

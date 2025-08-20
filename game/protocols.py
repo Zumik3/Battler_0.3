@@ -220,8 +220,15 @@ class CharacterAttributesConfig(Protocol):
 class PropertyContext(Protocol):
     """Интерфейс для контекста, предоставляемого свойству."""
     
+    _character: 'CharacterType'
+
     @property
     def event_bus(self) -> 'IEventBus':
+        """Получить доступ к шине событий."""
+        ...
+
+    @property
+    def character(self) -> 'CharacterType':
         """Получить доступ к шине событий."""
         ...
         

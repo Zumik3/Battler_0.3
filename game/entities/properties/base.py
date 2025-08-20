@@ -2,11 +2,7 @@
 """Базовые классы для свойств."""
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Optional, Protocol, Type
-
-# Импорты из других модулей проекта
-# Импортируем только то, что нужно во время выполнения
-from game.systems.event_bus import subscribe, unsubscribe
+from typing import TYPE_CHECKING, Any, Callable, List, NamedTuple, Optional, Protocol, Type
 
 if TYPE_CHECKING:
     # Импорты, используемые только для аннотаций типов
@@ -23,12 +19,20 @@ class HasContext(Protocol):
         # В протоколе тело метода/свойства обычно пустое (...)
         pass
 
+
+class SubscriptionData(NamedTuple):
+    """Контейнер для данных подписки с строгим порядком."""
+    source: Any
+    event_type: Type['Event']
+    callback: Callable
+
+
 # --- Базовые классы и миксины ---
 
 @dataclass
 class BaseProperty:
     """Базовый dataclass для всех свойств."""
-    context: Optional['PropertyContext'] = None
+    context: 'PropertyContext'
 
 
 class SubscriberPropertyMixin:
@@ -95,10 +99,17 @@ class DependentProperty(BaseProperty, SubscriberPropertyMixin, SubscriptionLifec
     реализовать методы _setup_subscriptions и _teardown_subscriptions.
     """
     _is_subscribed: bool = field(default=False)
+    _subscriptions: List['SubscriptionData'] = field(default_factory=list)
     
     def __post_init__(self) -> None:
         self._setup_subscriptions()
 
+    def _teardown_subscriptions(self) -> None:
+        """Отписывается от изменений статов."""
+        if self._is_subscribed and self.context:
+            for source, event_type, callback in self._subscriptions:
+                self._unsubscribe_from(source, event_type, callback)
+            self._is_subscribed = False
 
 @dataclass
 class PublishingProperty(BaseProperty, PublisherPropertyMixin):

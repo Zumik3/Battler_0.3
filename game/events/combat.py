@@ -3,10 +3,13 @@
 
 from dataclasses import dataclass
 from typing import Optional, TYPE_CHECKING
+
+from game.systems.damage.damage_type import PHYSICAL
 from .event import Event
 
 if TYPE_CHECKING:
     from game.entities.character import Character
+    from game.systems.damage.damage_type import DamageType
 
 
 @dataclass
@@ -16,10 +19,18 @@ class DamageEvent(Event):
     attacker: Optional['Character'] = None  # Кто наносит урон
     target: Optional['Character'] = None    # Кому наносится урон
     amount: int = 0                         # Количество урона
-    damage_type: str = "physical"           # Тип урона (physical, fire, ice, etc.)
+    damage_type: 'DamageType' = PHYSICAL           # Тип урона (physical, fire, ice, etc.)
     is_critical: bool = False               # Критический ли удар
     can_be_blocked: bool = True             # Может ли быть заблокирован
     
+
+@dataclass
+class EnergySpentEvent(Event):
+    """Событие траты энергии персонажем."""
+    
+    character: Optional['Character'] = None  # Кто тратит энергию
+    amount: int = 0                          # Количество потраченной энергии
+    reason: str = ""                         # Причина траты (например, "basic_attack")
 
 
 @dataclass
@@ -38,16 +49,3 @@ class DeathEvent(Event):
     
     victim: Optional['Character'] = None
     killer: Optional['Character'] = None
-
-
-@dataclass  
-class CombatStartEvent(Event):
-    """Событие начала боя."""
-    participants: list['Character'] = []
-
-
-@dataclass
-class CombatEndEvent(Event):
-    """Событие окончания боя."""
-    winners: list['Character'] = []
-    losers: list['Character'] = []

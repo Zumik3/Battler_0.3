@@ -14,7 +14,6 @@ from game.entities.properties.stats import StatsProperty
 from game.entities.properties.health import HealthProperty
 from game.entities.properties.energy import EnergyProperty
 from game.entities.properties.combat import CombatProperty
-from game.entities.properties.experience import ExperienceProperty
 from game.entities.properties.level import LevelProperty
 from game.entities.properties.stats_config import BaseStats, GrowthRates, StatsConfigProperty
 
@@ -23,14 +22,14 @@ class CharacterPropertyFactory(ABC):
     """Фабрика для создания связанных свойств персонажа."""
     
     @abstractmethod
-    def __init__(self, context: GameContext):
+    def __init__(self, context: GameContext, character: 'Character'):
         """
         Инициализирует фабрику свойств.
         
         Args:
             game_context: Глобальный контекст игры.
         """
-        self.context = GameContextBasedPropertyContext()
+        self.context = GameContextBasedPropertyContext(character=character)
     
     def create_basic_properties(self, 
         character: 'Character', 
