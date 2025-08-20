@@ -4,32 +4,29 @@
 from typing import Any, Optional, TYPE_CHECKING
 
 from game.protocols import PropertyContext
+from game.systems.event_bus import get_event_bus
 
 if TYPE_CHECKING:
     from game.core.context import GameContext
-    from game.events.bus import EventBus
+    from game.systems.event_bus import IEventBus
     from game.config import GameConfig
 
 class GameContextBasedPropertyContext(PropertyContext):
     """PropertyContext, реализованный на основе GameContext."""
     
-    def __init__(self, game_context: 'GameContext'):
+    def __init__(self):
         """
         Инициализирует контекст свойства.
         
         Args:
             game_context: Экземпляр глобального контекста игры.
         """
-        self._game_context = game_context
+        self._event_bus = get_event_bus()
 
     @property
-    def event_bus(self) -> Optional['EventBus']:
+    def event_bus(self) -> 'IEventBus':
         """Получить доступ к шине событий из глобального контекста."""
-        return self._game_context.event_bus
-
-    @property
-    def config(self) -> Optional['GameConfig']:
-        return self._game_context.config
+        return self._event_bus
 
     def get_service(self, service_name: str) -> Any:
         """Получить доступ к сервису по имени из глобального контекста.

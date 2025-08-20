@@ -53,7 +53,7 @@ class StatsProperty(PublishingAndDependentProperty, StatsProtocol):
         super().__post_init__()
         
         if self.stats_config:
-            base_stats = self.stats_config.get_base_stats()  # ✅ Через протокол
+            base_stats = self.stats_config.get_base_stats()
             for attr_name, value in base_stats.items():
                 setattr(self, attr_name, value)
     

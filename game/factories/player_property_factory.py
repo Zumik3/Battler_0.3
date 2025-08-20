@@ -48,7 +48,7 @@ class PlayerPropertyFactory(CharacterPropertyFactory):
         """Создает свойство опыта."""
         
         exp_prop = ExperienceProperty(
-            context=self.property_context,
+            context=self.context,
         )
         
         return exp_prop

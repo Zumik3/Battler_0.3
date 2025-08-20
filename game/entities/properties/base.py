@@ -6,11 +6,11 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Protocol, Type
 
 # Импорты из других модулей проекта
 # Импортируем только то, что нужно во время выполнения
-from game.events.bus import EventBus
+from game.systems.event_bus import subscribe, unsubscribe
 
 if TYPE_CHECKING:
     # Импорты, используемые только для аннотаций типов
-    from game.events.bus import Event # Используется в миксинах
+    from game.events.event import Event # Используется в миксинах
     from game.protocols import PropertyContext
 
 

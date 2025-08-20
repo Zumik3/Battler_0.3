@@ -31,6 +31,7 @@ class UnitPanel(Renderable):
     MONSTER_NAME_WIDTH = 20
     HP_BAR_WIDTH = 10
     EP_BAR_WIDTH = 5
+    BRAKETS_WIDTH = 2
     
     # Константы для оценки минимальной ширины элементов
     ESTIMATED_LEVEL_WIDTH = 3
@@ -102,21 +103,21 @@ class UnitPanel(Renderable):
         self.class_label.y = self.y
         # Обновляем текст для расчета ширины
         self.class_label._update_from_character()
-        class_width = len(self.class_label.text) + 2  # [X] + отступ
-        current_x += class_width + self.WIDGET_SPACING
+        class_width = len(self.class_label.text) + self.BRAKETS_WIDTH
+        current_x += class_width
         
         # 3. Уровень
         self.level_label.x = current_x
         self.level_label.y = self.y
         # Обновляем текст для расчета ширины
         self.level_label._update_from_character()
-        level_width = len(self.level_label.text) + 2  # [X] + отступ
-        current_x += level_width + self.WIDGET_SPACING
+        level_width = len(self.level_label.text) + self.BRAKETS_WIDTH
+        current_x += level_width
 
         # 4. HP
         self.hp_label.x = current_x
         self.hp_label.y = self.y
-        current_x += self.hp_label.width + self.WIDGET_SPACING
+        current_x += self.hp_label.width + self.BRAKETS_WIDTH
         
         # 5. Energy
         self.energy_label.x = current_x
@@ -150,7 +151,7 @@ class UnitPanel(Renderable):
         self.energy_label.render(renderer)
             
         # Очистка остаточного пространства
-        last_widget_end_x = self.energy_label.x + self.energy_label.width
+        last_widget_end_x = self.energy_label.x + self.energy_label.width + self.BRAKETS_WIDTH
         if last_widget_end_x < self.x + self.width:
             remaining_width = (self.x + self.width) - last_widget_end_x
             try:
@@ -323,7 +324,7 @@ class BattleLog(Renderable):
             "Герой защищается.",
             "Мощная атака Дракона отражена!",
         ]
-        self.scroll_offset = 0 # Смещение прокрутки (0 = последние сообщения внизу)
+        self.scroll_offset = 0  # Смещение прокрутки (0 = последние сообщения внизу)
 
     def add_message(self, message: str) -> None:
         """Добавление сообщения в лог.
@@ -337,7 +338,7 @@ class BattleLog(Renderable):
     def scroll_up(self) -> None:
         """Прокрутка лога вверх."""
         # Максимальное смещение - это количество строк, которые не помещаются
-        max_offset = max(0, len(self.messages) - self.height)
+        max_offset = max(0, len(self.messages) - self._get_content_height())
         if self.messages:
             self.scroll_offset = min(max_offset, self.scroll_offset + 1)
 
@@ -346,6 +347,14 @@ class BattleLog(Renderable):
         if self.messages:
             self.scroll_offset = max(0, self.scroll_offset - 1)
 
+    def _get_content_height(self) -> int:
+        """Возвращает высоту области для контента (без учета рамки)."""
+        return max(0, self.height - 2)  # -2 для верхней и нижней границы
+
+    def _get_content_width(self) -> int:
+        """Возвращает ширину области для контента (без учета рамки)."""
+        return max(0, self.width - 2)  # -2 для левой и правой границы
+
     def update_size(self, total_width: int, total_height: int) -> None:
         """Обновление размеров лога.
         Args:
@@ -353,14 +362,14 @@ class BattleLog(Renderable):
             total_height: Общая высота экрана.
         """
         # Занимает всю ширину экрана (с отступами)
-        self.width = max(10, total_width - 2) # -2 для отступов
+        self.width = max(10, total_width - 2)  # -2 для отступов
         # Высота динамическая, устанавливается в BattleScreen._update_component_sizes
         # Пока оставим пустую реализацию или базовую
         pass
 
     def render(self, renderer: Renderer) -> None:
         """Отрисовка лога боя с обрамлением."""
-        # Отрисовка рамки лога (она остается)
+        # Отрисовка рамки лога
         try:
             renderer.draw_borderless_log_box(self.x, self.y, self.width, self.height)
         except curses.error:
@@ -368,17 +377,22 @@ class BattleLog(Renderable):
             pass
 
         # Определяем, какие сообщения отображать с учетом прокрутки
-        # scroll_offset = 0 означает, что последние сообщения внизу
-        start_index = max(0, len(self.messages) - self.height - self.scroll_offset)
-        end_index = start_index + self.height
+        content_height = self._get_content_height()
+        start_index = max(0, len(self.messages) - content_height - self.scroll_offset)
+        end_index = start_index + content_height
         visible_messages = self.messages[start_index:end_index]
 
-        # Отрисовка сообщений
+        # Отрисовка сообщений (с учетом рамки)
         for i, message in enumerate(visible_messages):
-            # Позиция Y для текущего сообщения
-            msg_y = self.y + 1 + i
-            # Позиция X (с небольшим отступом)
+            # Позиция Y для текущего сообщения (внутри рамки)
+            msg_y = self.y + 1 + i  # +1 для отступа от верхней границы
+            # Позиция X (с небольшим отступом от левой границы)
             msg_x = self.x + 1
+            
+            # Обрезаем сообщение, если оно слишком длинное
+            max_length = self._get_content_width()
+            if len(message) > max_length:
+                message = message[:max_length - 3] + "..."  # Добавляем многоточие
 
             # Отрисовка текста сообщения
             try:

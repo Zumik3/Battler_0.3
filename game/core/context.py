@@ -3,8 +3,9 @@
 
 from dataclasses import dataclass
 from typing import Optional
+
 from game.config import GameConfig
-from game.events.bus import EventBus
+from game.systems.event_bus import IEventBus
 
 
 @dataclass
@@ -12,23 +13,31 @@ class GameContext:
     """Контекст игры со всеми необходимыми сервисами."""
     
     config: GameConfig
-    # EventBus обязателен, убираем Optional и __post_init__ упрощает логику
-    event_bus: EventBus 
+    event_bus: IEventBus
 
-# ContextFactory тоже остается, но немного упрощается
+
 class ContextFactory:
     """Фабрика для создания игрового контекста."""
     
     @staticmethod
     def create_default_context(config: Optional[GameConfig] = None) -> GameContext:
-        """Создает контекст с настройками по умолчанию."""
+        """
+        Создает контекст с настройками по умолчанию.
+        
+        Args:
+            config: Конфигурация игры. Если None, используется конфигурация по умолчанию.
+            
+        Returns:
+            Инициализированный игровой контекст.
+        """
         if config is None:
             from game.config import get_config
             config = get_config()
         
-        event_bus = EventBus()
+        # Получаем синглтон через публичный интерфейс
+        from game.systems.event_bus import get_event_bus
+        event_bus = get_event_bus()
         
-        # Теперь event_bus гарантированно передается
         return GameContext(
             config=config,
             event_bus=event_bus

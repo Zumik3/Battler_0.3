@@ -78,11 +78,14 @@ class EnergyProperty(DependentProperty, EnergyPropertyProtocol):
         
         self.restore_full_energy()
 
+    def get(self):
+        return self.energy
+
     def restore_energy(
         self, 
         amount: Optional[int] = None, 
         percentage: Optional[float] = None
-    ) -> List[ActionResult]:
+        ) -> List[ActionResult]:
         """Восстанавливает энергию персонажа.
         
         Восстановление происходит по одному из трех сценариев:

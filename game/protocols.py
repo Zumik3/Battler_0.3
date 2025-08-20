@@ -4,13 +4,11 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Protocol, Optional, TYPE_CHECKING, runtime_checkable
 
-
-
 if TYPE_CHECKING:
     from game.entities.character import Character as CharacterType
     from game.results import ActionResult, ExperienceGainedResult
     from game.config import GameConfig
-    from game.events.bus import EventBus
+    from game.systems.event_bus import IEventBus
 
 # ==================== Базовые протоколы данных ====================
 
@@ -223,7 +221,7 @@ class PropertyContext(Protocol):
     """Интерфейс для контекста, предоставляемого свойству."""
     
     @property
-    def event_bus(self) -> Optional['EventBus']:
+    def event_bus(self) -> 'IEventBus':
         """Получить доступ к шине событий."""
         ...
         

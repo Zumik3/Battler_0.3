@@ -30,7 +30,7 @@ class CharacterPropertyFactory(ABC):
         Args:
             game_context: Глобальный контекст игры.
         """
-        self.property_context = GameContextBasedPropertyContext(context)
+        self.context = GameContextBasedPropertyContext()
     
     def create_basic_properties(self, 
         character: 'Character', 
@@ -82,7 +82,7 @@ class CharacterPropertyFactory(ABC):
     def _create_stats_property(self, level_source: LevelProperty, stats_config: 'StatsConfigProperty') -> StatsProperty:
         """Создает свойство характеристик."""
         return StatsProperty(
-            context=self.property_context,
+            context=self.context,
             stats_config=stats_config,
             strength=10,
             agility=10,
@@ -95,7 +95,7 @@ class CharacterPropertyFactory(ABC):
         
         # Сначала создаем оба свойства без ссылок друг на друга
         level_prop = LevelProperty(
-            context=self.property_context,
+            context=self.context,
             level=initial_level,
             # exp_property будет установлен позже
         )
@@ -105,7 +105,7 @@ class CharacterPropertyFactory(ABC):
     def _create_health_property(self, stats_prop: StatsProperty) -> HealthProperty:
         """Создает свойство здоровья."""
         return HealthProperty(
-            context=self.property_context,
+            context=self.context,
             stats=stats_prop,
             # max_health и health будут рассчитаны автоматически
         )
@@ -113,7 +113,7 @@ class CharacterPropertyFactory(ABC):
     def _create_energy_property(self, stats_prop: StatsProperty) -> EnergyProperty:
         """Создает свойство энергии."""
         return EnergyProperty(
-            context=self.property_context,
+            context=self.context,
             stats=stats_prop,
             # max_energy и energy будут рассчитаны автоматически
         )
@@ -121,7 +121,7 @@ class CharacterPropertyFactory(ABC):
     def _create_combat_property(self, stats_prop: StatsProperty) -> CombatProperty:
         """Создает свойство боевых показателей."""
         return CombatProperty(
-            context=self.property_context,
+            context=self.context,
             stats=stats_prop,
             # attack_power и defence будут рассчитаны автоматически
         )

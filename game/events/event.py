@@ -1,9 +1,11 @@
 # game/events/bus.py
 """Шина событий игры."""
 
+from datetime import datetime
 import sys
-from typing import Dict, Generic, List, Callable, Type, TypeVar, Any, Tuple
-from dataclasses import dataclass
+from typing import Dict, Generic, List, Callable, Optional, Type, TypeVar, Any, Tuple
+from dataclasses import dataclass, field
+import uuid
 
 T = TypeVar('T', bound='Event')
 TSource = TypeVar('TSource')
@@ -18,6 +20,18 @@ class Event(Generic[TSource]):
     """
     source: TSource
     """Объект, который инициировал событие."""
+    # Метаданные для аналитики и логирования
+    event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    battle_id: Optional[str] = None  # Для группировки событий одного боя
+    session_id: Optional[str] = None  # Для группировки событий сессии
+    
+    def __post_init__(self):
+        """Валидация базовых полей."""
+        if not self.event_id:
+            self.event_id = str(uuid.uuid4())
+        if not self.timestamp:
+            self.timestamp = datetime.now().isoformat()
 
 
 class EventBus:
