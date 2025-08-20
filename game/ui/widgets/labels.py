@@ -1,9 +1,11 @@
 # game/ui/widgets/labels.py
 """Базовые текстовые метки для отображения информации.
-Эти компоненты могут использоваться в различных частях интерфейса,
-например, для отображения имени, уровня, класса персонажа и другой информации."""
 
-from typing import Optional, TYPE_CHECKING, Any, Dict, Tuple
+Эти компоненты могут использоваться в различных частях интерфейса,
+например, для отображения имени, уровня, класса персонажа и другой информации.
+"""
+
+from typing import Optional, TYPE_CHECKING, Dict, Tuple
 
 from game.ui.rendering.renderable import Renderable
 from game.ui.rendering.renderer import Renderer
@@ -37,7 +39,6 @@ class TextLabel(Renderable):
             dim: Тусклый шрифт.
         """
         super().__init__(x, y)
-
         self.text = text
         self.color = color
         self.bold = bold
@@ -55,7 +56,7 @@ class CharacterNameLabel(TextLabel):
 
     def __init__(
         self,
-        character: 'Character', 
+        character: Optional['Character'], 
         x: int = 0, 
         y: int = 0,
         max_width: int = 0,
@@ -153,7 +154,7 @@ class CharacterClassLabel(TemplatedTextLabel):
 
     def __init__(
         self,
-        character: 'Character', 
+        character: Optional['Character'], 
         x: int = 0, 
         y: int = 0, 
     ) -> None:
@@ -167,15 +168,27 @@ class CharacterClassLabel(TemplatedTextLabel):
         """
         super().__init__(x, y)
         self.character = character
+        self.text = "?"
+        self.color = Color.DEFAULT
         self._update_from_character()
 
     def _update_from_character(self) -> None:
         """Обновить текст метки из данных персонажа."""
         if self.character:
             self.text = getattr(self.character, 'class_icon', "?")
-            color = getattr(self.character, 'class_icon_color')
-            self.color = Color[color] if color else self.color
-   
+            color_str = getattr(self.character, 'class_icon_color', "")
+            
+            # Конвертируем строку в enum Color
+            if color_str:
+                try:
+                    self.color = Color[color_str.upper()]
+                except (KeyError, AttributeError):
+                    self.color = Color.DEFAULT
+            else:
+                self.color = Color.DEFAULT
+        else:
+            self.text = "?"
+            self.color = Color.DEFAULT
 
     def _get_template_and_replacements(self) -> Tuple[str, Dict[str, Tuple[str, Color, bool, bool]]]:
         """Определяем шаблон и замены для роли."""
@@ -187,10 +200,9 @@ class CharacterLevelLabel(TemplatedTextLabel):
 
     def __init__(
         self,
-        character: 'Character', 
+        character: Optional['Character'], 
         x: int = 0, 
         y: int = 0, 
-        
     ) -> None:
         """
         Инициализация метки уровня персонажа.
@@ -202,14 +214,17 @@ class CharacterLevelLabel(TemplatedTextLabel):
         """
         super().__init__(x, y)
         self.character = character
+        self.text = "1"
         self._update_from_character()
 
     def _update_from_character(self) -> None:
-        if self.character:
-            level = getattr(self.character, 'level', 1)
+        """Обновить текст метки из данных персонажа."""
+        if self.character and hasattr(self.character, 'level'):
+            # Получаем уровень из свойства level
+            level_value = getattr(self.character.level, 'level', 1)
+            self.text = str(level_value)
         else:
-            level = 1
-        self.text = str(level)
+            self.text = "1"
 
     def _get_template_and_replacements(self) -> Tuple[str, Dict[str, Tuple[str, Color, bool, bool]]]:
         """Определяем шаблон и замены для уровня."""

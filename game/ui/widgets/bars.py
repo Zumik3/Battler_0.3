@@ -1,7 +1,5 @@
 # game/ui/widgets/bars.py
-"""Прогресс-бары для отображения различных параметров (HP, Energy и т.д.).
-Эти компоненты могут использоваться в различных частях интерфейса,
-например, на экране боя, экране персонажа и т.д."""
+"""Прогресс-бары для отображения различных параметров (HP, Energy и т.д.)."""
 
 from typing import Optional, TYPE_CHECKING, Dict, Tuple
 from abc import ABC, abstractmethod
@@ -86,7 +84,6 @@ class ProgressBar(Renderable, ABC):
         empty_part = "□" * empty_count    # Пустые символы
 
         # Создаем шаблон
-        # %1 - открывающая скобка, %2 - заполненная часть, %3 - пустая часть, %4 - закрывающая скобка
         template = "%1%2%3%4"
         
         replacements = {
@@ -122,14 +119,12 @@ class ProgressBar(Renderable, ABC):
         if max_value <= 0:
             filled_count = 0
         else:
-            # Используем пропорцию: filled_count / self.width = current_value / max_value
             filled_count = int((current_value / max_value) * self.width)
         
         # Убеждаемся, что значения в допустимых пределах
         filled_count = max(0, min(filled_count, self.width))
         empty_count = self.width - filled_count
 
-        # Используем общий метод для создания шаблона
         return self._create_progress_template(filled_count, empty_count)
 
 
@@ -156,23 +151,21 @@ class HealthBar(ProgressBar):
 
     def _get_current_value(self) -> int:
         """Получить текущее значение HP из персонажа."""
-        if self.character:
-            return getattr(self.character, 'hp', 0)
+        if self.character and hasattr(self.character, 'health'):
+            # Получаем текущее HP из свойства health
+            return getattr(self.character.health, 'health', 0)
         return 0
 
     def _get_max_value(self) -> int:
         """Получить максимальное значение HP из персонажа."""
-        if self.character:
-            attributes = getattr(self.character, 'attributes', None)
-            if attributes:
-                # Используем consistent fallback: 1 как минимальное значение
-                return max(1, getattr(attributes, 'max_hp', 1))
-        # Если персонажа нет или атрибуты не определены, возвращаем 1 как fallback
+        if self.character and hasattr(self.character, 'health'):
+            # Получаем максимальное HP из свойства health
+            return getattr(self.character.health, 'max_health', 1)
         return 1
 
     def _get_fill_color(self) -> Color:
-        """Получить цвет заполненной части для HP (зеленый)."""
-        if not self.character:
+        """Получить цвет заполненной части для HP."""
+        if not self.character or not hasattr(self.character, 'health'):
             return Color.GREEN
             
         # Получаем значения для расчета цвета
@@ -218,18 +211,16 @@ class EnergyBar(ProgressBar):
 
     def _get_current_value(self) -> int:
         """Получить текущее значение энергии из персонажа."""
-        if self.character:
-            return getattr(self.character, 'energy', 0)
+        if self.character and hasattr(self.character, 'energy'):
+            # Получаем текущую энергию из свойства energy
+            return getattr(self.character.energy, 'energy', 0)
         return 0
 
     def _get_max_value(self) -> int:
         """Получить максимальное значение энергии из персонажа."""
-        if self.character:
-            attributes = getattr(self.character, 'attributes', None)
-            if attributes:
-                # Используем consistent fallback: 0 как минимальное значение (если энергия не используется)
-                return max(0, getattr(attributes, 'max_energy', 0))
-        # Если персонажа нет или атрибуты не определены, возвращаем 0 как fallback
+        if self.character and hasattr(self.character, 'energy'):
+            # Получаем максимальную энергию из свойства energy
+            return getattr(self.character.energy, 'max_energy', 0)
         return 0
 
     def _get_fill_color(self) -> Color:

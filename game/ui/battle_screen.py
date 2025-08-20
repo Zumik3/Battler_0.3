@@ -3,27 +3,15 @@
 Отображает боевую сцену с возможностью взаимодействия."""
 import curses
 from typing import TYPE_CHECKING, Dict, Any, Optional, List, Tuple
-
-# - ДОБАВЛЯЕМ ИМПОРТ МИКСИНА -
-from game.mixins.ui_mixin import StandardLayoutMixin
-# -
-from game.ui.base_screen import BaseScreen
-from game.ui.rendering.color_manager import Color
-from game.ui.rendering.renderable import Text, Separator
-# - ИМПОРТИРУЕМ НОВЫЕ КОМПОНЕНТЫ -
-from game.ui.components.battle_components import (PlayerGroupPanel, EnemyGroupPanel, BattleLog)
-# -
-from game.ui.base_screen import BaseScreen
-from game.ui.rendering.color_manager import Color
-# Импортируем get_game_manager для использования внутри _setup_elements
 from game.game_manager import get_game_manager
 
-# - ДОБАВЛЯЕМ ИМПОРТ ДЛЯ TYPE_CHECKING -
+from game.mixins.ui_mixin import StandardLayoutMixin
+from game.ui.base_screen import BaseScreen
+from game.ui.components.battle_components import PlayerGroupPanel, EnemyGroupPanel, BattleLog
+
 if TYPE_CHECKING:
     from game.ui.screen_manager import ScreenManager
-    from game.entities.player import Player
-    from game.entities.monster import Monster
-    from game.ui.rendering.renderer import Renderer
+    from game.ui.components.battle_components import PlayerGroupPanel, EnemyGroupPanel, BattleLog
 # ---
 
 
@@ -32,9 +20,7 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
 
     # --- Константы для макета ---
     HEADER_HEIGHT = 2
-    #UNITS_Y_OFFSET = 1 # Отступ блока юнитов от заголовка
     UNITS_HEIGHT = 5 # Фиксированная высота блока юнитов
-    #LOG_Y_OFFSET = 1 # Отступ лога от блока юнитов
     FOOTER_Y_OFFSET = 2 # Отступ подвала от низа лога
     HORIZONTAL_MARGIN = 1 # Отступы слева и справа
     GROUPS_GAP = 1 # Зазор между группами игроков и врагов
@@ -43,13 +29,11 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
     # --- Конец констант ---
 
     def __init__(self, manager: 'ScreenManager'):
-        # Инициализируем атрибуты для компонентов
-        # Они будут инициализированы в _setup_elements
+        # Инициализируем атрибуты для компонентов с правильной типизацией
         self.player_group: Optional[PlayerGroupPanel] = None
         self.enemy_group: Optional[EnemyGroupPanel] = None
         self.battle_log: Optional[BattleLog] = None
         # Вызываем родительский конструктор
-        # _setup_elements будет вызван внутри него
         super().__init__(manager)
 
     def _recalculate_layout(self, screen_width: int, screen_height: int) -> Dict[str, Dict[str, int]]:
@@ -65,7 +49,7 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
             каждый из которых содержит словарь {'x', 'y', 'width', 'height'}.
         """
         # --- Размеры и позиции ---
-        units_y = self.HEADER_HEIGHT #+ self.UNITS_Y_OFFSET
+        units_y = self.HEADER_HEIGHT
 
         # --- Расчет ширины для панелей юнитов ---
         # Доступная ширина для блоков юнитов (учитываем отступы и зазор)
@@ -84,9 +68,9 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
         enemy_group_x = player_group_x + player_group_width + self.GROUPS_GAP
 
         # --- Размеры и позиции лога боя ---
-        log_x = 0  # self.HORIZONTAL_MARGIN
-        log_y = units_y + self.UNITS_HEIGHT #+ self.LOG_Y_OFFSET
-        log_width = max(self.MIN_LOG_WIDTH, screen_width * self.HORIZONTAL_MARGIN)
+        log_x = 0
+        log_y = units_y + self.UNITS_HEIGHT
+        log_width = max(self.MIN_LOG_WIDTH, screen_width)
 
         # Высота лога - всё оставшееся пространство минус отступы и подвал
         available_height = screen_height - log_y - self.FOOTER_Y_OFFSET
@@ -117,8 +101,7 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
         """Настройка элементов экрана."""
         self.elements = [] # Очищаем список, так как компоненты будут отрисовываться напрямую
 
-        # - ПОЛУЧАЕМ ДАННЫЕ ИЗ GameManager НЕПОСРЕДСТВЕННО В _setup_elements -
-        # Это решает проблему порядка инициализации
+        # - ПОЛУЧАЕМ ДАННЫЕ ИЗ GameManager -
         game_manager = get_game_manager()
         real_enemy_data = game_manager.get_current_enemies()
         real_player_data = game_manager.get_player_group()
@@ -130,7 +113,6 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
             screen_height = self.renderer.height
         else:
             # fallback значения, если renderer еще не готов
-            # Используем значения из конфигурации, если они доступны
             try:
                 from game.config import get_config
                 config = get_config()
@@ -168,7 +150,6 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
             height=layout['battle_log']['height']
         )
         # Добавляем тестовые сообщения в лог
-        # TODO: Заменить на реальные сообщения из игровой логики
         self.battle_log.add_message("Битва начинается!")
         # ---
 
@@ -188,20 +169,18 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
         # Обновляем размеры и позиции панелей групп
         if self.player_group:
             self.player_group.x = layout['player_group']['x']
-            self.player_group.y = layout['player_group']['y'] # Обновляем Y тоже
+            self.player_group.y = layout['player_group']['y']
             self.player_group.width = layout['player_group']['width']
             self.player_group.height = layout['player_group']['height']
             # Обновляем размеры дочерних компонентов групп
-            # _update_panels будет использовать новые self.x, self.width
             self.player_group._update_panels() 
 
         if self.enemy_group:
             self.enemy_group.x = layout['enemy_group']['x']
-            self.enemy_group.y = layout['enemy_group']['y'] # Обновляем Y тоже
+            self.enemy_group.y = layout['enemy_group']['y']
             self.enemy_group.width = layout['enemy_group']['width']
             self.enemy_group.height = layout['enemy_group']['height']
             # Обновляем размеры дочерних компонентов групп
-            # _update_panels будет использовать новые self.x, self.width
             self.enemy_group._update_panels()
 
         # Обновляем размеры и позиции лога боя
@@ -210,18 +189,12 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
             self.battle_log.y = layout['battle_log']['y']
             self.battle_log.width = layout['battle_log']['width']
             self.battle_log.height = layout['battle_log']['height']
-            # BattleLog не имеет сложной внутренней структуры панелей,
-            # поэтому явный вызов update_size не требуется.
-            # Если бы требовался, нужно было бы проверить сигнатуру метода в BattleLog.
-
-        # --- КОНЕЦ ОБНОВЛЕННОЙ ЛОГИКИ ---
 
     def _setup_commands(self) -> None:
         """Настройка дополнительных команд экрана."""
         # Все команды добавятся автоматически из реестра!
         pass
 
-    # - ОБНОВЛЯЕМ МЕТОД render -
     def render(self, stdscr: curses.window) -> None:
         """Отрисовка экрана."""
         # Обновляем размеры компонентов перед отрисовкой
@@ -231,8 +204,7 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
         # Отрисовка стандартного макета (шапка + подвал)
         self.render_standard_layout("=== БОЙ ===")
 
-        # - ОТРИСОВКА НОВЫХ КОМПОНЕНТОВ -
-        # Отрисовываем компоненты напрямую
+        # - ОТРИСОВКА КОМПОНЕНТОВ С ПРОВЕРКОЙ НА None -
         if self.player_group:
             self.player_group.render(self.renderer)
         if self.enemy_group:
@@ -240,7 +212,7 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
         if self.battle_log:
             self.battle_log.render(self.renderer)
         # -
-        self.renderer.refresh() # Не забываем refresh
+        self.renderer.refresh()
 
     def _handle_unregistered_key(self, key: int) -> None:
         """Обработка незарегистрированных клавиш."""
@@ -251,5 +223,3 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
         elif key == curses.KEY_DOWN:
             if self.battle_log:
                 self.battle_log.scroll_down()
-        # Можно добавить отладочный вывод
-        # print(f"BattleScreen: Нажата незарегистрированная клавиша: {key}")

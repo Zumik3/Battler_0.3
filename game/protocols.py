@@ -26,7 +26,11 @@ class StatsProtocol(Protocol):
 class StatsConfigurable(Protocol):
     """Протокол для объектов, предоставляющих конфигурацию характеристик."""
     def calculate_all_stats_at_level(self, level: int) -> Dict[str, int]: ...
-    
+
+    def get_base_stats(self) -> Dict[str, int]: ...
+
+    def get_growth_rates(self) -> Dict[str, int]: ...
+
 
 class Attributes(Protocol):
     """Протокол для производных атрибутов персонажа."""
@@ -39,20 +43,24 @@ class Attributes(Protocol):
         """Пересчитать атрибуты на основе базовых характеристик."""
         ...
 
+
 class HealthPropertyProtocol(Protocol):
     """Протокол для производных атрибутов персонажа."""
     max_health: int
     health: int
+
 
 class EnergyPropertyProtocol(Protocol):
     """Протокол для производных атрибутов персонажа."""
     max_energy: int
     energy: int
 
+
 class CombatPropertyProtocol(Protocol):
     """Протокол для производных атрибутов персонажа."""
     attack_power: int
     defence: int
+
 
 class ExperiencePropertyProtocol(Protocol):
     """Протокол для производных атрибутов персонажа."""
@@ -60,12 +68,12 @@ class ExperiencePropertyProtocol(Protocol):
         """Добавляет опыт персонажу."""
         ...
 
+
 class LevelPropertyProtocol(Protocol):
     """Протокол для производных атрибутов персонажа."""
     def level_up(self) -> None:
         """Добавляет уровень персонажу."""
         ...
-
 
 
 # ==================== Протоколы игровых систем ====================
