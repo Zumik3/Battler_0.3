@@ -72,13 +72,13 @@ class SubscriptionLifecycleMixin:
     def _setup_subscriptions(self) -> None:
         """Настраивает подписки. Должен быть реализован в подклассах."""
         raise NotImplementedError(
-            f"Класс {self.__class__.__name__} должен реализовать _setup_subscriptions"
+            f"Класс {type(self).__name__} должен реализовать _setup_subscriptions"
         )
         
     def _teardown_subscriptions(self) -> None:
         """Отписывается. Должен быть реализован в подклассах."""
         raise NotImplementedError(
-            f"Класс {self.__class__.__name__} должен реализовать _teardown_subscriptions"
+            f"Класс {type(self).__name__} должен реализовать _teardown_subscriptions"
         )
 
     def cleanup(self) -> None:

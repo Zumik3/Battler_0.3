@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, List, Optional
 
 from game.protocols import EnergyPropertyProtocol, StatsProtocol
 from game.entities.properties.base import DependentProperty 
-from game.results import ActionResult
 from game.events.character import StatsChangedEvent
 from game.events.combat import EnergySpentEvent
 
@@ -85,7 +84,7 @@ class EnergyProperty(DependentProperty, EnergyPropertyProtocol):
         self, 
         amount: Optional[int] = None, 
         percentage: Optional[float] = None
-        ) -> List[ActionResult]:
+        ) -> None:
         """Восстанавливает энергию персонажа.
         
         Восстановление происходит по одному из трех сценариев:
@@ -99,11 +98,7 @@ class EnergyProperty(DependentProperty, EnergyPropertyProtocol):
             percentage: Процент максимальной энергии для восстановления.
                         Должен быть в диапазоне 0.0 - 100.0.
                         
-        Returns:
-            Список результатов действия (ActionResult), описывающих эффект
-            восстановления энергии.
         """
-        results: List[ActionResult] = []
         old_energy = self.energy
 
         if percentage is not None:
@@ -113,15 +108,6 @@ class EnergyProperty(DependentProperty, EnergyPropertyProtocol):
             self.energy = min(self.max_energy, self.energy + amount)
         else:
             self.energy = self.max_energy
-
-        actual_restore = self.energy - old_energy
-        if actual_restore > 0:
-            results.append(ActionResult(
-                type="energy_restored",
-                message=f"Восстановлено {actual_restore} энергии. Текущая энергия: {self.energy}"
-            ))
-
-        return results
     
     def spend_energy(self, amount: int) -> bool:
         """Тратит энергию персонажа.

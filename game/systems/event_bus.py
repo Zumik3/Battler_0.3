@@ -118,26 +118,50 @@ class EventBus(IEventBus):
                 # Callback не найден - это нормально
                 pass
 
+    # def publish(self, event: Event) -> None:
+    #     """
+    #     Опубликовать событие для всех подписчиков.
+
+    #     Args:
+    #         event: Экземпляр события для публикации.
+
+    #     Raises:
+    #         Exception: Любое исключение из обработчиков пробрасывается дальше.
+    #     """
+    #     source_id = id(event.source) if hasattr(event, 'source') else 0
+    #     event_type = type(event)
+    #     key = (source_id, event_type)
+
+    #     if key not in self._subscribers:
+    #         return
+
+    #     # Работаем с копией для безопасности во время итерации
+    #     callbacks = self._subscribers[key][:]
+        
+    #     for callback in callbacks:
+    #         try:
+    #             callback(event)
+    #         except Exception as error:
+    #             self._handle_callback_error(error, event, callback)
+
     def publish(self, event: Event) -> None:
-        """
-        Опубликовать событие для всех подписчиков.
-
-        Args:
-            event: Экземпляр события для публикации.
-
-        Raises:
-            Exception: Любое исключение из обработчиков пробрасывается дальше.
-        """
         source_id = id(event.source) if hasattr(event, 'source') else 0
         event_type = type(event)
-        key = (source_id, event_type)
-
-        if key not in self._subscribers:
-            return
-
-        # Работаем с копией для безопасности во время итерации
-        callbacks = self._subscribers[key][:]
         
+        # Ищем подписчиков для конкретного типа события
+        specific_key = (source_id, event_type)
+        if specific_key in self._subscribers:
+            self._call_subscribers(specific_key, event)
+        
+        # Ищем подписчиков для базового класса Event (если event не базовый)
+        if event_type != Event:
+            base_key = (source_id, Event)
+            if base_key in self._subscribers:
+                self._call_subscribers(base_key, event)
+
+    def _call_subscribers(self, key: Tuple[int, Type], event: Event):
+        """Вызывает подписчиков для конкретного ключа."""
+        callbacks = self._subscribers.get(key, [])[:]
         for callback in callbacks:
             try:
                 callback(event)
@@ -161,10 +185,10 @@ class EventBus(IEventBus):
         source_info = ""
         if hasattr(event, 'source'):
             source = event.source
-            source_info = f" от {source.__class__.__name__}#{id(source)}"
+            source_info = f" от {type(source).__name__}#{id(source)}"
         
         error_msg = (
-            f"Ошибка в обработчике события {event.__class__.__name__}{source_info}\n"
+            f"Ошибка в обработчике события {type(event).__name__}{source_info}\n"
             f"Обработчик: {callback.__name__ if hasattr(callback, '__name__') else callback}\n"
             f"Ошибка: {error}\n"
         )

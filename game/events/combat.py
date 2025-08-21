@@ -22,7 +22,6 @@ class DamageEvent(Event):
     damage_type: 'DamageType' = PHYSICAL           # Тип урона (physical, fire, ice, etc.)
     is_critical: bool = False               # Критический ли удар
     can_be_blocked: bool = True             # Может ли быть заблокирован
-    
 
 @dataclass
 class EnergySpentEvent(Event):
@@ -49,3 +48,11 @@ class DeathEvent(Event):
     
     victim: Optional['Character'] = None
     killer: Optional['Character'] = None
+
+
+@dataclass
+class LogUpdatedEvent(Event):
+    """Событие обновления лога."""
+
+    need_render: bool = True
+

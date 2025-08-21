@@ -31,3 +31,13 @@ POISON = DamageType.POISON
 HOLY = DamageType.HOLY
 DARK = DamageType.DARK
 TRUE = DamageType.TRUE
+
+damage_icons = {
+        "physical": "🗡️",
+        "fire": "🔥",
+        "ice": "❄️",
+        "lightning": "⚡",
+        "poison": "☠️",
+        "holy": "✨",
+        "dark": "🌑"
+    }

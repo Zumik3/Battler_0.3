@@ -5,6 +5,7 @@
 import curses
 from typing import List, TYPE_CHECKING, Optional, Dict
 
+
 from game.ui.rendering.renderable import Renderable
 from game.ui.rendering.renderer import Renderer
 from game.ui.rendering.color_manager import Color
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
     from game.entities.monster import Monster
     from game.entities.player import Player
     from game.entities.character import Character
+    from game.events.render_data import RenderData
 
 
 class UnitPanel(Renderable):
@@ -309,24 +311,10 @@ class BattleLog(Renderable):
         super().__init__(x, y)
         self.width = width
         self.height = height
-        # TODO: Получать реальные сообщения из игровой логики
-        self.messages: List[str] = [
-            "Битва начинается!",
-            "Герой вступает в бой с Драконом.",
-            "Дракон издает грозный рык.",
-            "Герой атакует Дракона!",
-            "Дракон получает 25 урона.",
-            "Дракон атакует Героя!",
-            "Герой получает 15 урона.",
-            "Герой использует зелье лечения.",
-            "Герой восстанавливает 30 HP.",
-            "Дракон готовится к мощной атаке!",
-            "Герой защищается.",
-            "Мощная атака Дракона отражена!",
-        ]
+        self.messages: List['RenderData'] = []
         self.scroll_offset = 0  # Смещение прокрутки (0 = последние сообщения внизу)
 
-    def add_message(self, message: str) -> None:
+    def add_message(self, message: 'RenderData') -> None:
         """Добавление сообщения в лог.
         Args:
             message: Текст сообщения.
@@ -390,14 +378,16 @@ class BattleLog(Renderable):
             msg_x = self.x + 1
             
             # Обрезаем сообщение, если оно слишком длинное
-            max_length = self._get_content_width()
-            if len(message) > max_length:
-                message = message[:max_length - 3] + "..."  # Добавляем многоточие
+            # max_length = self._get_content_width()
+            # if len(message) > max_length:
+            #     message = message[:max_length - 3] + "..."  # Добавляем многоточие
 
             # Отрисовка текста сообщения
             try:
-                # TODO: Добавить цвета/стили для разных типов сообщений (урон, лечение, и т.д.)
-                renderer.draw_text(message, msg_x, msg_y, color=Color.WHITE)
+                renderer.draw_template(
+                    template=message.template,
+                    replacements=message.replacements,
+                     x=msg_x, y=msg_y)
             except curses.error:
                 # Игнорируем ошибки выхода за границы экрана
                 pass

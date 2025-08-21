@@ -8,7 +8,6 @@ from game.core import context
 from game.events.combat import DamageEvent
 from game.protocols import HealthPropertyProtocol, StatsProtocol
 from game.entities.properties.base import DependentProperty
-from game.results import ActionResult, DamageTakenResult, HealedResult
 from game.events.character import StatsChangedEvent
 
 @dataclass

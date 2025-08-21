@@ -5,8 +5,9 @@ from typing import TYPE_CHECKING
 
 from game.actions.action import Action
 from game.events.combat import DamageEvent, EnergySpentEvent
-from game.systems import event_bus
+from game.events.render_data import RenderData
 from game.systems.damage.damage_type import PHYSICAL
+from game.ui.rendering.color_manager import Color
 
 if TYPE_CHECKING:
     from game.entities.character import Character
@@ -28,7 +29,7 @@ class BasicAttack(Action):
             source: Персонаж, выполняющий атаку.
         """
         super().__init__(source, priority=10)
-        self._energy_cost = 1
+        self._energy_cost = 5
 
     @property
     def name(self) -> str:
@@ -69,11 +70,15 @@ class BasicAttack(Action):
             amount=self.energy_cost,
             reason=f"action_{self.name}"
         )
-        event_bus.publish(energy_event)
+        self.source.context.event_bus.publish(energy_event)
 
 
         # Рассчитываем урон
         damage = self._calculate_damage()
+        render_data = self._create_damage_render_data(
+            atacker=self.source,
+            damage=damage,
+            target=self.target)
         
         # Создаем и публикуем событие нанесения урона
         damage_event = DamageEvent(
@@ -83,10 +88,11 @@ class BasicAttack(Action):
             amount=damage,
             damage_type=PHYSICAL,
             is_critical=False,
-            can_be_blocked=True
+            can_be_blocked=True,
+            render_data=render_data
         )
         
-        event_bus.publish(damage_event)
+        self.source.context.event_bus.publish(damage_event)
 
     def _calculate_damage(self) -> int:
         """
@@ -103,3 +109,29 @@ class BasicAttack(Action):
         damage = max(1, attack_power - target_defense // 2)
         
         return damage
+
+    @staticmethod
+    def _create_damage_render_data(atacker: 'Character', damage: int, target: 'Character') -> RenderData:
+        """
+        Создает данные для отображения события нанесения урона.
+        
+        Args:
+            attacker_name: Имя атакующего
+            damage: Количество урона
+            target_name: Имя цели
+        
+        Returns:
+            RenderData для отрисовки события
+        """
+
+        atacker_color = Color.GREEN if atacker.is_player else Color.BLUE
+        target_color = Color.GREEN if target.is_player else Color.BLUE
+
+        return RenderData(
+            template="%1 атакует %2 и наносит %3 урона",
+            replacements={
+                "1": (atacker.name, atacker_color, True, False),
+                "2": (target.name, target_color, False, False),
+                "3": (f"{damage}", Color.RED, True, False)
+            }
+        )

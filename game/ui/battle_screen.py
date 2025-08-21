@@ -2,17 +2,20 @@
 """Экран боя.
 Отображает боевую сцену с возможностью взаимодействия."""
 import curses
-from typing import TYPE_CHECKING, Dict, Any, Optional, List, Tuple
+from typing import TYPE_CHECKING, Dict
+from game.events.combat import LogUpdatedEvent
+from game.events.render_data import RenderData
 from game.game_manager import get_game_manager
+from game.events.event import Event
 
 from game.mixins.ui_mixin import StandardLayoutMixin
 from game.ui.base_screen import BaseScreen
 from game.ui.components.battle_components import PlayerGroupPanel, EnemyGroupPanel, BattleLog
+from game.ui.rendering.color_manager import Color
 
 if TYPE_CHECKING:
     from game.ui.screen_manager import ScreenManager
     from game.ui.components.battle_components import PlayerGroupPanel, EnemyGroupPanel, BattleLog
-# ---
 
 
 class BattleScreen(BaseScreen, StandardLayoutMixin):
@@ -29,13 +32,22 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
     # --- Конец констант ---
 
     def __init__(self, manager: 'ScreenManager'):
-        # Инициализируем атрибуты для компонентов с правильной типизацией
-        self.player_group: Optional[PlayerGroupPanel] = None
-        self.enemy_group: Optional[EnemyGroupPanel] = None
-        self.battle_log: Optional[BattleLog] = None
-        # Вызываем родительский конструктор
         super().__init__(manager)
-
+        self.manager.game_manager.battle_manager.setup_battle_log_controller(
+            event_bus=self.manager.game_manager.event_bus, 
+            battle_log=self.battle_log
+        )
+        self._setup_event_listeners()
+        
+    def _setup_event_listeners(self) -> None:
+        """Настраивает обработчики событий боя - подписываемся на все события."""
+        event_bus = self.manager.game_manager.event_bus
+        event_bus.subscribe(None, LogUpdatedEvent, self._on_log_update_event)
+        
+    def _on_log_update_event(self, event: Event) -> None:
+        """Обработчик событий обновления лога - фильтруем только нужные для рендера."""
+        self.render(self.renderer.stdscr)
+        
     def _recalculate_layout(self, screen_width: int, screen_height: int) -> Dict[str, Dict[str, int]]:
         """
         Пересчитывает размеры и позиции всех основных компонентов экрана боя.
@@ -150,7 +162,15 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
             height=layout['battle_log']['height']
         )
         # Добавляем тестовые сообщения в лог
-        self.battle_log.add_message("Битва начинается!")
+        
+        ren_data = RenderData(
+            "%1%2%3",
+            {
+                "1": ("[", Color.BLUE, False, False),
+                "2": ("Битва начинается", Color.DEFAULT, False, False),
+                "3": ("]", Color.BLUE, False, False)
+            })
+        self.battle_log.add_message(ren_data)
         # ---
 
     def _update_component_sizes(self) -> None:
