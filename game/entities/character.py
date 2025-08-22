@@ -5,6 +5,11 @@ from abc import ABC
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, TYPE_CHECKING
 
+
+from game.events.combat import DeathEvent
+from game.events.render_data import RenderData
+from game.ui.rendering.color_manager import Color
+
 if TYPE_CHECKING:
     from game.entities.properties.combat import CombatProperty
     from game.entities.properties.health import HealthProperty
@@ -12,6 +17,7 @@ if TYPE_CHECKING:
     from game.entities.properties.level import LevelProperty
     from game.entities.properties.stats import StatsProperty
     from game.core.context import GameContext
+    from game.events.character import HealthChangedEvent
 
 
 # ==================== Вспомогательные классы ====================
@@ -97,3 +103,20 @@ class Character(ABC):
     def is_alive(self) -> bool:
         """Проверяет, жив ли персонаж."""
         return self.alive
+
+    def _on_health_changed(self, event: 'HealthChangedEvent') -> None:
+        if self.is_alive() and event.new_health <= 0:
+            self._died()
+
+    def _died(self) -> None:  # Будет привантым - никто не должен вызывать из вне - только через событие _on_health_changed
+        """Убивает персонажа."""
+        if self.is_alive():
+            self.alive = False
+            self.context.event_bus.publish(
+                DeathEvent(
+                    source=None,
+                    victim=self,
+                    render_data=RenderData(template="%1 умирает...",
+                        replacements={"1": (f"{self.name}", Color.RED, True, False)})
+                )
+            )

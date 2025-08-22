@@ -6,8 +6,9 @@
 
 from __future__ import annotations
 from typing import TYPE_CHECKING
-from game.events.combat import LogUpdatedEvent
+from game.events.combat import DamageEvent, DeathEvent, LogUpdatedEvent
 from game.events.event import Event
+from game.systems.event_bus import HIGH_PRIORITY
 
 if TYPE_CHECKING:
     from game.ui.components.battle_components import BattleLog

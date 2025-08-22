@@ -4,6 +4,8 @@
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, List, NamedTuple, Optional, Protocol, Type
 
+from game.systems.event_bus import NORMAL_PRIORITY
+
 if TYPE_CHECKING:
     # Импорты, используемые только для аннотаций типов
     from game.events.event import Event # Используется в миксинах
@@ -40,13 +42,20 @@ class SubscriberPropertyMixin:
     # Предполагаем, что _is_subscribed будет определен в классе-потребителе
     _is_subscribed: bool 
     
-    def _subscribe_to(self: HasContext, source: Any, event_type: Type['Event'], callback: Callable) -> None:
+    def _subscribe_to(self: HasContext, 
+        source: Any, 
+        event_type: Type['Event'], 
+        callback: Callable, 
+        priority: int = NORMAL_PRIORITY) -> None:
         """Подписаться на событие от конкретного источника."""
         # Используем прямой доступ, так как context определен в BaseProperty
         if self.context and self.context.event_bus:
-            self.context.event_bus.subscribe(source, event_type, callback)
+            self.context.event_bus.subscribe(source, event_type, callback, priority)
             
-    def _unsubscribe_from(self: HasContext, source: Any, event_type: Type['Event'], callback: Callable) -> None:
+    def _unsubscribe_from(self: HasContext, 
+        source: Any, 
+        event_type: Type['Event'], 
+        callback: Callable) -> None:
         """Отписаться от события от конкретного источника."""
         if self.context and self.context.event_bus:
             self.context.event_bus.unsubscribe(source, event_type, callback)

@@ -161,17 +161,6 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
             width=layout['battle_log']['width'],
             height=layout['battle_log']['height']
         )
-        # Добавляем тестовые сообщения в лог
-        
-        ren_data = RenderData(
-            "%1%2%3",
-            {
-                "1": ("[", Color.BLUE, False, False),
-                "2": ("Битва начинается", Color.DEFAULT, False, False),
-                "3": ("]", Color.BLUE, False, False)
-            })
-        self.battle_log.add_message(ren_data)
-        # ---
 
     def _update_component_sizes(self) -> None:
         """Обновление размеров компонентов."""
@@ -182,9 +171,7 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
         screen_width = self.renderer.width
         screen_height = self.renderer.height
 
-        # --- ИСПОЛЬЗУЕМ ОБЩУЮ ЛОГИКУ РАСЧЕТА ---
         layout = self._recalculate_layout(screen_width, screen_height)
-        # ---
 
         # Обновляем размеры и позиции панелей групп
         if self.player_group:

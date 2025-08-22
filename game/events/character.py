@@ -28,10 +28,7 @@ class StatsChangedEvent(Event):
 @dataclass
 class HealthChangedEvent(Event):
     """Событие изменения здоровья персонажа."""
-    character: Any = None
-    old_health: int = 0
     new_health: int = 0
-    max_health: int = 0
 
 @dataclass
 class EnergyChangedEvent(Event):

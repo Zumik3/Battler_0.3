@@ -16,6 +16,7 @@ from game.entities.properties.energy import EnergyProperty
 from game.entities.properties.combat import CombatProperty
 from game.entities.properties.level import LevelProperty
 from game.entities.properties.stats_config import BaseStats, GrowthRates, StatsConfigProperty
+from game.events.character import HealthChangedEvent
 
 
 class CharacterPropertyFactory(ABC):
@@ -71,6 +72,8 @@ class CharacterPropertyFactory(ABC):
         character.energy = energy_prop
         character.combat = combat_prop
 
+        # --- НОВОЕ: Настройка подписок персонажа ---
+        self._setup_character_subscriptions(character)
 
     def _create_stat_config_property(self, config: 'CharacterConfig'):
         return StatsConfigProperty(
@@ -124,3 +127,20 @@ class CharacterPropertyFactory(ABC):
             stats=stats_prop,
             # attack_power и defence будут рассчитаны автоматически
         )
+
+    def _setup_character_subscriptions(self, character: 'Character') -> None:
+            """
+            Настраивает подписки персонажа на события после создания всех свойств.
+            
+            Args:
+                character: Экземпляр персонажа, для которого настраиваются подписки.
+            """
+            if character.health and self.context.event_bus:
+                event_bus = self.context.event_bus
+                
+                event_bus.subscribe(
+                    character.health,  # Источник событий - HealthProperty персонажа
+                    HealthChangedEvent, # Тип события
+                    character._on_health_changed # Метод-обработчик у персонажа
+                )
+                print(f"  Character '{character.name}' subscribed to HealthChangedEvent from its HealthProperty#{id(character.health)}")

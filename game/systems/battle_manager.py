@@ -6,7 +6,9 @@ from typing import List, TYPE_CHECKING
 from game.events.battle_events import BattleStartedEvent, BattleEndedEvent
 
 
+from game.events.render_data import RenderData
 from game.ui.controllers.battle_log_controller import BattleLogController
+from game.ui.rendering.color_manager import Color
 
 if TYPE_CHECKING:
     from game.entities.character import Character
@@ -55,8 +57,11 @@ class BattleManager:
         battle_started_event = BattleStartedEvent(
             players=self.players,
             enemies=self.enemies,
-            source=self
-        )
+            source=None,
+            render_data=RenderData(template="%1 начинается...",
+                replacements={"1": ("Бой", Color.RED, True, False)})
+            )  # Вынести в отдельный файл - именно формирование сообщения
+        
         self.context.event_bus.publish(battle_started_event)
         
         # Основной цикл боя
@@ -68,8 +73,11 @@ class BattleManager:
             result=battle_result,
             players=self.players,
             enemies=self.enemies,
-            source=self
-        )
+            source=self,
+            render_data=RenderData(template="%1 завершен...",
+                replacements={"1": ("Бой", Color.RED, True, False)})
+            )
+
         self.context.event_bus.publish(battle_ended_event)
 
         # Бой закончен
@@ -81,8 +89,8 @@ class BattleManager:
             self.current_round_number += 1
             
             # Создаем и выполняем раунд
-            round_manager = self._create_round(self.current_round_number)
-            round_manager.execute()
+            battle_round = self._create_round(self.current_round_number)
+            battle_round.execute()
             
             # Задержка между раундами
             if self.is_battle_active and not self._is_battle_over():

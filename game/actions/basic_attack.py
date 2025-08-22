@@ -31,21 +31,6 @@ class BasicAttack(Action):
         super().__init__(source, priority=10)
         self._energy_cost = 5
 
-    @property
-    def name(self) -> str:
-        """Возвращает название действия."""
-        return type(self).__name__
-
-    @property
-    def energy_cost(self) -> int:
-        """Возвращает стоимость энергии для выполнения действия."""
-        return self._energy_cost
-
-    @energy_cost.setter
-    def energy_cost(self, value: int) -> None:
-        """Устанавливает стоимость энергии."""
-        self._energy_cost = value
-
     def is_available(self) -> bool:
         """
         Проверяет, доступна ли базовая атака.

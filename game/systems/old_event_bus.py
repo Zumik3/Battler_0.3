@@ -2,46 +2,24 @@
 """
 Система шины событий (Event Bus) для обмена сообщениями между компонентами.
 
-Реализует паттерн publish-subscribe с поддержкой типизации, обработки ошибок и приоритетов.
+Реализует паттерн publish-subscribe с поддержкой типизации и обработки ошибок.
 """
 import sys
 from typing import Dict, List, Type, Callable, Any, Tuple, TypeVar, Final
 from abc import ABC, abstractmethod
-import heapq
 
 from game.events.event import Event
 
-# --- НАЧАЛО ИЗМЕНЕНИЙ: Определение приоритетов ---
-# Константы для приоритетов (меньшее число = более высокий приоритет)
-HIGH_PRIORITY: Final[int] = 0
-NORMAL_PRIORITY: Final[int] = 10
-LOW_PRIORITY: Final[int] = 20
-# --- КОНЕЦ ИЗМЕНЕНИЙ ---
-
 # Тип для дженериков
 T = TypeVar('T', bound=Event)
-
-# --- НАЧАЛО ИЗМЕНЕНИЙ: Тип для хранения подписчика с приоритетом ---
-# Храним кортеж (приоритет, callback) для каждого подписчика
-SubscriberEntry = Tuple[int, Callable[[Event], None]]
-# --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
 
 class IEventBus(ABC):
     """Абстракция шины событий."""
     
     @abstractmethod
-    def subscribe(self, source: Any, event_type: Type[T], callback: Callable[[T], None], priority: int = NORMAL_PRIORITY) -> None:
-        """
-        Подписаться на событие определенного типа от конкретного источника.
-        
-        Args:
-            source: Объект-источник событий.
-            event_type: Тип события для подписки.
-            callback: Функция-обработчик события.
-            priority: Приоритет обработчика (меньше значение = выше приоритет).
-                      По умолчанию NORMAL_PRIORITY.
-        """
+    def subscribe(self, source: Any, event_type: Type[T], callback: Callable[[T], None]) -> None:
+        """Подписаться на событие определенного типа от конкретного источника."""
         pass
     
     @abstractmethod
@@ -77,7 +55,7 @@ class IEventBus(ABC):
 
 class EventBus(IEventBus):
     """
-    Реализация шины событий с поддержкой приоритетов.
+    Реализация шины событий.
     Используется как синглтон через модульный интерфейс.
     """
     
@@ -86,18 +64,15 @@ class EventBus(IEventBus):
         Инициализирует шину событий.
         
         Хранит подписчиков в формате:
-        (id(source), event_type) → список (приоритет, callback)-кортежей
+        (id(source), event_type) → список callback-функций
         """
-        # --- НАЧАЛО ИЗМЕНЕНИЙ: Изменен тип значения в словаре ---
-        self._subscribers: Dict[Tuple[int, Type[Event]], List[SubscriberEntry]] = {}
-        # --- КОНЕЦ ИЗМЕНЕНИЙ ---
+        self._subscribers: Dict[Tuple[int, Type[Event]], List[Callable[[Event], None]]] = {}
 
     def subscribe(
         self, 
         source: Any, 
         event_type: Type[T], 
-        callback: Callable[[T], None],
-        priority: int = NORMAL_PRIORITY
+        callback: Callable[[T], None]
         ) -> None:
         """
         Подписаться на событие определенного типа от конкретного источника.
@@ -106,21 +81,15 @@ class EventBus(IEventBus):
             source: Объект-источник событий.
             event_type: Тип события для подписки.
             callback: Функция-обработчик события.
-            priority: Приоритет обработчика (меньше значение = выше приоритет).
-                      По умолчанию NORMAL_PRIORITY.
         """
         key = (id(source), event_type)
         if key not in self._subscribers:
             self._subscribers[key] = []
         
-        # --- НАЧАЛО ИЗМЕНЕНИЙ: Сохраняем приоритет вместе с callback ---
         # Приводим тип для mypy
         typed_callback: Callable[[Event], None] = callback  # type: ignore
-        # Добавляем кортеж (приоритет, callback)
-        self._subscribers[key].append((priority, typed_callback))
-        # --- КОНЕЦ ИЗМЕНЕНИЙ ---
+        self._subscribers[key].append(typed_callback)
 
-    # Метод unsubscribe остается без изменений, так как он ищет callback по ссылке
     def unsubscribe(
         self, 
         source: Any, 
@@ -137,51 +106,67 @@ class EventBus(IEventBus):
         """
         key = (id(source), event_type)
         if key in self._subscribers:
-            # --- НАЧАЛО ИЗМЕНЕНИЙ: Ищем callback внутри кортежа (приоритет, callback) ---
             # Приводим тип для mypy
             typed_callback: Callable[[Event], None] = callback  # type: ignore
             
             try:
-                # Находим и удаляем кортеж, где второй элемент (callback) совпадает
-                self._subscribers[key] = [
-                    entry for entry in self._subscribers[key] 
-                    if entry[1] != typed_callback
-                ]
+                self._subscribers[key].remove(typed_callback)
                 # Удаляем пустой список подписчиков
                 if not self._subscribers[key]:
                     del self._subscribers[key]
             except ValueError:
                 # Callback не найден - это нормально
                 pass
-            # --- КОНЕЦ ИЗМЕНЕНИЙ ---
+
+    # def publish(self, event: Event) -> None:
+    #     """
+    #     Опубликовать событие для всех подписчиков.
+
+    #     Args:
+    #         event: Экземпляр события для публикации.
+
+    #     Raises:
+    #         Exception: Любое исключение из обработчиков пробрасывается дальше.
+    #     """
+    #     source_id = id(event.source) if hasattr(event, 'source') else 0
+    #     event_type = type(event)
+    #     key = (source_id, event_type)
+
+    #     if key not in self._subscribers:
+    #         return
+
+    #     # Работаем с копией для безопасности во время итерации
+    #     callbacks = self._subscribers[key][:]
+        
+    #     for callback in callbacks:
+    #         try:
+    #             callback(event)
+    #         except Exception as error:
+    #             self._handle_callback_error(error, event, callback)
 
     def publish(self, event: Event) -> None:
-        """
-        Опубликовать событие для всех подписчиков.
-        Объединяет подписчиков на конкретный тип и на Event, затем сортирует по приоритету.
-        """
         source_id = id(event.source) if hasattr(event, 'source') else 0
         event_type = type(event)
         
-        all_entries_to_call: List[SubscriberEntry] = []
-
+        # Ищем подписчиков для конкретного типа события
         specific_key = (source_id, event_type)
         if specific_key in self._subscribers:
-            all_entries_to_call.extend(self._subscribers[specific_key])
-
+            self._call_subscribers(specific_key, event)
+        
+        # Ищем подписчиков для базового класса Event (если event не базовый)
         if event_type != Event:
             base_key = (source_id, Event)
             if base_key in self._subscribers:
-                all_entries_to_call.extend(self._subscribers[base_key])
+                self._call_subscribers(base_key, event)
 
-        if all_entries_to_call:
-            sorted_entries = sorted(all_entries_to_call, key=lambda entry: entry[0])
-            
-            for priority, callback in sorted_entries:
-                try:
-                    callback(event)
-                except Exception as error:
-                    self._handle_callback_error(error, event, callback)
+    def _call_subscribers(self, key: Tuple[int, Type], event: Event):
+        """Вызывает подписчиков для конкретного ключа."""
+        callbacks = self._subscribers.get(key, [])[:]
+        for callback in callbacks:
+            try:
+                callback(event)
+            except Exception as error:
+                self._handle_callback_error(error, event, callback)
 
     def _handle_callback_error(
         self, 
@@ -243,17 +228,16 @@ class EventBus(IEventBus):
     def unsubscribe_all_by_callback_owner(self, owner: Any) -> None:
         """Удаляет подписки где callback принадлежит owner."""
         owner_id = id(owner)
-        for key, entries in list(self._subscribers.items()):
-            # --- НАЧАЛО ИЗМЕНЕНИЙ: Фильтруем по callback внутри кортежа ---
+        for key, callbacks in list(self._subscribers.items()):
+            # Фильтруем callbacks
             remaining = [
-                entry for entry in entries 
-                if not (hasattr(entry[1], '__self__') and id(entry[1].__self__) == owner_id)
+                cb for cb in callbacks 
+                if not (hasattr(cb, '__self__') and id(cb.__self__) == owner_id)
             ]
             if remaining:
                 self._subscribers[key] = remaining
             else:
                 del self._subscribers[key]
-            # --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
 
 # Единственный экземпляр шины на всю игру
@@ -271,12 +255,10 @@ def get_event_bus() -> IEventBus:
     """
     return _bus_instance
 
-# --- НАЧАЛО ИЗМЕНЕНИЙ: Добавлен параметр priority со значением по умолчанию ---
 def subscribe(
     source: Any, 
     event_type: Type[T], 
-    callback: Callable[[T], None],
-    priority: int = NORMAL_PRIORITY
+    callback: Callable[[T], None]
     ) -> None:
     """
     Подписаться на событие определенного типа от конкретного источника.
@@ -285,15 +267,12 @@ def subscribe(
         source: Объект-источник событий.
         event_type: Тип события для подписки.
         callback: Функция-обработчик события.
-        priority: Приоритет обработчика (меньше значение = выше приоритет).
-                  По умолчанию NORMAL_PRIORITY.
         
     Example:
         >>> from game.events.combat import DamageEvent
-        >>> subscribe(player, DamageEvent, on_damage_received, priority=HIGH_PRIORITY)
+        >>> subscribe(player, DamageEvent, on_damage_received)
     """
-    _bus_instance.subscribe(source, event_type, callback, priority)
-# --- КОНЕЦ ИЗМЕНЕНИЙ ---
+    _bus_instance.subscribe(source, event_type, callback)
 
 def unsubscribe(
     source: Any, 

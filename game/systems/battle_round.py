@@ -9,6 +9,8 @@ from game.actions.basic_attack import BasicAttack
 from game.events.battle_events import (
         RoundStartedEvent, RoundEndedEvent, TurnStartedEvent, TurnSkippedEvent
     )
+from game.events.render_data import RenderData
+from game.ui.rendering.color_manager import Color
 
 if TYPE_CHECKING:
     from game.entities.character import Character
@@ -38,8 +40,10 @@ class BattleRound:
         """Выполняет все действия в рамках одного раунда."""
         # Публикуем событие начала раунда
         round_started_event = RoundStartedEvent(
+            source=None,
             round_number=self.round_number,
-            source=self
+            render_data=RenderData(template="--------------------(%1 раунд)--------------------",
+                replacements={"1": (f"{self.round_number}", Color.GRAY, False, False)})
         )
         self.context.event_bus.publish(round_started_event)
 
@@ -50,6 +54,9 @@ class BattleRound:
             # Проверяем, не закончился ли бой досрочно
             if self._is_battle_over():
                 break
+
+            if not participant.is_alive():
+                continue
 
             # Выполняем действие участника
             self._execute_participant_turn(participant)
@@ -134,6 +141,7 @@ class BattleRound:
         else:
             potential_targets = [p for p in self.players if p.is_alive()]
 
+        # return random.choice(potential_targets) if potential_targets else None
         return next((target for target in potential_targets), None)
 
     def _is_battle_over(self) -> bool:

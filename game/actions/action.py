@@ -33,16 +33,14 @@ class Action(ABC):
         self._is_executed = False
 
     @property
-    @abstractmethod
     def name(self) -> str:
         """Возвращает название действия."""
-        pass
+        return type(self).__name__
 
     @property
-    @abstractmethod
     def energy_cost(self) -> int:
         """Возвращает стоимость энергии для выполнения действия."""
-        pass
+        return self._energy_cost
 
     def set_target(self, target: 'Character') -> None:
         """
