@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from typing import List, Optional, Any, Dict
+from unittest import result
 from game.events.event import Event
 from game.entities.character import Character
 
@@ -17,6 +18,7 @@ class BattleEndedEvent(Event):
     """Событие окончания боя."""
     players: Optional[List[Character]] = None
     enemies: Optional[List[Character]] = None
+    result: str = ""
 
 
 @dataclass
