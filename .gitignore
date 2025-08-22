@@ -33,5 +33,6 @@ files_collector.py
 combined_source.txt
 
 PROJECT_TODO.md
+tree_builder.py
 
 .vscode

@@ -4,13 +4,11 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Protocol, Optional, TYPE_CHECKING, runtime_checkable
 
-
-
 if TYPE_CHECKING:
     from game.entities.character import Character as CharacterType
     from game.results import ActionResult, ExperienceGainedResult
     from game.config import GameConfig
-    from game.events.bus import EventBus
+    from game.systems.event_bus import IEventBus
 
 # ==================== Базовые протоколы данных ====================
 
@@ -26,7 +24,11 @@ class StatsProtocol(Protocol):
 class StatsConfigurable(Protocol):
     """Протокол для объектов, предоставляющих конфигурацию характеристик."""
     def calculate_all_stats_at_level(self, level: int) -> Dict[str, int]: ...
-    
+
+    def get_base_stats(self) -> Dict[str, int]: ...
+
+    def get_growth_rates(self) -> Dict[str, int]: ...
+
 
 class Attributes(Protocol):
     """Протокол для производных атрибутов персонажа."""
@@ -39,20 +41,24 @@ class Attributes(Protocol):
         """Пересчитать атрибуты на основе базовых характеристик."""
         ...
 
+
 class HealthPropertyProtocol(Protocol):
     """Протокол для производных атрибутов персонажа."""
     max_health: int
     health: int
+
 
 class EnergyPropertyProtocol(Protocol):
     """Протокол для производных атрибутов персонажа."""
     max_energy: int
     energy: int
 
+
 class CombatPropertyProtocol(Protocol):
     """Протокол для производных атрибутов персонажа."""
     attack_power: int
     defence: int
+
 
 class ExperiencePropertyProtocol(Protocol):
     """Протокол для производных атрибутов персонажа."""
@@ -60,12 +66,12 @@ class ExperiencePropertyProtocol(Protocol):
         """Добавляет опыт персонажу."""
         ...
 
+
 class LevelPropertyProtocol(Protocol):
     """Протокол для производных атрибутов персонажа."""
     def level_up(self) -> None:
         """Добавляет уровень персонажу."""
         ...
-
 
 
 # ==================== Протоколы игровых систем ====================
@@ -214,8 +220,15 @@ class CharacterAttributesConfig(Protocol):
 class PropertyContext(Protocol):
     """Интерфейс для контекста, предоставляемого свойству."""
     
+    _character: 'CharacterType'
+
     @property
-    def event_bus(self) -> Optional['EventBus']:
+    def event_bus(self) -> 'IEventBus':
+        """Получить доступ к шине событий."""
+        ...
+
+    @property
+    def character(self) -> 'CharacterType':
         """Получить доступ к шине событий."""
         ...
         

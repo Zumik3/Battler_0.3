@@ -3,7 +3,8 @@
 Содержит визуальные элементы для отображения игроков, врагов и лога боя."""
 
 import curses
-from typing import List, TYPE_CHECKING
+from typing import List, TYPE_CHECKING, Optional, Dict
+
 
 from game.ui.rendering.renderable import Renderable
 from game.ui.rendering.renderer import Renderer
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
     from game.entities.monster import Monster
     from game.entities.player import Player
     from game.entities.character import Character
+    from game.events.render_data import RenderData
 
 
 class UnitPanel(Renderable):
@@ -31,6 +33,7 @@ class UnitPanel(Renderable):
     MONSTER_NAME_WIDTH = 20
     HP_BAR_WIDTH = 10
     EP_BAR_WIDTH = 5
+    BRAKETS_WIDTH = 2
     
     # Константы для оценки минимальной ширины элементов
     ESTIMATED_LEVEL_WIDTH = 3
@@ -41,20 +44,21 @@ class UnitPanel(Renderable):
     HP_CRITICAL_THRESHOLD = 0.25
     HP_LOW_THRESHOLD = 0.5
 
-    def __init__(self, character: 'Character', x: int, y: int, width: int, height: int) -> None:
+    def __init__(self, character: Optional['Character'], x: int, y: int, width: int, height: int) -> None:
         """Инициализация базовой панели юнита.
         Args:
+            character: Объект персонажа для отображения.
             x: Координата X.
             y: Координата Y.
             width: Ширина панели.
-            height: Высота панели (должна быть 1 для соответствия новому дизайну).
+            height: Высота панели (должна быть 1 для соответствия дизайну).
         """
         super().__init__(x, y)
         self.width = width
-        self.height = height  # Ожидается 1
+        self.height = height
         self.character = character
         
-        if character.is_player:
+        if character and getattr(character, 'is_player', False):
             name_width = self.CHARACTER_NAME_WIDTH 
             color = Color.GREEN
         else:
@@ -67,11 +71,7 @@ class UnitPanel(Renderable):
         self.level_label = CharacterLevelLabel(character=self.character, x=x, y=y)
         
         self.hp_label = HealthBar(character=self.character, x=x, y=y, width=self.HP_BAR_WIDTH)
-        self.energy_label = EnergyBar(character=character, x=x, y=y, width=self.EP_BAR_WIDTH)
-        # Для HP и Energy в бою отображаем числовые значения, а не прогресс-бары
-        # Поэтому создаем специальные текстовые лейблы
-        #self.hp_label = TextLabel(x=x, y=y)
-        #self.energy_label = TextLabel(x=x, y=y)
+        self.energy_label = EnergyBar(character=self.character, x=x, y=y, width=self.EP_BAR_WIDTH)
 
     def update_size(self, width: int, height: int) -> None:
         """
@@ -103,19 +103,23 @@ class UnitPanel(Renderable):
         # 2. Класс/роль
         self.class_label.x = current_x
         self.class_label.y = self.y
-        class_width = len(self.class_label.text) + 2  # Примерная ширина [R]
-        current_x += class_width  #  Spacing не нужен 
+        # Обновляем текст для расчета ширины
+        self.class_label._update_from_character()
+        class_width = len(self.class_label.text) + self.BRAKETS_WIDTH
+        current_x += class_width
         
         # 3. Уровень
         self.level_label.x = current_x
         self.level_label.y = self.y
-        level_width = len(self.level_label.text) + 2
+        # Обновляем текст для расчета ширины
+        self.level_label._update_from_character()
+        level_width = len(self.level_label.text) + self.BRAKETS_WIDTH
         current_x += level_width
 
         # 4. HP
         self.hp_label.x = current_x
         self.hp_label.y = self.y
-        current_x += self.hp_label.width + 2
+        current_x += self.hp_label.width + self.BRAKETS_WIDTH
         
         # 5. Energy
         self.energy_label.x = current_x
@@ -133,7 +137,12 @@ class UnitPanel(Renderable):
                 pass
             return
 
-        # Пересчитываем позиции виджетов перед отрисовкой
+        # Обновляем данные виджетов
+        self.name_label._update_from_character()
+        self.class_label._update_from_character()
+        self.level_label._update_from_character()
+        
+        # Пересчитываем позиции
         self._update_widgets_positions()
         
         # Отрисовываем все виджеты
@@ -143,21 +152,20 @@ class UnitPanel(Renderable):
         self.hp_label.render(renderer)
         self.energy_label.render(renderer)
             
-        # Заполняем оставшееся пространство пробелами для затирания предыдущего содержимого
-        # last_widget_end_x = self.energy_label.x + len(self.energy_label.text) if self.energy_label.text else \
-        #                   (self.hp_label.x + len(self.hp_label.text))
-        # if last_widget_end_x < self.x + self.width:
-        #     remaining_width = (self.x + self.width) - last_widget_end_x
-        #     try:
-        #         renderer.draw_text(" " * remaining_width, last_widget_end_x, self.y)
-        #     except curses.error:
-        #         pass
+        # Очистка остаточного пространства
+        last_widget_end_x = self.energy_label.x + self.energy_label.width + self.BRAKETS_WIDTH
+        if last_widget_end_x < self.x + self.width:
+            remaining_width = (self.x + self.width) - last_widget_end_x
+            try:
+                renderer.draw_text(" " * remaining_width, last_widget_end_x, self.y)
+            except curses.error:
+                pass
 
 
 class EnemyUnitPanel(UnitPanel):
     """Панель для отображения одного врага."""
 
-    def __init__(self, x: int, y: int, width: int, height: int, monster: 'Monster') -> None:
+    def __init__(self, x: int, y: int, width: int, height: int, monster: Optional['Monster']) -> None:
         """Инициализация панели врага.
         Args:
             x: Координата X.
@@ -172,7 +180,7 @@ class EnemyUnitPanel(UnitPanel):
 class PlayerUnitPanel(UnitPanel):
     """Панель для отображения одного игрока."""
 
-    def __init__(self, x: int, y: int, width: int, height: int, player: 'Player') -> None:
+    def __init__(self, x: int, y: int, width: int, height: int, player: Optional['Player']) -> None:
         """Инициализация панели игрока.
         Args:
             x: Координата X.
@@ -221,7 +229,6 @@ class GroupPanel(Renderable):
 
     def render(self, renderer: Renderer) -> None:
         """Отрисовка панели группы без внешнего обрамления."""
-        # НЕ отрисовываем рамку вокруг группы
         # Отрисовка каждой панели юнита
         for panel in self.panels:
             panel.render(renderer)
@@ -304,24 +311,10 @@ class BattleLog(Renderable):
         super().__init__(x, y)
         self.width = width
         self.height = height
-        # TODO: Получать реальные сообщения из игровой логики
-        self.messages: List[str] = [
-            "Битва начинается!",
-            "Герой вступает в бой с Драконом.",
-            "Дракон издает грозный рык.",
-            "Герой атакует Дракона!",
-            "Дракон получает 25 урона.",
-            "Дракон атакует Героя!",
-            "Герой получает 15 урона.",
-            "Герой использует зелье лечения.",
-            "Герой восстанавливает 30 HP.",
-            "Дракон готовится к мощной атаке!",
-            "Герой защищается.",
-            "Мощная атака Дракона отражена!",
-        ]
-        self.scroll_offset = 0 # Смещение прокрутки (0 = последние сообщения внизу)
+        self.messages: List['RenderData'] = []
+        self.scroll_offset = 0  # Смещение прокрутки (0 = последние сообщения внизу)
 
-    def add_message(self, message: str) -> None:
+    def add_message(self, message: 'RenderData') -> None:
         """Добавление сообщения в лог.
         Args:
             message: Текст сообщения.
@@ -333,7 +326,7 @@ class BattleLog(Renderable):
     def scroll_up(self) -> None:
         """Прокрутка лога вверх."""
         # Максимальное смещение - это количество строк, которые не помещаются
-        max_offset = max(0, len(self.messages) - self.height)
+        max_offset = max(0, len(self.messages) - self._get_content_height())
         if self.messages:
             self.scroll_offset = min(max_offset, self.scroll_offset + 1)
 
@@ -342,6 +335,14 @@ class BattleLog(Renderable):
         if self.messages:
             self.scroll_offset = max(0, self.scroll_offset - 1)
 
+    def _get_content_height(self) -> int:
+        """Возвращает высоту области для контента (без учета рамки)."""
+        return max(0, self.height - 2)  # -2 для верхней и нижней границы
+
+    def _get_content_width(self) -> int:
+        """Возвращает ширину области для контента (без учета рамки)."""
+        return max(0, self.width - 2)  # -2 для левой и правой границы
+
     def update_size(self, total_width: int, total_height: int) -> None:
         """Обновление размеров лога.
         Args:
@@ -349,14 +350,14 @@ class BattleLog(Renderable):
             total_height: Общая высота экрана.
         """
         # Занимает всю ширину экрана (с отступами)
-        self.width = max(10, total_width - 2) # -2 для отступов
+        self.width = max(10, total_width - 2)  # -2 для отступов
         # Высота динамическая, устанавливается в BattleScreen._update_component_sizes
         # Пока оставим пустую реализацию или базовую
         pass
 
     def render(self, renderer: Renderer) -> None:
         """Отрисовка лога боя с обрамлением."""
-        # Отрисовка рамки лога (она остается)
+        # Отрисовка рамки лога
         try:
             renderer.draw_borderless_log_box(self.x, self.y, self.width, self.height)
         except curses.error:
@@ -364,22 +365,29 @@ class BattleLog(Renderable):
             pass
 
         # Определяем, какие сообщения отображать с учетом прокрутки
-        # scroll_offset = 0 означает, что последние сообщения внизу
-        start_index = max(0, len(self.messages) - self.height - self.scroll_offset)
-        end_index = start_index + self.height
+        content_height = self._get_content_height()
+        start_index = max(0, len(self.messages) - content_height - self.scroll_offset)
+        end_index = start_index + content_height
         visible_messages = self.messages[start_index:end_index]
 
-        # Отрисовка сообщений
+        # Отрисовка сообщений (с учетом рамки)
         for i, message in enumerate(visible_messages):
-            # Позиция Y для текущего сообщения
-            msg_y = self.y + 1 + i
-            # Позиция X (с небольшим отступом)
+            # Позиция Y для текущего сообщения (внутри рамки)
+            msg_y = self.y + 1 + i  # +1 для отступа от верхней границы
+            # Позиция X (с небольшим отступом от левой границы)
             msg_x = self.x + 1
+            
+            # Обрезаем сообщение, если оно слишком длинное
+            # max_length = self._get_content_width()
+            # if len(message) > max_length:
+            #     message = message[:max_length - 3] + "..."  # Добавляем многоточие
 
             # Отрисовка текста сообщения
             try:
-                # TODO: Добавить цвета/стили для разных типов сообщений (урон, лечение, и т.д.)
-                renderer.draw_text(message, msg_x, msg_y, color=Color.WHITE)
+                renderer.draw_template(
+                    template=message.template,
+                    replacements=message.replacements,
+                     x=msg_x, y=msg_y)
             except curses.error:
                 # Игнорируем ошибки выхода за границы экрана
                 pass

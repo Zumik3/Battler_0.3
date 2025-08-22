@@ -11,7 +11,7 @@ from game.protocols import CombatPropertyProtocol, StatsProtocol
 
 # Импорты для аннотаций типов
 if TYPE_CHECKING:
-    from game.events.bus import Event # Для аннотации в _on_stats_event
+    from game.events.event import Event # Для аннотации в _on_stats_event
 
 @dataclass
 class CombatProperty(DependentProperty, CombatPropertyProtocol):
@@ -22,14 +22,14 @@ class CombatProperty(DependentProperty, CombatPropertyProtocol):
     
     Атрибуты:
         attack_power: Сила атаки персонажа.
-        defence: Защита персонажа.
+        defense: Защита персонажа.
         stats: Ссылка на объект статов, от которых зависит свойство.
                (добавлено, так как DependentProperty его не предоставляет)
         # Атрибуты context, _is_subscribed наследуются от DependentProperty.
     """
     
     attack_power: int = field(default=0)
-    defence: int = field(default=0)
+    defense: int = field(default=0)
     stats: Optional[StatsProtocol] = field(default=None)
 
     def __post_init__(self) -> None:

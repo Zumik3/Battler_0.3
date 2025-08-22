@@ -14,7 +14,7 @@ class LoggingMixin:
         """Получить логгер для текущего класса."""
         if self._logger is None:
             try:
-                logger_name = f"{self.__class__.__module__}.{self.__class__.__name__}"
+                logger_name = f"{type(self).__module__}.{type(self).__name__}"
                 self._logger = logging.getLogger(logger_name)
             except Exception:
                 self._logger = logging.getLogger("fallback")

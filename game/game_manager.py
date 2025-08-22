@@ -1,12 +1,16 @@
 # game/game_manager.py
 """Менеджер игрового состояния."""
 
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING, Self
 from game.config import get_config
+from game.core.context import ContextFactory
+from game.systems.battle_manager import BattleManager
 
 if TYPE_CHECKING:
     from game.entities.player import Player
     from game.entities.monster import Monster
+    from game.core.context import GameContext
+    from game.entities.character import Character
 
 class GameManager:
     """Менеджер игрового состояния."""
@@ -25,6 +29,9 @@ class GameManager:
             return
 
         self.config = get_config()
+        self.context: 'GameContext' = ContextFactory.create_default_context(self.config)
+        self.event_bus = self.context.event_bus
+        self.battle_manager = BattleManager(self.context)
         self.player_group: List['Player'] = []
         self.current_enemies: List['Monster'] = []
         
@@ -48,10 +55,14 @@ class GameManager:
 
     def _create_players(self, player_data: Dict[str, str], data_dir: str) -> None:
         """Создает группу игроков."""
-        from game.factories.player_factory import create_player
+        from game.factories.player_factory import PlayerFactory
         
         for name, role in player_data.items():
-            player = create_player(role=role, name=name, level=1, data_directory=data_dir)
+            player = PlayerFactory.create_player(
+                context=self.context,
+                role=role,
+                level=1
+            )
             if player:
                 self.player_group.append(player)
 
@@ -62,6 +73,18 @@ class GameManager:
             {'role': 'orc', 'level': 2},
         ]
         self.create_enemies(initial_enemy_data)
+
+    def _start_battle(self, players: list['Character'], enemies: list['Character']) -> None:
+        """Запускает бой между командами.
+        
+        Args:
+            players: Список персонажей игрока.
+            enemies: Список врагов.
+        """
+        self.battle_manager.start_battle(players, enemies)
+
+    def start_battle(self) -> None:
+        self._start_battle(self.player_group, self.current_enemies)
 
     def get_player_group(self) -> List['Player']:
         """Получить текущую группу игроков."""
@@ -75,18 +98,17 @@ class GameManager:
         """Создание новой группы врагов."""
         self.current_enemies.clear()
         
-        from game.factories.monster_factory import create_monster
+        from game.factories.monster_factory import MonsterFactory
 
         for enemy_data in enemy_data_list:
-            role = enemy_data.get('role')
-            if not role:
-                # TODO: Заменить на логирование
-                continue
-
+            role = enemy_data.get('role', 'goblin')
             level = enemy_data.get('level', 1)
-            name = enemy_data.get('name')
             
-            monster = create_monster(name=name, role=role, level=level)
+            monster = MonsterFactory.create_monster(
+                context=self.context,  # Передаем контекст
+                role=role, 
+                level=level
+            )
             if monster:
                 self.current_enemies.append(monster)
         

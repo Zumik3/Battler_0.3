@@ -1,0 +1,16 @@
+{
+    "PHYSICAL": {
+        "color": "#FF6B6B",
+        "icon": "physical_icon",
+        "resist_stat": "physical_resistance",
+        "is_elemental": false
+    },
+    "FIRE": {
+        "color": "#FF9E44", 
+        "icon": "fire_icon",
+        "resist_stat": "fire_resistance",
+        "is_elemental": true,
+        "weak_against": ["ICE"],
+        "strong_against": ["POISON"]
+    }
+}

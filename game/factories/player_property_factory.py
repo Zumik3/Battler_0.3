@@ -6,6 +6,7 @@ from typing import  TYPE_CHECKING
 
 
 from game.entities.properties.experience import ExperienceProperty
+from game.events import character
 from game.factories.character_property_factory import CharacterPropertyFactory
 
 if TYPE_CHECKING:
@@ -17,7 +18,7 @@ class PlayerPropertyFactory(CharacterPropertyFactory):
     """Фабрика для создания связанных свойств персонажа."""
     
     def __init__(self, context: 'GameContext', config: 'CharacterConfig', player: 'Player'):
-        super().__init__(context)
+        super().__init__(context=context, character=player)
         self.create_basic_properties(character=player, config=config)
         self.create_advanced_properties(player=player)
     
@@ -48,7 +49,7 @@ class PlayerPropertyFactory(CharacterPropertyFactory):
         """Создает свойство опыта."""
         
         exp_prop = ExperienceProperty(
-            context=self.property_context,
+            context=self.context,
         )
         
         return exp_prop

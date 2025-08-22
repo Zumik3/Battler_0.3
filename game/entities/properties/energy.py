@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, List, Optional
 
 from game.protocols import EnergyPropertyProtocol, StatsProtocol
 from game.entities.properties.base import DependentProperty 
-from game.results import ActionResult
 from game.events.character import StatsChangedEvent
+from game.events.combat import EnergySpentEvent
 
 @dataclass
 class EnergyProperty(DependentProperty, EnergyPropertyProtocol):
@@ -42,18 +42,17 @@ class EnergyProperty(DependentProperty, EnergyPropertyProtocol):
         # Проверяем, не подписаны ли мы уже и существуют ли необходимые зависимости
         if not self._is_subscribed and self.stats and self.context:
             self._subscribe_to(self.stats, StatsChangedEvent, self._on_stats_event)
+            self._subscribe_to(None, EnergySpentEvent, self._on_energy_spent)
             self._is_subscribed = True
-        print(f"  EnergyProperty#{id(self)} подписался на StatsChangedEvent от Stats#{id(self.stats)}")
-            
-    def _teardown_subscriptions(self) -> None:
-        """Отписывается от изменений статов."""
-        if self._is_subscribed and self.stats and self.context:
-            self._unsubscribe_from(self.stats, StatsChangedEvent, self._on_stats_event)
-            self._is_subscribed = False
 
     def _on_stats_event(self, event: StatsChangedEvent) -> None:
         """Вызывается при получении события изменения статов."""
         self._recalculate_from_stats(event.source)
+
+    def _on_energy_spent(self, event: EnergySpentEvent) -> None:
+        """Вызывается при получении события траты энергии."""
+        if self.context.character is event.character:
+            self.spend_energy(event.amount)
         
     def _recalculate_from_stats(self, stats: StatsProtocol) -> None:
         """Пересчитывает свойство на основе статов."""
@@ -78,11 +77,14 @@ class EnergyProperty(DependentProperty, EnergyPropertyProtocol):
         
         self.restore_full_energy()
 
+    def get(self):
+        return self.energy
+
     def restore_energy(
         self, 
         amount: Optional[int] = None, 
         percentage: Optional[float] = None
-    ) -> List[ActionResult]:
+        ) -> None:
         """Восстанавливает энергию персонажа.
         
         Восстановление происходит по одному из трех сценариев:
@@ -96,11 +98,7 @@ class EnergyProperty(DependentProperty, EnergyPropertyProtocol):
             percentage: Процент максимальной энергии для восстановления.
                         Должен быть в диапазоне 0.0 - 100.0.
                         
-        Returns:
-            Список результатов действия (ActionResult), описывающих эффект
-            восстановления энергии.
         """
-        results: List[ActionResult] = []
         old_energy = self.energy
 
         if percentage is not None:
@@ -110,15 +108,6 @@ class EnergyProperty(DependentProperty, EnergyPropertyProtocol):
             self.energy = min(self.max_energy, self.energy + amount)
         else:
             self.energy = self.max_energy
-
-        actual_restore = self.energy - old_energy
-        if actual_restore > 0:
-            results.append(ActionResult(
-                type="energy_restored",
-                message=f"Восстановлено {actual_restore} энергии. Текущая энергия: {self.energy}"
-            ))
-
-        return results
     
     def spend_energy(self, amount: int) -> bool:
         """Тратит энергию персонажа.

@@ -52,10 +52,10 @@ class StatsProperty(PublishingAndDependentProperty, StatsProtocol):
         """Инициализация свойства характеристик."""
         super().__post_init__()
         
-        if self.stats_config and hasattr(self.stats_config, 'base_stats'):
-            for attr_name in ['strength', 'agility', 'intelligence', 'vitality']:
-                if hasattr(self.stats_config.base_stats, attr_name):
-                    setattr(self, attr_name, getattr(self.stats_config.base_stats, attr_name))
+        if self.stats_config:
+            base_stats = self.stats_config.get_base_stats()
+            for attr_name, value in base_stats.items():
+                setattr(self, attr_name, value)
     
     def _setup_subscriptions(self) -> None:
         """Подписывается на события повышения уровня."""
@@ -63,22 +63,11 @@ class StatsProperty(PublishingAndDependentProperty, StatsProtocol):
         if not self._is_subscribed and self.level_source and self.context and self.context.event_bus:
             self._subscribe_to(self.level_source, LevelUpEvent, self._on_level_up)
             self._is_subscribed = True
-            print(f"  StatsProperty#{id(self)} подписался на LevelUpEvent от Level#{id(self.level_source)}")
             
-    def _teardown_subscriptions(self) -> None:
-        """Отписывается от событий повышения уровня."""
-        if self._is_subscribed and self.level_source and self.context and self.context.event_bus:
-            self._unsubscribe_from(self.level_source, LevelUpEvent, self._on_level_up)
-            self._is_subscribed = False
-
     # --- Обработчик события ---
     
-    def _on_level_up(self, event: 'LevelUpEvent') -> None:
-        """Вызывается при получении события повышения уровня.
-        
-        Может быть использован для добавления бонусов к характеристикам.
-        В этом примере добавляется небольшой бонус к случайной характеристике.
-        """
+    def _on_level_up(self, event: LevelUpEvent) -> None:
+        """Вызывается при получении события повышения уровня."""
         if self.stats_config:
             new_stats = self.stats_config.calculate_all_stats_at_level(event.new_level)
     
@@ -131,13 +120,6 @@ class StatsProperty(PublishingAndDependentProperty, StatsProtocol):
             yield self
         finally:
             self.end_batch_update()
-
-    # --- Модифицированные сеттеры ---
-    def modify_stat(self, stat_name: str, value: int) -> None:
-        current_stat = getattr(self, stat_name)
-        if current_stat and value != current_stat:
-            setattr(self, stat_name, value)
-            self._mark_changed()
             
     def _mark_changed(self) -> None:
         """Помечает, что были изменения. Публикует событие, если не в batch_mode."""

@@ -14,23 +14,23 @@ from game.entities.properties.stats import StatsProperty
 from game.entities.properties.health import HealthProperty
 from game.entities.properties.energy import EnergyProperty
 from game.entities.properties.combat import CombatProperty
-from game.entities.properties.experience import ExperienceProperty
 from game.entities.properties.level import LevelProperty
 from game.entities.properties.stats_config import BaseStats, GrowthRates, StatsConfigProperty
+from game.events.character import HealthChangedEvent
 
 
 class CharacterPropertyFactory(ABC):
     """Фабрика для создания связанных свойств персонажа."""
     
     @abstractmethod
-    def __init__(self, context: GameContext):
+    def __init__(self, context: GameContext, character: 'Character'):
         """
         Инициализирует фабрику свойств.
         
         Args:
             game_context: Глобальный контекст игры.
         """
-        self.property_context = GameContextBasedPropertyContext(context)
+        self.context = GameContextBasedPropertyContext(character=character)
     
     def create_basic_properties(self, 
         character: 'Character', 
@@ -72,6 +72,8 @@ class CharacterPropertyFactory(ABC):
         character.energy = energy_prop
         character.combat = combat_prop
 
+        # --- НОВОЕ: Настройка подписок персонажа ---
+        self._setup_character_subscriptions(character)
 
     def _create_stat_config_property(self, config: 'CharacterConfig'):
         return StatsConfigProperty(
@@ -82,7 +84,7 @@ class CharacterPropertyFactory(ABC):
     def _create_stats_property(self, level_source: LevelProperty, stats_config: 'StatsConfigProperty') -> StatsProperty:
         """Создает свойство характеристик."""
         return StatsProperty(
-            context=self.property_context,
+            context=self.context,
             stats_config=stats_config,
             strength=10,
             agility=10,
@@ -95,7 +97,7 @@ class CharacterPropertyFactory(ABC):
         
         # Сначала создаем оба свойства без ссылок друг на друга
         level_prop = LevelProperty(
-            context=self.property_context,
+            context=self.context,
             level=initial_level,
             # exp_property будет установлен позже
         )
@@ -105,7 +107,7 @@ class CharacterPropertyFactory(ABC):
     def _create_health_property(self, stats_prop: StatsProperty) -> HealthProperty:
         """Создает свойство здоровья."""
         return HealthProperty(
-            context=self.property_context,
+            context=self.context,
             stats=stats_prop,
             # max_health и health будут рассчитаны автоматически
         )
@@ -113,7 +115,7 @@ class CharacterPropertyFactory(ABC):
     def _create_energy_property(self, stats_prop: StatsProperty) -> EnergyProperty:
         """Создает свойство энергии."""
         return EnergyProperty(
-            context=self.property_context,
+            context=self.context,
             stats=stats_prop,
             # max_energy и energy будут рассчитаны автоматически
         )
@@ -121,7 +123,24 @@ class CharacterPropertyFactory(ABC):
     def _create_combat_property(self, stats_prop: StatsProperty) -> CombatProperty:
         """Создает свойство боевых показателей."""
         return CombatProperty(
-            context=self.property_context,
+            context=self.context,
             stats=stats_prop,
             # attack_power и defence будут рассчитаны автоматически
         )
+
+    def _setup_character_subscriptions(self, character: 'Character') -> None:
+            """
+            Настраивает подписки персонажа на события после создания всех свойств.
+            
+            Args:
+                character: Экземпляр персонажа, для которого настраиваются подписки.
+            """
+            if character.health and self.context.event_bus:
+                event_bus = self.context.event_bus
+                
+                event_bus.subscribe(
+                    character.health,  # Источник событий - HealthProperty персонажа
+                    HealthChangedEvent, # Тип события
+                    character._on_health_changed # Метод-обработчик у персонажа
+                )
+                print(f"  Character '{character.name}' subscribed to HealthChangedEvent from its HealthProperty#{id(character.health)}")

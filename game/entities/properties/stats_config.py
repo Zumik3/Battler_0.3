@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Dict, TypedDict
 
-from game.protocols import StatsProtocol
+from game.protocols import StatsConfigurable
 
 # Типизированный словарь для всех характеристик
 class AllStats(TypedDict):
@@ -40,13 +40,69 @@ class StatsConfigProperty:
     base_stats: BaseStats = field(default_factory=BaseStats)
     growth_rates: GrowthRates = field(default_factory=GrowthRates)
 
+    def get_base_stats(self) -> Dict[str, int]:
+        """Возвращает базовые значения характеристик в виде словаря.
+        
+        Returns:
+            Словарь с базовыми значениями всех характеристик.
+        """
+        return {
+            'strength': self.base_stats.strength,
+            'agility': self.base_stats.agility,
+            'intelligence': self.base_stats.intelligence,
+            'vitality': self.base_stats.vitality
+        }
+
+    def get_growth_rates(self) -> Dict[str, int]:
+        """Возвращает коэффициенты роста характеристик в виде словаря.
+        
+        Returns:
+            Словарь с коэффициентами роста всех характеристик.
+        """
+        return {
+            'strength': int(self.growth_rates.strength * 100),  # Преобразуем в проценты
+            'agility': int(self.growth_rates.agility * 100),
+            'intelligence': int(self.growth_rates.intelligence * 100),
+            'vitality': int(self.growth_rates.vitality * 100)
+        }
+
     def get_base_stat(self, stat_name: str) -> int:
-        """Возвращает базовое значение характеристики."""
+        """Возвращает базовое значение характеристики.
+        
+        Args:
+            stat_name: Название характеристики.
+            
+        Returns:
+            Базовое значение характеристики.
+        """
         return getattr(self.base_stats, stat_name)
 
     def get_growth_rate(self, stat_name: str) -> float:
-        """Возвращает коэффициент роста характеристики."""
+        """Возвращает коэффициент роста характеристики.
+        
+        Args:
+            stat_name: Название характеристики.
+            
+        Returns:
+            Коэффициент роста характеристики.
+        """
         return getattr(self.growth_rates, stat_name)
+
+    def calculate_all_stats_at_level(self, level: int) -> Dict[str, int]:
+        """Вычисляет все характеристики на указанном уровне.
+        
+        Args:
+            level: Уровень для расчета.
+            
+        Returns:
+            Словарь с рассчитанными значениями всех характеристик.
+        """
+        return {
+            'strength': self._calculate_stat_at_level('strength', level),
+            'agility': self._calculate_stat_at_level('agility', level),
+            'intelligence': self._calculate_stat_at_level('intelligence', level),
+            'vitality': self._calculate_stat_at_level('vitality', level)
+        }
 
     def _calculate_stat_at_level(self, stat_name: str, level: int) -> int:
         """Вычисляет значение характеристики на указанном уровне.
@@ -67,15 +123,6 @@ class StatsConfigProperty:
             return round(base_value + (base_value * growth_rate * (level - 1)))
         except AttributeError:
             raise AttributeError(f"Характеристика '{stat_name}' не существует")
-
-    def calculate_all_stats_at_level(self, level: int) -> Dict[str, int]:
-        """Вычисляет все характеристики на указанном уровне."""
-        return {
-            'strength': self._calculate_stat_at_level('strength', level),
-            'agility': self._calculate_stat_at_level('agility', level),
-            'intelligence': self._calculate_stat_at_level('intelligence', level),
-            'vitality': self._calculate_stat_at_level('vitality', level)
-        }
 
     def __str__(self) -> str:
         """Строковое представление конфигурации."""

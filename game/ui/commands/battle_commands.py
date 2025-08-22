@@ -14,16 +14,15 @@ class AttackCommand(Command):
 
     def __init__(self):
         super().__init__(
-            name="Атака",
-            description="Атаковать противника",
-            keys=['a', 'A'],
-            display_key="A/a"
+            name="Бой",
+            description="Начать бой",
+            keys=[10],
+            display_key="Enter"
         )
 
     def execute(self, context: Optional[Any] = None) -> None:
-        """Выполнение команды атаки."""
-        if context:
-            print("Атака!")
+        """Выполнение команды начала боя."""
+        context.manager.game_manager.start_battle()
 
 
 class DefendCommand(Command):

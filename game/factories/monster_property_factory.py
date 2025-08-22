@@ -14,7 +14,7 @@ class MonsterPropertyFactory(CharacterPropertyFactory):
     """Фабрика для создания связанных свойств монстра."""
     
     def __init__(self, context: 'GameContext', config: 'CharacterConfig', monster: 'Monster'):
-        super().__init__(context)
+        super().__init__(context=context, character=monster)
         self.create_basic_properties(character=monster, config=config)
     
     def create_advanced_properties(self, monster: 'Monster') -> None:
