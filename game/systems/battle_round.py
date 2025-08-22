@@ -42,8 +42,15 @@ class BattleRound:
         round_started_event = RoundStartedEvent(
             source=None,
             round_number=self.round_number,
-            render_data=RenderData(template="--------------------(%1 раунд)--------------------",
-                replacements={"1": (f"{self.round_number}", Color.GRAY, False, False)})
+            render_data=RenderData(
+                template="%1 %2 %3 %4",
+                replacements={
+                    "1": ("･･････････････････ [", Color.GRAY, False, False), # Точки и открывающая скобка с пробелом
+                    "2": ("Раунд", Color.CYAN, True, False),             # Слово "Раунд"
+                    "3": (f"{self.round_number}", Color.YELLOW, True, False), # Номер раунда
+                    "4": ("] ･･････････････････", Color.GRAY, False, False)   # Закрывающая скобка с пробелом и точки
+                }
+            )
         )
         self.context.event_bus.publish(round_started_event)
 

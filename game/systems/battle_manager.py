@@ -1,3 +1,4 @@
+# game/systems/battle_manager.py
 """Менеджер боя для автоматического пошагового сражения."""
 
 from __future__ import annotations
@@ -5,6 +6,8 @@ import time
 from typing import List, TYPE_CHECKING
 from game.events.battle_events import BattleStartedEvent, BattleEndedEvent
 
+# Добавляем импорт BattleResult
+from game.systems.battle_result import BattleResult
 
 from game.events.render_data import RenderData
 from game.ui.controllers.battle_log_controller import BattleLogController
@@ -67,20 +70,28 @@ class BattleManager:
         # Основной цикл боя
         self._run_battle_loop()
 
-        # Публикуем событие окончания боя
-        battle_result = self.get_battle_result()
+        # --- ИЗМЕНЕНИЯ НАЧАЛО ---
+        # Создаем BattleResult *после* окончания боя
+        battle_result_obj = BattleResult(
+            players=self.players,
+            enemies=self.enemies,
+            alive_players=[p for p in self.players if p.is_alive()],
+            dead_enemies=[e for e in self.enemies if not e.is_alive()],
+            # battle_log=None, # Пока не заполняем
+            # battle_id=None, # Пока не заполняем
+        )
 
-        try:
-            battle_ended_event = BattleEndedEvent(
-                result=battle_result,
-                players=self.players,
-                enemies=self.enemies,
-                source=None,
-                render_data=RenderData(template="%1 завершен...",
-                    replacements={"1": ("Бой", Color.RED, True, False)})
-                )
-        except Exception as e:
-            print(e)
+        # Публикуем событие окончания боя с BattleResult
+        battle_ended_event = BattleEndedEvent(
+            # Передаем объект BattleResult, а не строку
+            result=battle_result_obj, 
+            players=self.players,
+            enemies=self.enemies,
+            source=None,
+            render_data=RenderData(template="%1 завершен...",
+                replacements={"1": ("Бой", Color.RED, True, False)})
+            )
+        # --- ИЗМЕНЕНИЯ КОНЕЦ ---
 
         self.context.event_bus.publish(battle_ended_event)
 

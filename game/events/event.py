@@ -1,4 +1,4 @@
-# game/events/bus.py
+# game/events/event.py
 """Шина событий игры."""
 
 from datetime import datetime
