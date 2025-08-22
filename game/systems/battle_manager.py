@@ -69,14 +69,18 @@ class BattleManager:
 
         # Публикуем событие окончания боя
         battle_result = self.get_battle_result()
-        battle_ended_event = BattleEndedEvent(
-            result=battle_result,
-            players=self.players,
-            enemies=self.enemies,
-            source=self,
-            render_data=RenderData(template="%1 завершен...",
-                replacements={"1": ("Бой", Color.RED, True, False)})
-            )
+
+        try:
+            battle_ended_event = BattleEndedEvent(
+                result=battle_result,
+                players=self.players,
+                enemies=self.enemies,
+                source=None,
+                render_data=RenderData(template="%1 завершен...",
+                    replacements={"1": ("Бой", Color.RED, True, False)})
+                )
+        except Exception as e:
+            print(e)
 
         self.context.event_bus.publish(battle_ended_event)
 
