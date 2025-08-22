@@ -34,10 +34,10 @@ class ExperienceReward(Reward):
             recipient (Character): Персонаж, получающий опыт.
         """
         # Публикация события через контекст персонажа
-        from game.events.reward_events import ExperienceGainedEvent
+        from game.events.reward_events import RewardExperienceGainedEvent
         
-        event = ExperienceGainedEvent(
-            source=recipient, # Источник события - сам получатель или можно None
+        event = RewardExperienceGainedEvent(
+            source=None, # Источник события - сам получатель или можно None
             character=recipient,
             amount=self.amount,
             source_level=self.source_level
