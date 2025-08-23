@@ -1,14 +1,14 @@
 # game/entities/properties/property_context.py
 """Реализация PropertyContext для свойств, использующая GameContext."""
 
-from typing import Any, TYPE_CHECKING, cast
+from typing import Any, TYPE_CHECKING
 
 
 from game.protocols import PropertyContext
-from game.systems.event_bus import get_event_bus
+from game.systems.events.bus import get_event_bus
 
 if TYPE_CHECKING:
-    from game.systems.event_bus import IEventBus
+    from game.systems.events.bus import IEventBus
     from game.entities.character import Character
 
 class GameContextBasedPropertyContext(PropertyContext):

@@ -1,24 +1,26 @@
 """Модуль событий, связанных с боем."""
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Any, Dict
-from unittest import result
+from typing import TYPE_CHECKING, List, Optional, Any
 from game.events.event import Event
-from game.entities.character import Character
+
+if TYPE_CHECKING:
+    from game.entities.character import Character
+    from game.systems.battle.result import BattleResult
 
 
 @dataclass
 class BattleStartedEvent(Event):
     """Событие начала боя."""
-    players: Optional[List[Character]] = None
-    enemies: Optional[List[Character]] = None
+    players: Optional[List['Character']] = None
+    enemies: Optional[List['Character']] = None
 
 @dataclass
 class BattleEndedEvent(Event):
     """Событие окончания боя."""
-    players: Optional[List[Character]] = None
-    enemies: Optional[List[Character]] = None
-    result: str = ""
+    players: Optional[List['Character']] = None
+    enemies: Optional[List['Character']] = None
+    result: Optional['BattleResult'] = None
 
 
 @dataclass
@@ -36,23 +38,23 @@ class RoundEndedEvent(Event):
 @dataclass
 class TurnStartedEvent(Event):
     """Событие начала хода персонажа."""
-    character: Optional[Character] = None
+    character: Optional['Character'] = None
     source: Any = field(default=None)
 
 
 @dataclass
 class TurnEndedEvent(Event):
     """Событие окончания хода персонажа."""
-    character: Optional[Character] = None
+    character: Optional['Character'] = None
     source: Any = field(default=None)
 
 
 @dataclass
 class ActionExecutedEvent(Event):
     """Событие выполнения действия в бою."""
-    character: Optional[Character] = None
+    character: Optional['Character'] = None
     action: Any = field(default=None)
-    target: Optional[Character] = None
+    target: Optional['Character'] = None
     result: Any = field(default=None)
     source: Any = field(default=None)
 
@@ -60,5 +62,5 @@ class ActionExecutedEvent(Event):
 @dataclass
 class TurnSkippedEvent(Event):
     """Событие пропуска хода."""
-    character: Optional[Character] = None
+    character: Optional['Character'] = None
     source: Any = field(default=None)

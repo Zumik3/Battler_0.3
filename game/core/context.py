@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from game.config import GameConfig
-from game.systems.event_bus import IEventBus
+from game.systems.events.bus import IEventBus
 
 
 @dataclass
@@ -35,7 +35,7 @@ class ContextFactory:
             config = get_config()
         
         # Получаем синглтон через публичный интерфейс
-        from game.systems.event_bus import get_event_bus
+        from game.systems.events.bus import get_event_bus
         event_bus = get_event_bus()
         
         return GameContext(

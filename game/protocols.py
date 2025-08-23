@@ -6,9 +6,8 @@ from typing import Dict, List, Any, Protocol, Optional, TYPE_CHECKING, runtime_c
 
 if TYPE_CHECKING:
     from game.entities.character import Character as CharacterType
-    from game.results import ActionResult, ExperienceGainedResult
     from game.config import GameConfig
-    from game.systems.event_bus import IEventBus
+    from game.systems.events.bus import IEventBus
 
 # ==================== Базовые протоколы данных ====================
 

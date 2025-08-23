@@ -6,7 +6,6 @@ from typing import  TYPE_CHECKING
 
 
 from game.entities.properties.experience import ExperienceProperty
-from game.events import character
 from game.factories.character_property_factory import CharacterPropertyFactory
 
 if TYPE_CHECKING:

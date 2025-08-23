@@ -22,7 +22,8 @@ class AttackCommand(Command):
 
     def execute(self, context: Optional[Any] = None) -> None:
         """Выполнение команды начала боя."""
-        context.manager.game_manager.start_battle()
+        if context:
+            context.manager.game_manager.start_battle()
 
 
 class DefendCommand(Command):

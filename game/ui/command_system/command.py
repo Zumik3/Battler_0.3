@@ -39,7 +39,7 @@ class Command(ABC):
         return {key if isinstance(key, int) else ord(key) for key in self.keys}
 
     @abstractmethod
-    def execute(self, context: Any = None) -> bool:
+    def execute(self, context: Any = None) -> None:
         """
         Выполнение команды.
         

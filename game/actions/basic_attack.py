@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from game.actions.action import Action
 from game.events.combat import DamageEvent, EnergySpentEvent
-from game.systems.damage.damage_type import PHYSICAL
+from game.systems.combat.damage_type import PHYSICAL
 from game.ui.rendering.color_manager import Color
 from game.ui.rendering.render_data_builder import RenderDataBuilder
 #from game.events.render_data import RenderData

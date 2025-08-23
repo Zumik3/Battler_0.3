@@ -31,6 +31,7 @@ class Action(ABC):
         self.priority = priority
         self.target: Optional['Character'] = None
         self._is_executed = False
+        self._energy_cost = 0
 
     @property
     def name(self) -> str:

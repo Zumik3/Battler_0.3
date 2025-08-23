@@ -1,4 +1,4 @@
-# game/rewards/calculator.py
+# game/systems/rewards/calculator.py
 """Калькулятор и распределитель наград."""
 
 import math
@@ -6,7 +6,7 @@ import random
 from typing import List, TYPE_CHECKING
 
 # Предполагаем, что BattleResult уже создан
-from game.systems.battle_result import BattleResult
+from game.systems.battle.result import BattleResult
 
 # Импортируем необходимые классы наград
 from game.rewards.reward import Reward

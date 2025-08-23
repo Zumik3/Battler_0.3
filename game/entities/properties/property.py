@@ -4,7 +4,7 @@
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, List, NamedTuple, Optional, Protocol, Type
 
-from game.systems.event_bus import NORMAL_PRIORITY
+from game.systems.events.bus import NORMAL_PRIORITY
 
 if TYPE_CHECKING:
     # Импорты, используемые только для аннотаций типов

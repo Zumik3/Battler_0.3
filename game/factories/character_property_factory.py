@@ -2,7 +2,6 @@
 """Фабрика для создания и связывания всех свойств персонажа."""
 
 from abc import ABC, abstractmethod
-from typing import  Dict, Any
 
 # Импорты контекстов и фабрик
 from game.core.context import GameContext
