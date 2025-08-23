@@ -16,5 +16,7 @@
     "vitality": 0.06
   },
   "description": "Мастер магии, наносящий огромный урон, но слабо защищенный.",
-  "starting_abilities": []
+  "starting_abilities": [
+    "BasicAttack"
+  ]
 }

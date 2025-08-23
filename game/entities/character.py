@@ -7,6 +7,7 @@ from typing import List, Dict, Optional, TYPE_CHECKING
 
 from game.events.combat import DeathEvent
 from game.events.render_data import RenderData
+
 from game.ui.rendering.color_manager import Color
 
 if TYPE_CHECKING:
@@ -15,9 +16,9 @@ if TYPE_CHECKING:
     from game.entities.properties.energy import EnergyProperty
     from game.entities.properties.level import LevelProperty
     from game.entities.properties.stats import StatsProperty
-    from game.core.game_context import GameContext
     from game.events.character import HealthChangedEvent
     from game.core.character_context import CharacterContext
+    from game.protocols import AbilityManagerProtocol
 
 
 # ==================== Вспомогательные классы ====================
@@ -61,6 +62,8 @@ class Character(ABC):
     health: Optional['HealthProperty']
     energy: Optional['EnergyProperty']
     combat: Optional['CombatProperty']
+
+    abilities: Optional['AbilityManagerProtocol'] = None
 
     def __init__(self, context: 'CharacterContext', config: 'CharacterConfig'):
 

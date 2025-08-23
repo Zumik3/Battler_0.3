@@ -3,7 +3,9 @@
 
 from typing import TYPE_CHECKING
 
+
 from game.core.property_context import PropertyContext
+from game.entities.properties.abilities import Abilities
 from game.entities.properties.stats import StatsProperty
 from game.entities.properties.health import HealthProperty
 from game.entities.properties.energy import EnergyProperty
@@ -16,12 +18,13 @@ from game.events.character import HealthChangedEvent
 if TYPE_CHECKING:
     from game.entities.character import Character, CharacterConfig
     from game.core.character_context import CharacterContext
+    from game.core.game_context import GameContext
 
 
 class CharacterPropertyFactory():
     """Фабрика для создания связанных свойств персонажа."""
     
-    def __init__(self, context: 'CharacterContext', character: 'Character'):
+    def __init__(self, context: 'CharacterContext', game_context: 'GameContext', character: 'Character'):
         """
         Инициализирует фабрику свойств.
         
@@ -31,6 +34,7 @@ class CharacterPropertyFactory():
         self.context = PropertyContext(event_bus=context.event_bus, character=character)
     
     def create_basic_properties(self, 
+        game_context: 'GameContext',
         character: 'Character', 
         config: 'CharacterConfig') -> None:
         """Создает и связывает все свойства персонажа.
@@ -69,6 +73,8 @@ class CharacterPropertyFactory():
         character.health = health_prop
         character.energy = energy_prop
         character.combat = combat_prop
+
+        character.abilities = self._create_abilities_property(character, game_context, config)
 
         # --- НОВОЕ: Настройка подписок персонажа ---
         self._setup_character_subscriptions(character)
@@ -125,6 +131,15 @@ class CharacterPropertyFactory():
             stats=stats_prop,
             # attack_power и defence будут рассчитаны автоматически
         )
+
+    def _create_abilities_property(self, character: 'Character', game_context: 'GameContext', config: 'CharacterConfig') -> Abilities:
+        """Создает свойство способностей персонажа."""
+        abilities_property = Abilities(
+            context=self.context,
+            abilities=config.starting_abilities, # Передаем копию списка
+            ability_registry=game_context.ability_registry
+        )
+        return abilities_property
 
     def _setup_character_subscriptions(self, character: 'Character') -> None:
             """

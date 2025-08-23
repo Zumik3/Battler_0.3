@@ -3,6 +3,7 @@
 
 from typing import Optional, TYPE_CHECKING
 
+
 from game.entities.character import Character
 from game.factories.monster_property_factory import MonsterPropertyFactory
 
@@ -10,6 +11,7 @@ if TYPE_CHECKING:
     from game.entities.properties.experience import ExperienceProperty
     from game.factories.monster_factory import MonsterConfig
     from game.core.character_context import CharacterContext
+    from game.core.game_context import GameContext
 
 
 class Monster(Character):
@@ -17,7 +19,7 @@ class Monster(Character):
 
     experience: Optional['ExperienceProperty']
 
-    def __init__(self, context: 'CharacterContext', config: 'MonsterConfig') -> None:
+    def __init__(self, context: 'CharacterContext', game_context: 'GameContext', config: 'MonsterConfig') -> None:
         """
         Инициализирует монстра.
 
@@ -30,7 +32,7 @@ class Monster(Character):
 
         # 2. Создаем и устанавливаем специфичные для игрока свойства
         #    с помощью фабрики
-        _ = MonsterPropertyFactory(context=context, config=config, monster=self)
+        _ = MonsterPropertyFactory(context=context, game_context=game_context, config=config, monster=self)
         #property_factory.create_advanced_properties(self)
 
         # 3. Дополнительная инициализация, специфичная для Monster, может быть здесь

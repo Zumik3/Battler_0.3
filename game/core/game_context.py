@@ -2,11 +2,13 @@
 """Игровой контекст - центральный хаб для всех сервисов."""
 
 from dataclasses import dataclass
-from typing import Optional
-
+from typing import TYPE_CHECKING, Optional
 from game.config import GameConfig
+from game.systems.combat.ability_registry import AbilityRegistry
 from game.systems.events.bus import IEventBus
 
+if TYPE_CHECKING:
+    from game.protocols import AbilityRegistryProtocol
 
 @dataclass
 class GameContext:
@@ -14,6 +16,7 @@ class GameContext:
     
     config: GameConfig
     event_bus: IEventBus
+    ability_registry: 'AbilityRegistryProtocol'
 
 
 class ContextFactory:
@@ -37,8 +40,10 @@ class ContextFactory:
         # Получаем синглтон через публичный интерфейс
         from game.systems.events.bus import get_event_bus
         event_bus = get_event_bus()
-        
+        ability_registry = AbilityRegistry()
+
         return GameContext(
             config=config,
-            event_bus=event_bus
+            event_bus=event_bus,
+            ability_registry=ability_registry
         )
