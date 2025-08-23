@@ -4,7 +4,7 @@
 # Предполагаем, что ваши классы находятся в следующих модулях.
 # Пути могут отличаться в вашем проекте.
 from game.actions.basic_attack import BasicAttack
-from game.core.context import ContextFactory
+from game.core.game_context import ContextFactory
 from game.factories.player_factory import PlayerFactory
 from game.factories.monster_factory import MonsterFactory
 from game.ui.components.battle_components import BattleLog

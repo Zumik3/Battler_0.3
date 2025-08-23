@@ -2,24 +2,29 @@
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, List, Optional, Any
+
+from game.entities.monster import Monster
+from game.entities.player import Player
 from game.events.event import Event
 
 if TYPE_CHECKING:
     from game.entities.character import Character
     from game.systems.battle.result import BattleResult
+    from game.entities.player import Player
+    from game.events.event import Event
 
 
 @dataclass
 class BattleStartedEvent(Event):
     """Событие начала боя."""
-    players: Optional[List['Character']] = None
-    enemies: Optional[List['Character']] = None
+    players: Optional[List['Player']] = None
+    enemies: Optional[List['Monster']] = None
 
 @dataclass
 class BattleEndedEvent(Event):
     """Событие окончания боя."""
-    players: Optional[List['Character']] = None
-    enemies: Optional[List['Character']] = None
+    players: Optional[List['Player']] = None
+    enemies: Optional[List['Monster']] = None
     result: Optional['BattleResult'] = None
 
 

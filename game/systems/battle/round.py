@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 import time
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING, cast
 
 from game.actions.action import Action
 from game.actions.basic_attack import BasicAttack
+
+from game.actions.basic_heal import BasicHeal
 from game.events.battle_events import (
         RoundStartedEvent, RoundEndedEvent, TurnSkippedEvent
     )
@@ -14,14 +16,16 @@ from game.ui.rendering.color_manager import Color
 
 if TYPE_CHECKING:
     from game.entities.character import Character
-    from game.core.context import GameContext
+    from game.core.game_context import GameContext
+    from game.entities.monster import Monster
+    from game.entities.player import Player
     
 
 class BattleRound:
     """Управляет одним раундом автоматического боя."""
 
-    def __init__(self, context: GameContext, round_number: int, 
-                 players: List[Character], enemies: List[Character]) -> None:
+    def __init__(self, context: 'GameContext', round_number: int, 
+                 players: List['Player'], enemies: List['Monster']) -> None:
         """Инициализирует раунд боя.
 
         Args:
@@ -97,7 +101,7 @@ class BattleRound:
         """
         alive_players = [p for p in self.players if p.is_alive()]
         alive_enemies = [e for e in self.enemies if e.is_alive()]
-        return alive_players + alive_enemies
+        return cast(List['Character'], alive_players + alive_enemies)
 
     def _execute_participant_turn(self, character: Character) -> None:
         """Выполняет ход участника.
@@ -121,7 +125,7 @@ class BattleRound:
             )
             self.context.event_bus.publish(turn_skipped_event)
 
-    def _choose_action(self, character: Character) -> 'Action':
+    def _choose_action(self, character: 'Character') -> 'Action':
         """Выбирает действие для персонажа.
 
         Args:
@@ -131,10 +135,14 @@ class BattleRound:
             Выбранное действие или None.
         """
         # TODO: Реализовать логику выбора действия
-        return BasicAttack(character)
+        if character.role == 'healer':
+            return BasicHeal(character)
+        else:
+            return BasicAttack(character)
+
         #return getattr(participant, 'get_basic_attack', lambda: None)()
 
-    def _choose_target(self, attacker: Character) -> Optional[Character]:
+    def _choose_target(self, attacker: 'Character') -> Optional['Character']:
         """Выбирает цель для атаки.
 
         Args:
@@ -143,6 +151,12 @@ class BattleRound:
         Returns:
             Цель для атаки или None.
         """
+        potential_targets: List['Character']
+
+        if attacker.role == "healer":
+            potential_targets = [p for p in self.players if p.is_alive()]
+            return self._choose_heal_target(potential_targets)
+
         if attacker in self.players:
             potential_targets = [e for e in self.enemies if e.is_alive()]
         else:
@@ -150,6 +164,28 @@ class BattleRound:
 
         # return random.choice(potential_targets) if potential_targets else None
         return next((target for target in potential_targets), None)
+
+    def _choose_heal_target(self, alive_characters: List['Character']) -> Optional['Character']:
+        
+        if not alive_characters:
+            return None
+
+        if len(alive_characters) == 1:
+            return alive_characters[0]
+
+        # Находим самого побитого (минимальный процент HP)
+        min_health_ratio = 1.0
+        target = alive_characters[0]
+        
+        for character in alive_characters:
+            # Проверяем, есть ли у персонажа здоровье
+            if hasattr(character, 'health') and character.health and character.health.max_health > 0:
+                health_ratio = character.health.health / character.health.max_health
+                if health_ratio < min_health_ratio:
+                    min_health_ratio = health_ratio
+                    target = character
+        
+        return target
 
     def _is_battle_over(self) -> bool:
         """Проверяет условия окончания боя.

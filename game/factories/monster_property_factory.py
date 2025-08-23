@@ -7,13 +7,13 @@ from game.factories.character_property_factory import CharacterPropertyFactory
 
 if TYPE_CHECKING:
     from game.entities.monster import Monster
-    from game.core.context import GameContext
+    from game.core.character_context import CharacterContext
     from game.entities.character import CharacterConfig
 
 class MonsterPropertyFactory(CharacterPropertyFactory):
     """Фабрика для создания связанных свойств монстра."""
     
-    def __init__(self, context: 'GameContext', config: 'CharacterConfig', monster: 'Monster'):
+    def __init__(self, context: 'CharacterContext', config: 'CharacterConfig', monster: 'Monster'):
         super().__init__(context=context, character=monster)
         self.create_basic_properties(character=monster, config=config)
     

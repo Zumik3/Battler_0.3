@@ -25,7 +25,7 @@ from game.ui.rendering.color_manager import Color
 
 if TYPE_CHECKING:
     from game.entities.character import Character
-    from game.core.context import GameContext # Для доступа к event_bus
+    from game.core.game_context import GameContext # Для доступа к event_bus
 
 class RewardCalculator:
     """

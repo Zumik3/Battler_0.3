@@ -1,14 +1,9 @@
 # game/factories/character_property_factory.py
 """Фабрика для создания и связывания всех свойств персонажа."""
 
-from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
-# Импорты контекстов и фабрик
-from game.core.context import GameContext
-from game.entities.character import Character, CharacterConfig
-from game.entities.properties.property_context import GameContextBasedPropertyContext
-
-# Импорты свойств
+from game.core.property_context import PropertyContext
 from game.entities.properties.stats import StatsProperty
 from game.entities.properties.health import HealthProperty
 from game.entities.properties.energy import EnergyProperty
@@ -18,18 +13,22 @@ from game.entities.properties.stats_config import BaseStats, GrowthRates, StatsC
 from game.events.character import HealthChangedEvent
 
 
-class CharacterPropertyFactory(ABC):
+if TYPE_CHECKING:
+    from game.entities.character import Character, CharacterConfig
+    from game.core.character_context import CharacterContext
+
+
+class CharacterPropertyFactory():
     """Фабрика для создания связанных свойств персонажа."""
     
-    @abstractmethod
-    def __init__(self, context: GameContext, character: 'Character'):
+    def __init__(self, context: 'CharacterContext', character: 'Character'):
         """
         Инициализирует фабрику свойств.
         
         Args:
             game_context: Глобальный контекст игры.
         """
-        self.context = GameContextBasedPropertyContext(character=character)
+        self.context = PropertyContext(event_bus=context.event_bus, character=character)
     
     def create_basic_properties(self, 
         character: 'Character', 

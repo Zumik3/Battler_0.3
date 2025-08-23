@@ -5,7 +5,6 @@ from abc import ABC
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, TYPE_CHECKING
 
-
 from game.events.combat import DeathEvent
 from game.events.render_data import RenderData
 from game.ui.rendering.color_manager import Color
@@ -16,8 +15,9 @@ if TYPE_CHECKING:
     from game.entities.properties.energy import EnergyProperty
     from game.entities.properties.level import LevelProperty
     from game.entities.properties.stats import StatsProperty
-    from game.core.context import GameContext
+    from game.core.game_context import GameContext
     from game.events.character import HealthChangedEvent
+    from game.core.character_context import CharacterContext
 
 
 # ==================== Вспомогательные классы ====================
@@ -42,19 +42,11 @@ class CharacterConfig:
     starting_abilities: List[str] = field(default_factory=list)
 
 
-@dataclass
-class CharacterContext():
-    base_stats: Dict[str, int]
-    growth_rates: Dict[str, float]
-
-
-# ==================== Основной класс персонажа ====================
 class Character(ABC):
     """Абстрактный базовый класс, представляющий персонажа в игре."""
 
     # Объявляем атрибуты на уровне класса для mypy
-    context: 'GameContext'
-    char_context: 'CharacterContext'
+    context: 'CharacterContext'
     name: str
     role: str
     alive: bool
@@ -70,14 +62,10 @@ class Character(ABC):
     energy: Optional['EnergyProperty']
     combat: Optional['CombatProperty']
 
-    def __init__(self, context: 'GameContext', config: 'CharacterConfig'):
+    def __init__(self, context: 'CharacterContext', config: 'CharacterConfig'):
 
         self.context = context
-
-        self.char_context = CharacterContext(
-            base_stats=config.base_stats, 
-            growth_rates=config.growth_rates
-        )
+        self.context.set_base_characteristics(config.base_stats, config.growth_rates)
 
         self.alive = True
         self.name = config.name
@@ -87,8 +75,9 @@ class Character(ABC):
         self.class_icon = config.class_icon
         self.class_icon_color = config.class_icon_color
 
-        self.base_stats_dict = config.base_stats
-        self.growth_rates_dict = config.growth_rates
+        # TODO: Убрать строчки ниже - 2 шт
+        # self.base_stats_dict = config.base_stats
+        # self.growth_rates_dict = config.growth_rates
 
         # Менеджеры (внедрение зависимостей)
         # self._ability_manager: Optional[AbilityManagerProtocol] = None

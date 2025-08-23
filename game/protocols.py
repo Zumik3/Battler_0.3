@@ -216,7 +216,7 @@ class CharacterAttributesConfig(Protocol):
     defense_per_agility: float
 
 
-class PropertyContext(Protocol):
+class PropertyContextProtocol(Protocol):
     """Интерфейс для контекста, предоставляемого свойству."""
     
     _character: 'CharacterType'

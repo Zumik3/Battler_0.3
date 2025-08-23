@@ -1,44 +1,29 @@
 # game/core/context.py
-"""Игровой контекст - центральный хаб для всех сервисов."""
+"""Базовый класс контекста для различных компонентов игры."""
 
-from dataclasses import dataclass
-from typing import Optional
+from typing import Any, TYPE_CHECKING
 
-from game.config import GameConfig
-from game.systems.events.bus import IEventBus
-
-
-@dataclass
-class GameContext:
-    """Контекст игры со всеми необходимыми сервисами."""
-    
-    config: GameConfig
-    event_bus: IEventBus
+if TYPE_CHECKING:
+    from game.systems.events.bus import IEventBus
 
 
-class ContextFactory:
-    """Фабрика для создания игрового контекста."""
-    
-    @staticmethod
-    def create_default_context(config: Optional[GameConfig] = None) -> GameContext:
+class Context:
+    """
+    Базовый класс для всех контекстов.
+    Предоставляет минимальный набор сервисов, необходимых большинству компонентов.
+    Может использоваться как есть или наследоваться для расширения функциональности.
+    """
+
+    def __init__(self, event_bus: 'IEventBus'):
         """
-        Создает контекст с настройками по умолчанию.
-        
+        Инициализирует базовый контекст.
+
         Args:
-            config: Конфигурация игры. Если None, используется конфигурация по умолчанию.
-            
-        Returns:
-            Инициализированный игровой контекст.
+            event_bus: Шина событий игры.
         """
-        if config is None:
-            from game.config import get_config
-            config = get_config()
-        
-        # Получаем синглтон через публичный интерфейс
-        from game.systems.events.bus import get_event_bus
-        event_bus = get_event_bus()
-        
-        return GameContext(
-            config=config,
-            event_bus=event_bus
-        )
+        self._event_bus = event_bus
+
+    @property
+    def event_bus(self) -> 'IEventBus':
+        """Получить доступ к шине событий."""
+        return self._event_bus

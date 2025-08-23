@@ -14,7 +14,7 @@ from game.entities.properties.level import LevelProperty
 
 # Для отложенного импорта в функции регистрации
 if TYPE_CHECKING:
-    from game.core.context import GameContext
+    from game.core.game_context import GameContext
 
 @dataclass
 class ExperienceProperty(PublishingAndDependentProperty, ExperienceSystemProtocol): 

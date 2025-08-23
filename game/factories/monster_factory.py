@@ -9,7 +9,7 @@ from game.entities.character import CharacterConfig
 from game.entities.monster import Monster
 
 if TYPE_CHECKING:
-    from game.core.context import GameContext
+    from game.core.character_context import CharacterContext
     
 
 @dataclass
@@ -23,7 +23,7 @@ class MonsterFactory:
     """Фабрика для создания экземпляров Monster."""
 
     @staticmethod
-    def create_monster(context: 'GameContext', role: str, level: int = 1) -> Monster:
+    def create_monster(context: 'CharacterContext', role: str, level: int = 1) -> Monster:
         """
         Создает объект Monster на основе данных из JSON файла.
 

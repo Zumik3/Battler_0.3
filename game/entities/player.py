@@ -3,13 +3,14 @@
 
 from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
-from game.core.context import GameContext
+
 from game.entities.character import Character
 from game.factories.player_property_factory import PlayerPropertyFactory
 
 if TYPE_CHECKING:
     from game.entities.properties.experience import ExperienceProperty
     from game.factories.player_factory import PlayerConfig
+    from game.core.character_context import CharacterContext
 
 
 class Player(Character):
@@ -17,7 +18,7 @@ class Player(Character):
 
     experience: Optional['ExperienceProperty']
 
-    def __init__(self, context: GameContext, config: 'PlayerConfig') -> None:
+    def __init__(self, context: 'CharacterContext', config: 'PlayerConfig') -> None:
         """
         Инициализирует игрока.
 
