@@ -2,10 +2,10 @@
 """Свойство боевых показателей персонажа."""
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Optional, Type
+from typing import TYPE_CHECKING, Optional
 
 # Импорты из других модулей проекта
-from game.entities.properties.base import DependentProperty
+from game.entities.properties.property import DependentProperty
 from game.events.character import StatsChangedEvent
 from game.protocols import CombatPropertyProtocol, StatsProtocol
 

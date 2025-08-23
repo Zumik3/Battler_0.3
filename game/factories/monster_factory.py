@@ -1,10 +1,10 @@
 # game/factories/player_factory.py
-"""Фабрика для создания персонажей-игроков."""
+"""Фабрика для создания персонажей-монстров."""
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 # Локальные импорты
-from game.data.character_loader import load_monster_class_data
+from game.systems.character_loader import load_monster_class_data
 from game.entities.character import CharacterConfig 
 from game.entities.monster import Monster
 

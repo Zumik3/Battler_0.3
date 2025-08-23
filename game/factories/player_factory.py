@@ -4,7 +4,7 @@
 from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
 # Локальные импорты
-from game.data.character_loader import load_player_class_data
+from game.systems.character_loader import load_player_class_data
 from game.entities.character import CharacterConfig 
 from game.entities.player import Player
 

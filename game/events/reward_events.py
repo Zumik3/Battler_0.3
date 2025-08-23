@@ -82,13 +82,6 @@ class PartyExperienceGainedEvent(Event[None]):
         if self.total_experience < 0:
             raise ValueError("Общее количество опыта не может быть отрицательным.")
 
-    def __str__(self) -> str:
-        """Строковое представление события."""
-        if not self.recipients_and_amounts:
-            return f"PartyExperienceGainedEvent(Всего опыта: {self.total_experience}, Получатели: нет)"
-        parts = [f"{char.name}: {exp}" for char, exp in self.recipients_and_amounts]
-        return f"PartyExperienceGainedEvent(Всего опыта: {self.total_experience}, Получатели: {', '.join(parts)})"
-
 # Дополнительные события можно добавлять по аналогии
 # @dataclass
 # class CurrencyGainedEvent(Event['Character']):

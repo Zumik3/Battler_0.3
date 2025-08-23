@@ -1,5 +1,5 @@
 # game/events/event.py
-"""Шина событий игры."""
+"""Базовый класс для всех событий."""
 
 from datetime import datetime
 import sys

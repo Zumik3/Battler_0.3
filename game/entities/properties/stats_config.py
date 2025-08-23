@@ -3,8 +3,6 @@
 from dataclasses import dataclass, field
 from typing import Dict, TypedDict
 
-from game.protocols import StatsConfigurable
-
 # Типизированный словарь для всех характеристик
 class AllStats(TypedDict):
     strength: int

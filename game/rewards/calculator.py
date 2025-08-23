@@ -67,9 +67,7 @@ class RewardCalculator:
             # Получаем уровень. Упрощенная логика.
             enemy_level = 1
             if hasattr(enemy, 'level') and enemy.level:
-                enemy_level = enemy.level.level if hasattr(enemy.level, 'level') else enemy.level
-            elif hasattr(enemy, 'level_property'): # Альтернативное имя
-                enemy_level = enemy.level_property.level if hasattr(enemy.level_property, 'level') else enemy.level_property
+                enemy_level = enemy.level.get_level()
             
             enemy_reward_source = MonsterRewardSource(
                 monster_type=enemy.role,

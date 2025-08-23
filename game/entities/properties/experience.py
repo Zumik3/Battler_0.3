@@ -7,7 +7,7 @@ from typing import Optional, TYPE_CHECKING
 # Импортируем событие наград, которое будем обрабатывать
 from game.events.reward_events import RewardExperienceGainedEvent
 
-from game.entities.properties.base import PublishingAndDependentProperty 
+from game.entities.properties.property import PublishingAndDependentProperty 
 from game.events.character import ExperienceGainedEvent, LevelUpEvent
 from game.protocols import ExperienceSystemProtocol
 from game.entities.properties.level import LevelProperty

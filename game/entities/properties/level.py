@@ -4,7 +4,7 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
-from game.entities.properties.base import PublishingAndDependentProperty 
+from game.entities.properties.property import PublishingAndDependentProperty 
 from game.events.character import LevelUpEvent, ExperienceGainedEvent
 from game.protocols import LevelPropertyProtocol, ExperiencePropertyProtocol # Предполагаемые протоколы
 

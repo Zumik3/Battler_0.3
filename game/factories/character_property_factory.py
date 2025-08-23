@@ -7,7 +7,7 @@ from typing import  Dict, Any
 # Импорты контекстов и фабрик
 from game.core.context import GameContext
 from game.entities.character import Character, CharacterConfig
-from game.entities.properties.context import GameContextBasedPropertyContext
+from game.entities.properties.property_context import GameContextBasedPropertyContext
 
 # Импорты свойств
 from game.entities.properties.stats import StatsProperty

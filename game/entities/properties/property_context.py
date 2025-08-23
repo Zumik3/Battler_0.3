@@ -1,4 +1,4 @@
-# game/entities/properties/context.py
+# game/entities/properties/property_context.py
 """Реализация PropertyContext для свойств, использующая GameContext."""
 
 from typing import Any, TYPE_CHECKING, cast

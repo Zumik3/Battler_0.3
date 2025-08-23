@@ -32,7 +32,7 @@ class SubscriptionData(NamedTuple):
 # --- Базовые классы и миксины ---
 
 @dataclass
-class BaseProperty:
+class Property:
     """Базовый dataclass для всех свойств."""
     context: 'PropertyContext'
 
@@ -101,7 +101,7 @@ class SubscriptionLifecycleMixin:
 
 
 @dataclass
-class DependentProperty(BaseProperty, SubscriberPropertyMixin, SubscriptionLifecycleMixin):
+class DependentProperty(Property, SubscriberPropertyMixin, SubscriptionLifecycleMixin):
     """Базовый dataclass для свойств, зависящих от событий.
     
     Управляет подпиской на события через EventBus. Подклассы должны
@@ -121,7 +121,7 @@ class DependentProperty(BaseProperty, SubscriberPropertyMixin, SubscriptionLifec
             self._is_subscribed = False
 
 @dataclass
-class PublishingProperty(BaseProperty, PublisherPropertyMixin):
+class PublishingProperty(Property, PublisherPropertyMixin):
     """Свойство, которое публикует события."""
     # Дополнительная логика, если нужна, может быть добавлена в подклассах
     pass
@@ -129,7 +129,7 @@ class PublishingProperty(BaseProperty, PublisherPropertyMixin):
 
 @dataclass
 class PublishingAndDependentProperty(
-    BaseProperty, 
+    Property, 
     SubscriberPropertyMixin, 
     PublisherPropertyMixin, 
     SubscriptionLifecycleMixin
