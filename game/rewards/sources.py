@@ -5,7 +5,6 @@ from abc import ABC, abstractmethod
 from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from game.entities.character import Character # Для типа награды
     from game.rewards.reward import Reward # Пока еще не создан, но будет
 
 class RewardSource(ABC):

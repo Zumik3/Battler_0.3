@@ -1,13 +1,11 @@
 # game/events/event.py
-"""Шина событий игры."""
+"""Базовый класс для всех событий."""
 
 from datetime import datetime
 import sys
 from typing import TYPE_CHECKING, Generic, Optional, TypeVar
 from dataclasses import dataclass, field
 import uuid
-
-from game.events import render_data
 
 if TYPE_CHECKING:
     from game.events.render_data import RenderData

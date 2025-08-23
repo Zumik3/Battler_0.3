@@ -7,7 +7,7 @@ from contextlib import contextmanager
 
 from game.protocols import StatsProtocol
 from game.events.character import StatsChangedEvent, LevelUpEvent
-from game.entities.properties.base import PublishingAndDependentProperty
+from game.entities.properties.property import PublishingAndDependentProperty
 
 if TYPE_CHECKING:
     from game.protocols import LevelPropertyProtocol, StatsConfigurable

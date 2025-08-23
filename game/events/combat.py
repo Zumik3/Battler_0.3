@@ -4,12 +4,12 @@
 from dataclasses import dataclass
 from typing import Optional, TYPE_CHECKING
 
-from game.systems.damage.damage_type import PHYSICAL
+from game.systems.combat.damage_type import PHYSICAL
 from .event import Event
 
 if TYPE_CHECKING:
     from game.entities.character import Character
-    from game.systems.damage.damage_type import DamageType
+    from game.systems.combat.damage_type import DamageType
 
 
 @dataclass

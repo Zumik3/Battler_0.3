@@ -7,7 +7,7 @@ from typing import List, TYPE_CHECKING
 from game.events.battle_events import BattleStartedEvent, BattleEndedEvent
 
 # Добавляем импорт BattleResult
-from game.systems.battle_result import BattleResult
+from game.systems.battle.result import BattleResult
 
 from game.events.render_data import RenderData
 from game.ui.controllers.battle_log_controller import BattleLogController
@@ -16,9 +16,9 @@ from game.ui.rendering.color_manager import Color
 if TYPE_CHECKING:
     from game.entities.character import Character
     from game.core.context import GameContext
-    from game.systems.battle_round import BattleRound
+    from game.systems.battle.round import BattleRound
     from game.ui.components.battle_components import BattleLog
-    from game.systems.event_bus import EventBus
+    from game.systems.events.bus import EventBus
     
 
 
@@ -84,9 +84,7 @@ class BattleManager:
         # Публикуем событие окончания боя с BattleResult
         battle_ended_event = BattleEndedEvent(
             # Передаем объект BattleResult, а не строку
-            result=battle_result_obj, 
-            players=self.players,
-            enemies=self.enemies,
+            result=battle_result_obj,
             source=None,
             render_data=RenderData(template="%1 завершен...",
                 replacements={"1": ("Бой", Color.RED, True, False)})
@@ -120,7 +118,7 @@ class BattleManager:
         Returns:
             Экземпляр BattleRound для управления раундом.
         """
-        from game.systems.battle_round import BattleRound
+        from game.systems.battle.round import BattleRound
         return BattleRound(
             context=self.context,
             round_number=round_number,

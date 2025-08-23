@@ -4,7 +4,7 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
-from game.entities.properties.base import PublishingAndDependentProperty 
+from game.entities.properties.property import PublishingAndDependentProperty 
 from game.events.character import LevelUpEvent, ExperienceGainedEvent
 from game.protocols import LevelPropertyProtocol, ExperiencePropertyProtocol # Предполагаемые протоколы
 
@@ -52,26 +52,9 @@ class LevelProperty(PublishingAndDependentProperty, LevelPropertyProtocol): # ty
     
     def _on_experience_gained(self, event: ExperienceGainedEvent) -> None:
         """Вызывается при получении события получения опыта."""
-        print(f"  LevelProperty#{id(self)} получил событие: {event}")
-        # Проверка источника события (на всякий случай, EventBus должен это обеспечить)
-        # if event.source is not self.exp_property:
-        #     return 
-        
-        # Здесь должна быть логика проверки, хватает ли опыта для уровня.
-        # Для примера предположим, что exp_property предоставляет current_exp и exp_to_level
-        # и что для повышения уровня нужно накопить exp_to_level опыта.
-        # Также предположим, что exp_to_level увеличивается после каждого уровня.
-        # Это очень упрощенная логика, в реальном проекте она может быть сложнее.
-        
-        # Проверим, что exp_property доступен и имеет нужные атрибуты
-        # (в реальном коде это должно быть гарантировано протоколом ExperiencePropertyProtocol)
         if not self.exp_property:
             return
             
-        # Пример простой логики: если текущий опыт >= требуемого для уровня
-        # Предполагаем, что у exp_property есть атрибуты current_exp и exp_to_level
-        # Нужно быть аккуратным с доступом к атрибутам других свойств.
-        # Лучше определить это в протоколе ExperiencePropertyProtocol.
         try:
             current_exp = getattr(event, 'current_exp', 0)
             exp_to_level = getattr(event, 'exp_to_level', 100)

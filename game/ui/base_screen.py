@@ -1,4 +1,6 @@
 # game/ui/base_screen.py
+"""Базовый класс экрана пользовательского интерфейса."""
+
 import curses
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, List

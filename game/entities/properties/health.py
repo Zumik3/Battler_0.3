@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING, Optional
 
 from game.events.combat import DamageEvent
 from game.protocols import HealthPropertyProtocol, StatsProtocol
-from game.entities.properties.base import PublishingAndDependentProperty
+from game.entities.properties.property import PublishingAndDependentProperty
 from game.events.character import HealthChangedEvent, StatsChangedEvent
-from game.systems.event_bus import LOW_PRIORITY
+from game.systems.events.bus import LOW_PRIORITY
 
 if TYPE_CHECKING:
     from game.core.context import GameContext

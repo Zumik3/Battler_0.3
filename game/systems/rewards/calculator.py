@@ -1,4 +1,4 @@
-# game/rewards/calculator.py
+# game/systems/rewards/calculator.py
 """Калькулятор и распределитель наград."""
 
 import math
@@ -6,7 +6,7 @@ import random
 from typing import List, TYPE_CHECKING
 
 # Предполагаем, что BattleResult уже создан
-from game.systems.battle_result import BattleResult
+from game.systems.battle.result import BattleResult
 
 # Импортируем необходимые классы наград
 from game.rewards.reward import Reward
@@ -67,9 +67,7 @@ class RewardCalculator:
             # Получаем уровень. Упрощенная логика.
             enemy_level = 1
             if hasattr(enemy, 'level') and enemy.level:
-                enemy_level = enemy.level.level if hasattr(enemy.level, 'level') else enemy.level
-            elif hasattr(enemy, 'level_property'): # Альтернативное имя
-                enemy_level = enemy.level_property.level if hasattr(enemy.level_property, 'level') else enemy.level_property
+                enemy_level = enemy.level.get_level()
             
             enemy_reward_source = MonsterRewardSource(
                 monster_type=enemy.role,

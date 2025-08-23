@@ -2,10 +2,10 @@
 """Свойство энергии персонажа."""
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from game.protocols import EnergyPropertyProtocol, StatsProtocol
-from game.entities.properties.base import DependentProperty 
+from game.entities.properties.property import DependentProperty 
 from game.events.character import StatsChangedEvent
 from game.events.combat import EnergySpentEvent
 

@@ -4,7 +4,7 @@
 from typing import Any, Dict, List, Optional, TYPE_CHECKING, Self
 from game.config import get_config
 from game.core.context import ContextFactory
-from game.systems.battle_manager import BattleManager
+from game.systems.battle.manager import BattleManager
 from game.rewards.handlers import register_reward_handlers
 from game.entities.properties.experience import register_experience_handlers
 

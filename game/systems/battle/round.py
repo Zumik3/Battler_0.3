@@ -7,7 +7,7 @@ from typing import List, Optional, TYPE_CHECKING
 from game.actions.action import Action
 from game.actions.basic_attack import BasicAttack
 from game.events.battle_events import (
-        RoundStartedEvent, RoundEndedEvent, TurnStartedEvent, TurnSkippedEvent
+        RoundStartedEvent, RoundEndedEvent, TurnSkippedEvent
     )
 from game.events.render_data import RenderData
 from game.ui.rendering.color_manager import Color

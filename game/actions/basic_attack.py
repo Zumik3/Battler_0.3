@@ -5,12 +5,14 @@ from typing import TYPE_CHECKING
 
 from game.actions.action import Action
 from game.events.combat import DamageEvent, EnergySpentEvent
-from game.events.render_data import RenderData
-from game.systems.damage.damage_type import PHYSICAL
+from game.systems.combat.damage_type import PHYSICAL
 from game.ui.rendering.color_manager import Color
+from game.ui.rendering.render_data_builder import RenderDataBuilder
+#from game.events.render_data import RenderData
 
 if TYPE_CHECKING:
     from game.entities.character import Character
+    from game.events.render_data import RenderData
 
 
 class BasicAttack(Action):
@@ -61,7 +63,7 @@ class BasicAttack(Action):
         # Рассчитываем урон
         damage = self._calculate_damage()
         render_data = self._create_damage_render_data(
-            atacker=self.source,
+            attacker=self.source,
             damage=damage,
             target=self.target)
         
@@ -96,7 +98,7 @@ class BasicAttack(Action):
         return damage
 
     @staticmethod
-    def _create_damage_render_data(atacker: 'Character', damage: int, target: 'Character') -> RenderData:
+    def _create_damage_render_data(attacker: 'Character', damage: int, target: 'Character') -> 'RenderData':
         """
         Создает данные для отображения события нанесения урона.
         
@@ -109,14 +111,14 @@ class BasicAttack(Action):
             RenderData для отрисовки события
         """
 
-        atacker_color = Color.GREEN if atacker.is_player else Color.BLUE
+        attacker_color = Color.GREEN if attacker.is_player else Color.BLUE
         target_color = Color.GREEN if target.is_player else Color.BLUE
 
-        return RenderData(
-            template="%1 атакует %2 и наносит %3 урона",
-            replacements={
-                "1": (atacker.name, atacker_color, True, False),
-                "2": (target.name, target_color, False, False),
-                "3": (f"{damage}", Color.RED, True, False)
-            }
-        )
+        return (RenderDataBuilder()
+               .add_character_name(attacker)
+               .add_text(" атакует ")
+               .add_character_name(target)
+               .add_text(" и наносит ")
+               .add_damage_value(damage)
+               .add_text(" урона")
+               .build())

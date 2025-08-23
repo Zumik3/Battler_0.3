@@ -1,4 +1,4 @@
-# game/systems/battle_result.py
+# game/systems/battle/result.py
 """Результаты завершенного боя."""
 
 from dataclasses import dataclass

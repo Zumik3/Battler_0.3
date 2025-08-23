@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 # Импортируем событие, на которое подписываемся
 from game.events.battle_events import BattleEndedEvent 
 # Импортируем тип результата боя, который будет в событии
-from game.systems.battle_result import BattleResult
+from game.systems.battle.result import BattleResult
 
 # Отложенные импорты для избежания циклических зависимостей
 if TYPE_CHECKING:
@@ -22,7 +22,7 @@ def handle_battle_ended_for_rewards(event: BattleEndedEvent) -> None:
     """
     # Получаем BattleResult из события
     # Уточняем тип для mypy и лучшей читаемости
-    battle_result: BattleResult = event.result 
+    battle_result: BattleResult = event.result
     
     # Проверка на случай, если вдруг результат не того типа (защитное программирование)
     if not isinstance(battle_result, BattleResult):
@@ -41,7 +41,7 @@ def handle_battle_ended_for_rewards(event: BattleEndedEvent) -> None:
     context = battle_result.alive_players[0].context
     
     # Создаем калькулятор наград
-    from game.rewards.calculator import RewardCalculator # Отложенный импорт
+    from game.systems.rewards.calculator import RewardCalculator # Отложенный импорт
     calculator = RewardCalculator(context)
     
     # Запускаем расчет и распределение наград
