@@ -75,35 +75,49 @@ class LevelPropertyProtocol(Protocol):
 
 # ==================== Протоколы игровых систем ====================
 
+class AbilityRegistryProtocol(Protocol):
+    
+    def is_registered(self, ability_name: str) -> bool:
+        """Проверяет, зарегистрирована ли способность с указанным именем.
+        
+        Args:
+            ability_name: Имя способности для проверки.
+            
+        Returns:
+            True, если способность зарегистрирована, иначе False.
+        """
+        ...
+
 class AbilityManagerProtocol(Protocol):
     """Протокол для менеджера способностей."""
-    def add_ability(self, ability: 'Ability') -> List['ActionResult']:
+    def add_ability(self, ability: str) -> None:
         """Добавляет способность персонажу."""
         ...
 
-    def use_ability(self, ability_name: str, target: List['CharacterType'], **kwargs) -> List['ActionResult']:
+    def use_ability(self, ability_name: str, target: List['CharacterType'], **kwargs) -> None:
         """Использовать способность на цель."""
         ...
 
-    def get_available_abilities(self) -> List['Ability']:
+    def get_available_abilities(self) -> List[str]:
         """Получить список доступных способностей."""
         ...
 
-    def update_cooldowns(self) -> List['ActionResult']:
+    def update_cooldowns(self) -> None:
         """Обновить кулдауны способностей."""
         ...
 
+
 class StatusEffectManagerProtocol(Protocol):
     """Протокол для менеджера статус-эффектов."""
-    def apply_effect(self, effect: 'StatusEffect') -> List['ActionResult']:
+    def apply_effect(self, effect: 'StatusEffect') -> None:
         """Применить эффект к персонажу."""
         ...
 
-    def remove_effect(self, effect_name: str) -> List['ActionResult']:
+    def remove_effect(self, effect_name: str) -> None:
         """Удалить эффект по имени."""
         ...
 
-    def update_effects(self) -> List['ActionResult']:
+    def update_effects(self) -> None:
         """Обновить эффекты."""
         ...
 
@@ -115,7 +129,7 @@ class StatusEffectManagerProtocol(Protocol):
         """Получить список всех активных эффектов."""
         ...
 
-    def clear_all_effects(self) -> List['ActionResult']:
+    def clear_all_effects(self) -> None:
         """Очистить все эффекты и вернуть список результатов."""
         ...
 
@@ -126,18 +140,21 @@ class ExperienceCalculatorProtocol(Protocol):
         """Рассчитывает опыт, необходимый для следующего уровня."""
         ...
 
+
 class LevelUpHandlerProtocol(Protocol):
-    def handle_level_up(self, character: 'CharacterType') -> List['ActionResult']:
+    def handle_level_up(self, character: 'CharacterType') -> None:
         """Обрабатывает повышение уровня и возвращает результаты."""
         ...
+
 
 class ExperienceSystemProtocol(Protocol):
     def add_experience(self, amount: int) -> None:
         """Добавляет опыт персонажу и возвращает результаты."""
         ...
 
+
 class LevelingSystemProtocol(Protocol):
-    def try_level_up(self, character: 'CharacterType') -> List['ActionResult']:
+    def try_level_up(self, character: 'CharacterType') -> None:
         """Проверяет и выполняет повышение уровня, если возможно."""
         ...
 
@@ -164,17 +181,6 @@ class Character(ABC):
     """Абстрактный базовый класс, представляющий персонажа в игре."""
     pass
 
-class Ability(ABC):
-    """Абстрактный базовый класс для способностей."""
-    def __init__(self, name: str, energy_cost: int, description: str = ""):
-        self.name = name
-        self.energy_cost = energy_cost
-        self.description = description
-
-    @abstractmethod
-    def activate(self, caster: 'CharacterType', target: 'CharacterType') -> List['ActionResult']:
-        """Активировать способность."""
-        ...
 
 class StatusEffect(ABC):
     """Абстрактный базовый класс для статус-эффектов."""
@@ -184,27 +190,18 @@ class StatusEffect(ABC):
         self.description = description
 
     @abstractmethod
-    def apply(self, target: 'CharacterType') -> List['ActionResult']:
+    def apply(self, target: 'CharacterType') -> None:
         """Применить эффект к цели."""
         ...
 
     @abstractmethod
-    def remove(self, target: 'CharacterType') -> List['ActionResult']:
+    def remove(self, target: 'CharacterType') -> None:
         """Удалить эффект с цели."""
         ...
 
-    def tick(self, target: 'CharacterType') -> List['ActionResult']:
+    def tick(self, target: 'CharacterType') -> None:
         """Выполнить действие эффекта за ход (если применимо)."""
-        self.duration -= 1
-        if self.duration <= 0:
-            # Сигнализируем, что эффект нужно удалить
-            return [ActionResult(type="effect_expired", message=f"Эффект {self.name} истек")]
-        return []
-
-    @property
-    def is_expired(self) -> bool:
-        """Проверить, истек ли эффект."""
-        return self.duration <= 0
+        ...
 
 
 class CharacterAttributesConfig(Protocol):

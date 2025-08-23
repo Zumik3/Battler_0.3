@@ -17,7 +17,7 @@
     },
     "description": "Класс с низким уроном, средними защитой и здоровьем, способностью лечить.",
     "starting_abilities": [
-        "Heal",
-        "MassHeal"
+        "BasicHeal",
+        "BasicAttack"
     ]
 }

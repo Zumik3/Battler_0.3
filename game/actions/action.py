@@ -5,6 +5,8 @@
 from abc import ABC, abstractmethod
 from typing import Optional, TYPE_CHECKING
 
+from game.events.combat import EnergySpentEvent
+
 if TYPE_CHECKING:
     from game.entities.character import Character
 
@@ -90,3 +92,19 @@ class Action(ABC):
 
         self._is_executed = True
         self._execute()
+
+    def _spend_energy(self) -> None:
+        """
+        Публикует событие траты энергии для источника действия.
+        Использует self.source, self.energy_cost и self.name.
+        """
+        if self.source.context and self.source.context.event_bus:
+            energy_event = EnergySpentEvent(
+                source=None,
+                character=self.source,
+                amount=self.energy_cost,
+                reason=f"action_{self.name}"
+            )
+            self.source.context.event_bus.publish(energy_event)
+        # TODO: Возможно, обработать случай, если context или event_bus отсутствуют?
+        # Например, логирование предупреждения или вызов исключения.

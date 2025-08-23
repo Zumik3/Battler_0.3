@@ -16,5 +16,7 @@
     "vitality": 0.09
   },
   "description": "Сбалансированный класс с высокой силой и защитой.",
-  "starting_abilities": []
+  "starting_abilities": [
+    "BasicAttack"
+  ]
 }

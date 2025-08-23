@@ -3,19 +3,21 @@
 
 from typing import  TYPE_CHECKING
 
+
 from game.factories.character_property_factory import CharacterPropertyFactory
 
 if TYPE_CHECKING:
     from game.entities.monster import Monster
     from game.core.character_context import CharacterContext
     from game.entities.character import CharacterConfig
+    from game.core.game_context import GameContext
 
 class MonsterPropertyFactory(CharacterPropertyFactory):
     """Фабрика для создания связанных свойств монстра."""
     
-    def __init__(self, context: 'CharacterContext', config: 'CharacterConfig', monster: 'Monster'):
-        super().__init__(context=context, character=monster)
-        self.create_basic_properties(character=monster, config=config)
+    def __init__(self, context: 'CharacterContext', game_context: 'GameContext', config: 'CharacterConfig', monster: 'Monster'):
+        super().__init__(context=context, game_context=game_context, character=monster)
+        self.create_basic_properties(character=monster, game_context=game_context, config=config)
     
     def create_advanced_properties(self, monster: 'Monster') -> None:
         """Создает и связывает допольнительные свойства монстра.

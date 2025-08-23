@@ -4,7 +4,6 @@
 from typing import  TYPE_CHECKING
 
 
-
 from game.entities.properties.experience import ExperienceProperty
 from game.factories.character_property_factory import CharacterPropertyFactory
 
@@ -12,13 +11,14 @@ if TYPE_CHECKING:
     from game.entities.player import Player
     from game.core.character_context import CharacterContext
     from game.entities.character import CharacterConfig
+    from game.core.game_context import GameContext
 
 class PlayerPropertyFactory(CharacterPropertyFactory):
     """Фабрика для создания связанных свойств персонажа."""
     
-    def __init__(self, context: 'CharacterContext', config: 'CharacterConfig', player: 'Player'):
-        super().__init__(context=context, character=player)
-        self.create_basic_properties(character=player, config=config)
+    def __init__(self, context: 'CharacterContext', game_context: 'GameContext', config: 'CharacterConfig', player: 'Player'):
+        super().__init__(context=context, game_context=game_context, character=player)
+        self.create_basic_properties(game_context=game_context, character=player, config=config)
         self.create_advanced_properties(player=player)
     
     def create_advanced_properties(self, player: 'Player') -> None:

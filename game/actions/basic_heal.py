@@ -53,14 +53,7 @@ class BasicHeal(Action):
         if not self.target:
             self.target = self.source
 
-        # 1. Публикуем событие траты энергии
-        energy_event = EnergySpentEvent(
-            source=None,
-            character=self.source,
-            amount=self.energy_cost,
-            reason=f"action_{self.name}"
-        )
-        self.source.context.event_bus.publish(energy_event)
+        self._spend_energy()
 
         # 2. Рассчитываем количество лечения
         heal_amount = self._calculate_heal()
