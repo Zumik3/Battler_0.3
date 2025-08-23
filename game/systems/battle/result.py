@@ -2,8 +2,11 @@
 """Результаты завершенного боя."""
 
 from dataclasses import dataclass
-from typing import List, Optional
-from game.entities.character import Character
+from typing import TYPE_CHECKING, List, Optional
+
+if TYPE_CHECKING:
+    from game.entities.monster import Monster
+    from game.entities.player import Player
 
 @dataclass
 class BattleResult:
@@ -18,10 +21,10 @@ class BattleResult:
         battle_log (List[str]): (Опционально) Лог боя.
         battle_id (Optional[str]): (Опционально) Уникальный идентификатор боя.
     """
-    players: List[Character]
-    enemies: List[Character]
-    alive_players: List[Character]
-    dead_enemies: List[Character]
+    players: List['Player']
+    enemies: List['Monster']
+    alive_players: List['Player']
+    dead_enemies: List['Monster']
     battle_log: Optional[List[str]] = None
     battle_id: Optional[str] = None
 

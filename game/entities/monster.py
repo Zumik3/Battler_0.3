@@ -1,15 +1,15 @@
 # game/entities/player.py
 """Класс монстра (персонажа, не управляемого игроком)."""
 
-from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
-from game.core.context import GameContext
+
 from game.entities.character import Character
 from game.factories.monster_property_factory import MonsterPropertyFactory
 
 if TYPE_CHECKING:
     from game.entities.properties.experience import ExperienceProperty
     from game.factories.monster_factory import MonsterConfig
+    from game.core.character_context import CharacterContext
 
 
 class Monster(Character):
@@ -17,7 +17,7 @@ class Monster(Character):
 
     experience: Optional['ExperienceProperty']
 
-    def __init__(self, context: GameContext, config: 'MonsterConfig') -> None:
+    def __init__(self, context: 'CharacterContext', config: 'MonsterConfig') -> None:
         """
         Инициализирует монстра.
 

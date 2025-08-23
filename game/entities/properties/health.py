@@ -4,14 +4,14 @@
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Optional
 
-from game.events.combat import DamageEvent
+from game.events.combat import DamageEvent, HealEvent
 from game.protocols import HealthPropertyProtocol, StatsProtocol
 from game.entities.properties.property import PublishingAndDependentProperty
 from game.events.character import HealthChangedEvent, StatsChangedEvent
 from game.systems.events.bus import LOW_PRIORITY
 
 if TYPE_CHECKING:
-    from game.core.context import GameContext
+    from game.core.game_context import GameContext
 
 
 @dataclass
@@ -51,6 +51,7 @@ class HealthProperty(PublishingAndDependentProperty, HealthPropertyProtocol):
         if not self._is_subscribed and self.stats and self.context:
             self._subscribe_to(self.stats, StatsChangedEvent, self._on_stats_event)
             self._subscribe_to(None, DamageEvent, self._on_damage_event, LOW_PRIORITY)
+            self._subscribe_to(None, HealEvent, self._on_heal_event, LOW_PRIORITY)
             self._is_subscribed = True
             
     def _on_stats_event(self, event: StatsChangedEvent) -> None:
@@ -62,6 +63,12 @@ class HealthProperty(PublishingAndDependentProperty, HealthPropertyProtocol):
         # Защитное программирование: проверяем, жив ли персонаж перед применением урона
         if self.context.character is event.target and event.target.is_alive():
             self.take_damage(event.amount)
+
+    def _on_heal_event(self, event: DamageEvent) -> None:
+        """Вызывается при получении события получения урона."""
+        # Защитное программирование: проверяем, жив ли персонаж перед применением урона
+        if self.context.character is event.target and event.target.is_alive():
+            self.take_heal(event.amount)
         
     def _recalculate(self) -> None:
         """Пересчитывает максимальное HP на основе vitality."""

@@ -1,12 +1,12 @@
-# game/systems/battle_manager.py
+# game/systems/battle/manager.py
 """Менеджер боя для автоматического пошагового сражения."""
 
 from __future__ import annotations
 import time
-from typing import List, TYPE_CHECKING
+from typing import List, TYPE_CHECKING, Optional
+import uuid
 from game.events.battle_events import BattleStartedEvent, BattleEndedEvent
 
-# Добавляем импорт BattleResult
 from game.systems.battle.result import BattleResult
 
 from game.events.render_data import RenderData
@@ -14,8 +14,9 @@ from game.ui.controllers.battle_log_controller import BattleLogController
 from game.ui.rendering.color_manager import Color
 
 if TYPE_CHECKING:
-    from game.entities.character import Character
-    from game.core.context import GameContext
+    from game.entities.player import Player
+    from game.entities.monster import Monster
+    from game.core.game_context import GameContext
     from game.systems.battle.round import BattleRound
     from game.ui.components.battle_components import BattleLog
     from game.systems.events.bus import EventBus
@@ -34,14 +35,14 @@ class BattleManager:
         self.context = context
         self.is_battle_active = False
         self.current_round_number = 0
-        self.players: List[Character] = []
-        self.enemies: List[Character] = []
-        self._battle_log_controller = None
+        self.players: List['Player'] = []
+        self.enemies: List['Monster'] = []
+        self._battle_log_controller: Optional['BattleLogController'] = None
         
         # Настройки задержек (в секундах)
         self.round_delay = 2.0  # Задержка между раундами
 
-    def start_battle(self, players: List[Character], enemies: List[Character]) -> None:
+    def start_battle(self, players: List['Player'], enemies: List['Monster']) -> None:
         """Запускает автоматический бой.
         
         Args:
@@ -54,12 +55,16 @@ class BattleManager:
         self.current_round_number = 0
 
         # Активируем баттл лог
-        self._battle_log_controller.activate()
+        if self._battle_log_controller:
+            self._battle_log_controller.activate()
         
+        battle_id = str(uuid.uuid4())
+
         # Публикуем событие начала боя
         battle_started_event = BattleStartedEvent(
             players=self.players,
             enemies=self.enemies,
+            battle_id=battle_id,
             source=None,
             render_data=RenderData(template="%1 начинается...",
                 replacements={"1": ("Бой", Color.RED, True, False)})
@@ -75,6 +80,7 @@ class BattleManager:
         battle_result_obj = BattleResult(
             players=self.players,
             enemies=self.enemies,
+            battle_id=battle_id,
             alive_players=[p for p in self.players if p.is_alive()],
             dead_enemies=[e for e in self.enemies if not e.is_alive()],
             # battle_log=None, # Пока не заполняем
@@ -86,6 +92,7 @@ class BattleManager:
             # Передаем объект BattleResult, а не строку
             result=battle_result_obj,
             source=None,
+            battle_id=battle_id,
             render_data=RenderData(template="%1 завершен...",
                 replacements={"1": ("Бой", Color.RED, True, False)})
             )
@@ -94,7 +101,8 @@ class BattleManager:
         self.context.event_bus.publish(battle_ended_event)
 
         # Бой закончен
-        self._battle_log_controller.deactivate()
+        if self._battle_log_controller:
+            self._battle_log_controller.deactivate()
     
     def _run_battle_loop(self) -> None:
         """Основной цикл управления боем."""

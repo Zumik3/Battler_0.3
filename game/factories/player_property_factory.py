@@ -10,13 +10,13 @@ from game.factories.character_property_factory import CharacterPropertyFactory
 
 if TYPE_CHECKING:
     from game.entities.player import Player
-    from game.core.context import GameContext
+    from game.core.character_context import CharacterContext
     from game.entities.character import CharacterConfig
 
 class PlayerPropertyFactory(CharacterPropertyFactory):
     """Фабрика для создания связанных свойств персонажа."""
     
-    def __init__(self, context: 'GameContext', config: 'CharacterConfig', player: 'Player'):
+    def __init__(self, context: 'CharacterContext', config: 'CharacterConfig', player: 'Player'):
         super().__init__(context=context, character=player)
         self.create_basic_properties(character=player, config=config)
         self.create_advanced_properties(player=player)

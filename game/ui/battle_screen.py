@@ -33,6 +33,7 @@ class BattleScreen(BaseScreen, StandardLayoutMixin):
 
     def __init__(self, manager: 'ScreenManager'):
         super().__init__(manager)
+        
         self.manager.game_manager.battle_manager.setup_battle_log_controller(
             event_bus=self.manager.game_manager.event_bus, 
             battle_log=self.battle_log

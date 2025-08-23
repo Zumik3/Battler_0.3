@@ -10,7 +10,7 @@ from game.systems.battle.result import BattleResult
 
 # Отложенные импорты для избежания циклических зависимостей
 if TYPE_CHECKING:
-    from game.core.context import GameContext
+    from game.core.game_context import GameContext
     # from game.rewards.calculator import RewardCalculator # Импортируем внутри функции
 
 def handle_battle_ended_for_rewards(event: BattleEndedEvent) -> None:
