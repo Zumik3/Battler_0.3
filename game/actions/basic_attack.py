@@ -4,11 +4,10 @@
 from typing import TYPE_CHECKING
 
 from game.actions.action import Action
-from game.events.combat import DamageEvent, EnergySpentEvent
+from game.events.combat import DamageEvent
 from game.systems.combat.damage_type import PHYSICAL
 from game.ui.rendering.color_manager import Color
 from game.ui.rendering.render_data_builder import RenderDataBuilder
-#from game.events.render_data import RenderData
 
 if TYPE_CHECKING:
     from game.entities.character import Character
@@ -47,23 +46,25 @@ class BasicAttack(Action):
         Выполняет базовую араку через публикацию событий.
         Создает и публикует DamageEvent для нанесения урона.
         """
-        if not self.target:
+        if not self.targets:
             return
 
         self._spend_energy()
 
+        target = self.targets[0]
+
         # Рассчитываем урон
-        damage = self._calculate_damage()
+        damage = self._calculate_damage(target)
         render_data = self._create_damage_render_data(
             attacker=self.source,
             damage=damage,
-            target=self.target)
+            target=target)
         
         # Создаем и публикуем событие нанесения урона
         damage_event = DamageEvent(
             source=None,
             attacker=self.source,
-            target=self.target,
+            target=target,
             amount=damage,
             damage_type=PHYSICAL,
             is_critical=False,
@@ -73,18 +74,18 @@ class BasicAttack(Action):
         
         self.source.context.event_bus.publish(damage_event)
 
-    def _calculate_damage(self) -> int:
+    def _calculate_damage(self, target: 'Character') -> int:
         """
         Рассчитывает количество урона для базовой атаки.
 
         Returns:
             Рассчитанное значение урона.
         """
-        if not (self.source.combat and self.target and self.target.combat):
+        if not (self.source.combat and self.targets and target.combat):
             return 0
             
         attack_power = self.source.combat.attack_power
-        target_defense = self.target.combat.defense
+        target_defense = target.combat.defense
         damage = max(1, attack_power - target_defense // 2)
         
         return damage

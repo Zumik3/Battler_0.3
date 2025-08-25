@@ -2,12 +2,15 @@
 """Протоколы, определяющие интерфейсы для различных компонентов игры."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Protocol, Optional, TYPE_CHECKING, runtime_checkable
+from typing import Callable, Dict, List, Any, Protocol, Optional, TYPE_CHECKING, runtime_checkable
+
+
 
 if TYPE_CHECKING:
     from game.entities.character import Character as CharacterType
     from game.config import GameConfig
     from game.systems.events.bus import IEventBus
+    from game.actions.action import Action
 
 # ==================== Базовые протоколы данных ====================
 
@@ -88,22 +91,21 @@ class AbilityRegistryProtocol(Protocol):
         """
         ...
 
+    def get_factory(self, ability_name: str) -> Callable[['CharacterType'], 'Action']:
+        ...
+
 class AbilityManagerProtocol(Protocol):
     """Протокол для менеджера способностей."""
     def add_ability(self, ability: str) -> None:
         """Добавляет способность персонажу."""
         ...
 
-    def use_ability(self, ability_name: str, target: List['CharacterType'], **kwargs) -> None:
+    def use_ability(self, ability_name: str, targets: List['CharacterType'], **kwargs) -> None:
         """Использовать способность на цель."""
         ...
 
     def get_available_abilities(self) -> List[str]:
         """Получить список доступных способностей."""
-        ...
-
-    def update_cooldowns(self) -> None:
-        """Обновить кулдауны способностей."""
         ...
 
 
@@ -176,11 +178,6 @@ class MonsterNamerProtocol(Protocol):
         ...
 
 # ==================== Базовые абстрактные классы ====================
-
-class Character(ABC):
-    """Абстрактный базовый класс, представляющий персонажа в игре."""
-    pass
-
 
 class StatusEffect(ABC):
     """Абстрактный базовый класс для статус-эффектов."""

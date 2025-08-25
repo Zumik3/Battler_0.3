@@ -115,18 +115,37 @@ class ProgressBar(Renderable, ABC):
             current_value = 0
             max_value = 1
 
+        # --- НОВАЯ ЛОГИКА ---
+        # Если ширина <= 0, возвращаем пустой шаблон
+        if self.width <= 0:
+             return self._create_progress_template(0, 0)
+
         # Рассчитываем количество заполненных и пустых символов
+        # Если max_value <= 0, считаем прогресс 0%
         if max_value <= 0:
-            filled_count = 0
+            calculated_filled_count = 0
         else:
-            filled_count = int((current_value / max_value) * self.width)
+            calculated_filled_count = int((current_value / max_value) * self.width)
         
-        # Убеждаемся, что значения в допустимых пределах
-        filled_count = max(0, min(filled_count, self.width))
+        # Применяем правило: если current_value > 0, то показываем минимум 1 заполненный символ
+        # если ширина позволяет
+        if current_value > 0 and calculated_filled_count == 0 and self.width > 0:
+            filled_count = 1
+        else:
+            # Убеждаемся, что значения в допустимых пределах
+            filled_count = max(0, min(calculated_filled_count, self.width))
+            
+        # Рассчитываем количество пустых символов
         empty_count = self.width - filled_count
+        
+        # Убеждаемся, что empty_count не отрицательный (на случай ошибок)
+        empty_count = max(0, empty_count)
 
         return self._create_progress_template(filled_count, empty_count)
 
+
+# --- Классы HealthBar и EnergyBar остаются без изменений ---
+# (Их код из вашего исходного файла)
 
 class HealthBar(ProgressBar):
     """Прогресс-бар для отображения здоровья (HP)."""
@@ -176,9 +195,9 @@ class HealthBar(ProgressBar):
         if max_val > 0:
             ratio = current / max_val
             
-        if ratio < 0.25:
+        if ratio < 0.35:
             return Color.RED
-        elif ratio < 0.5:
+        elif ratio < 0.7:
             return Color.YELLOW
         else:
             return Color.GREEN

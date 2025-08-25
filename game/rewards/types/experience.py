@@ -37,8 +37,7 @@ class ExperienceReward(Reward):
         from game.events.reward_events import RewardExperienceGainedEvent
         
         event = RewardExperienceGainedEvent(
-            source=None, # Источник события - сам получатель или можно None
-            character=recipient,
+            source=recipient,
             amount=self.amount,
             source_level=self.source_level
         )

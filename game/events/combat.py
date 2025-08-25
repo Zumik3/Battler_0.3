@@ -10,6 +10,7 @@ from .event import Event
 if TYPE_CHECKING:
     from game.entities.character import Character
     from game.systems.combat.damage_type import DamageType
+    from game.actions.action import Action
 
 
 @dataclass
@@ -40,6 +41,15 @@ class HealEvent(Event):
     target: Optional['Character'] = None
     amount: int = 0
     heal_type: str = "direct"
+
+
+@dataclass
+class AbilityUsedEvent(Event):
+    """Событие выполнения способности персонажем."""
+    
+    character: Optional['Character'] = None
+    ability_name: str = ""
+    cooldown: int = 0
 
 
 @dataclass

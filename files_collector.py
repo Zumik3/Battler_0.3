@@ -12,28 +12,19 @@ from typing import List, Tuple
 def should_skip_directory(dir_path: pathlib.Path) -> bool:
     """
     Проверяет, нужно ли пропустить директорию.
-    
-    Args:
-        dir_path: Путь к директории
-        
-    Returns:
-        bool: True если директорию нужно пропустить, False если нет
     """
-    # Пропускаем директории, начинающиеся с точки
+    skip_names = {'.git', '__pycache__', '.venv', 'venv', '.idea', '.vscode'}
+    
+    # Пропускаем директории, начинающиеся с точки или из списка
     for part in dir_path.parts:
-        if part.startswith('.'):
+        if part.startswith('.') or part in skip_names:
             return True
     return False
 
 
 def collect_files() -> List[Tuple[str, str]]:
     """
-    Собирает все Python файлы, JSON файлы и Markdown файлы (кроме README.md) 
-    из указанных директорий, исключая директории, начинающиеся с точки.
-    Также включает PROJECT_TODO.md из корня, если он существует.
-    
-    Returns:
-        List[Tuple[str, str]]: Список кортежей (путь_к_файлу, содержимое_файла)
+    Собирает все файлы без выполнения кода.
     """
     files_content = []
     
@@ -55,7 +46,7 @@ def collect_files() -> List[Tuple[str, str]]:
         'game',
         'tests', 
         'main.py',
-        'guide'  # Добавлена новая папка
+        'guide'
     ]
     
     # Расширения файлов, которые нужно собирать
@@ -65,7 +56,7 @@ def collect_files() -> List[Tuple[str, str]]:
         target_path = pathlib.Path(target)
         
         if should_skip_directory(target_path):
-            print(f"Пропущена директория: {target_path} (начинается с точки)")
+            print(f"Пропущена директория: {target_path}")
             continue
             
         if target_path.is_file() and target_path.suffix.lower() in allowed_extensions:
@@ -86,7 +77,7 @@ def collect_files() -> List[Tuple[str, str]]:
         elif target_path.is_dir():
             # Директория - рекурсивно собираем все разрешенные файлы
             for file_path in target_path.rglob('*'):
-                # Проверяем, не находится ли файл в директории, начинающейся с точки
+                # Проверяем, не находится ли файл в директории, которую нужно пропустить
                 if should_skip_directory(file_path.parent):
                     continue
                     
@@ -112,10 +103,6 @@ def collect_files() -> List[Tuple[str, str]]:
 def write_combined_file(files_content: List[Tuple[str, str]], output_file: str = 'combined_source.txt') -> None:
     """
     Записывает все файлы в один текстовый файл с разделителями.
-    
-    Args:
-        files_content: Список кортежей (путь_к_файлу, содержимое_файла)
-        output_file: Имя выходного файла
     """
     separator = "=" * 80
     
@@ -138,14 +125,6 @@ def write_combined_file(files_content: List[Tuple[str, str]], output_file: str =
 def main() -> None:
     """Основная функция скрипта."""
     output_file = 'combined_source.txt'
-    
-    # Очищаем результирующий файл при каждом запуске
-    try:
-        with open(output_file, 'w', encoding='utf-8') as f:
-            pass  # Создаем пустой файл или очищаем существующий
-        print(f"Файл {output_file} очищен")
-    except Exception as e:
-        print(f"Ошибка при очистке файла {output_file}: {e}")
     
     print("Сбор всех файлов...")
     

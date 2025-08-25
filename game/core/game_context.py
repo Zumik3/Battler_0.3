@@ -4,11 +4,14 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 from game.config import GameConfig
+from game.systems.combat import cooldown_manager
 from game.systems.combat.ability_registry import AbilityRegistry
+from game.systems.combat.cooldown_manager import get_cooldown_manager
 from game.systems.events.bus import IEventBus
 
 if TYPE_CHECKING:
     from game.protocols import AbilityRegistryProtocol
+    from game.systems.combat.cooldown_manager import CooldownManager
 
 @dataclass
 class GameContext:
@@ -17,6 +20,7 @@ class GameContext:
     config: GameConfig
     event_bus: IEventBus
     ability_registry: 'AbilityRegistryProtocol'
+    cooldown_manager: 'CooldownManager'
 
 
 class ContextFactory:
@@ -41,9 +45,11 @@ class ContextFactory:
         from game.systems.events.bus import get_event_bus
         event_bus = get_event_bus()
         ability_registry = AbilityRegistry()
+        cooldown_manager = get_cooldown_manager(event_bus)
 
         return GameContext(
             config=config,
             event_bus=event_bus,
-            ability_registry=ability_registry
+            ability_registry=ability_registry,
+            cooldown_manager=cooldown_manager
         )

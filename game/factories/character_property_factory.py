@@ -4,6 +4,7 @@
 from typing import TYPE_CHECKING
 
 
+from game.ai.ai_factory import create_ai
 from game.core.property_context import PropertyContext
 from game.entities.properties.abilities import Abilities
 from game.entities.properties.stats import StatsProperty
@@ -13,7 +14,6 @@ from game.entities.properties.combat import CombatProperty
 from game.entities.properties.level import LevelProperty
 from game.entities.properties.stats_config import BaseStats, GrowthRates, StatsConfigProperty
 from game.events.character import HealthChangedEvent
-
 
 if TYPE_CHECKING:
     from game.entities.character import Character, CharacterConfig
@@ -74,9 +74,11 @@ class CharacterPropertyFactory():
         character.energy = energy_prop
         character.combat = combat_prop
 
-        character.abilities = self._create_abilities_property(character, game_context, config)
+        character.abilities = self._create_abilities_property(game_context, config)
 
-        # --- НОВОЕ: Настройка подписок персонажа ---
+        ai_config = getattr(config, 'ai_config', None)
+        character.ai = create_ai(ai_config)
+
         self._setup_character_subscriptions(character)
 
     def _create_stat_config_property(self, config: 'CharacterConfig'):
@@ -132,12 +134,16 @@ class CharacterPropertyFactory():
             # attack_power и defence будут рассчитаны автоматически
         )
 
-    def _create_abilities_property(self, character: 'Character', game_context: 'GameContext', config: 'CharacterConfig') -> Abilities:
+    def _create_abilities_property(
+        self,
+        game_context: 'GameContext', 
+        config: 'CharacterConfig') -> Abilities:
         """Создает свойство способностей персонажа."""
         abilities_property = Abilities(
             context=self.context,
-            abilities=config.starting_abilities, # Передаем копию списка
-            ability_registry=game_context.ability_registry
+            abilities=config.starting_abilities,
+            ability_registry=game_context.ability_registry,
+            cooldown_manager=game_context.cooldown_manager
         )
         return abilities_property
 

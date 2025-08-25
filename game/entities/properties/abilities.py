@@ -7,16 +7,14 @@
 from dataclasses import dataclass, field
 from typing import List, TYPE_CHECKING, Optional
 
-# Импорты из других модулей проекта
-from game.entities.properties.property import DependentProperty  # Или PublishingAndDependentProperty
+from game.entities.properties.property import DependentProperty
+from game.events.combat import AbilityUsedEvent
 from game.protocols import AbilityManagerProtocol
-from game.systems.combat import ability_registry  # Предполагаем, что протокол уже определен
 
-# Импорты для аннотаций типов
 if TYPE_CHECKING:
     from game.entities.character import Character
-    # Предполагаемые типы для реестра и способностей
     from game.protocols import AbilityRegistryProtocol 
+    from game.systems.combat.cooldown_manager import CooldownManager
 
 
 @dataclass
@@ -29,10 +27,9 @@ class Abilities(DependentProperty, AbilityManagerProtocol):
         context: Контекст свойства, предоставляющий доступ к event_bus и character.
                  Также будет предоставлять доступ к ability_registry.
     """
-
-    # Список имен способностей, доступных персонажу
     abilities: List[str] = field(default_factory=list)
     ability_registry: Optional['AbilityRegistryProtocol'] = None
+    cooldown_manager: Optional['CooldownManager'] = None
 
     # Контекст уже есть в DependentProperty как self.context: 'PropertyContext'
     # Если нужно напрямую работать с GameContext или CharacterContext, можно добавить:
@@ -42,8 +39,7 @@ class Abilities(DependentProperty, AbilityManagerProtocol):
         """Инициализация свойства способностей."""
         super().__post_init__()
         
-        # Подписки, если нужны
-        # self._setup_subscriptions()
+        self._setup_subscriptions()
 
     def _setup_subscriptions(self) -> None:
         """Настраивает подписки на события, если необходимо."""
@@ -72,28 +68,53 @@ class Abilities(DependentProperty, AbilityManagerProtocol):
             # Можно опубликовать событие, например, AbilityLearnedEvent
             # self._publish_ability_learned(ability_name)
 
-    def use_ability(self, ability_name: str, target: List['Character'], **kwargs) -> None:
-        """
-        Использует способность по имени.
+    def use_ability(self, ability_name: str, targets: List['Character'], **kwargs) -> None:
+        """Использует способность по имени.
 
         Args:
             ability_name: Название способности для использования.
             target: Список целей.
             **kwargs: Дополнительные аргументы.
-
-        Returns:
-            Список результатов действия (ActionResult).
         """
-        # TODO: Реализовать логику использования способности
         # 1. Проверить, есть ли способность в списке доступных
-        # 2. Получить фабрику из реестра (через context или character_context)
-        # 3. Создать экземпляр Action
-        # 4. Настроить Action (цель, параметры)
-        # 5. Выполнить Action (_execute или execute)
-        # 6. Вернуть результаты
-        
-        # Заглушка
-        print(f"[Abilities] Использование способности '{ability_name}' не реализовано.")
+        if ability_name not in self.abilities:
+            print(f"Способность '{ability_name}' недоступна для персонажа.")
+            return
+
+        # 2. Получить фабрику из реестра (через context)
+        if not self.ability_registry or not self.ability_registry.is_registered(ability_name):
+            print(f"Способность '{ability_name}' не найдена в реестре.")
+            return
+
+        try:
+            factory = self.ability_registry.get_factory(ability_name)
+            source_character = self.context.character
+            action = factory(source_character)
+            
+            # 4. Настроить Action (цель, параметры)
+            if targets:
+                action.set_target(targets)
+                
+            # Добавляем другие параметры из kwargs если нужно
+            for key, value in kwargs.items():
+                if hasattr(action, key):
+                    setattr(action, key, value)
+
+            # 5. Выполнить Action (_execute или execute)
+            # Используем публичный метод execute, который внутри вызывает _execute
+            action.execute()
+
+            # 6. Запустить кулдаун способности
+            ability_event = AbilityUsedEvent(
+                source=None,
+                character=source_character,
+                ability_name=action.name,
+                cooldown=action.cooldown
+            )
+            self.context.event_bus.publish(ability_event)
+            
+        except Exception as e:
+            pass
 
     def get_available_abilities(self) -> List[str]:
         """
@@ -102,12 +123,12 @@ class Abilities(DependentProperty, AbilityManagerProtocol):
         Returns:
             Список имен способностей.
         """
-        return self.abilities.copy() # Возвращаем копию, чтобы не сломать внутренний список
-
-    # Другие методы из протокола (update_cooldowns и т.д.) можно реализовать позже
-    def update_cooldowns(self) -> None:
-        """Обновить кулдауны способностей."""
-        # TODO: Реализовать, если добавим систему кулдаунов
+        all_abilities = self.abilities.copy() # Возвращаем копию, чтобы не сломать внутренний список
+        
+        if self.cooldown_manager:
+            return self.cooldown_manager.get_ready_abilities(self.context.character, all_abilities)
+        else:
+            return all_abilities
 
 # Дополнительные классы, если нужно
 
