@@ -20,6 +20,6 @@
         "Volley"
     ],
     "ai": {
-        "type": "BasicEnemyAI"
+        "type": "PlayerAI"
     }
 }

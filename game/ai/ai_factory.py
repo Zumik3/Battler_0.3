@@ -8,7 +8,7 @@ from game.ai.ai_decision_maker import AIDecisionMaker
 # Предполагаем, что они находятся в соответствующих модулях
 from game.ai.decision_makers.basic_enemy_ai import BasicEnemyAI
 # from game.ai.decision_makers.healer_ai import HealerAI
-# from game.ai.decision_makers.player_ai import PlayerAI
+from game.ai.decision_makers.player_ai import PlayerAI
 # ... импортируем другие типы ИИ по мере их создания ...
 
 # --- Маппинг имя_типа -> класс ---
@@ -17,7 +17,7 @@ from game.ai.decision_makers.basic_enemy_ai import BasicEnemyAI
 _AI_TYPES: Dict[str, Type[AIDecisionMaker]] = {
     "BasicEnemyAI": BasicEnemyAI,
     # "HealerAI": HealerAI,
-    # "PlayerAI": PlayerAI,
+    "PlayerAI": PlayerAI,
     # ... другие сопоставления ...
 }
 # --- Конец маппинга ---

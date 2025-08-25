@@ -1,4 +1,5 @@
 # game/ai/decision_makers/basic_enemy_ai.py
+import random
 from typing import TYPE_CHECKING, List, Sequence, Tuple
 from game.ai.ai_decision_maker import AIDecisionMaker
 
@@ -16,17 +17,12 @@ class BasicEnemyAI(AIDecisionMaker):
     ) -> Tuple[str, List['Character']]:
         """
         Выбирает действие для врага.
-        Пока что это заглушка, которая возвращает случайное действие.
         """
-        # TODO: Реализовать логику выбора действия
-        # 1. Получить доступные способности через character.abilities.get_available_abilities()
-        # 2. Выбрать одну из них
-        # 3. Выбрать подходящую цель (или цели)
-        # 4. Вернуть (имя_способности, [цель1, цель2, ...])
+        available_abilities: List[str] = []
+        if character.abilities:
+            available_abilities = character.abilities.get_available_abilities()
         
-        # Пока возвращаем заглушку
-        if enemies:
-            return ("BasicAttack", [enemies[0]]) # Атакуем первого врага
-        else:
-            # Если врагов нет (теоретически), возвращаем пустое действие
-            return ("BasicAttack", []) 
+        chosen_ability = random.choice(available_abilities)
+        target = random.choice(enemies)
+
+        return (chosen_ability, [target])
