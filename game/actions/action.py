@@ -3,7 +3,7 @@
 Действия представляют собой способности, которые могут использовать персонажи.
 """
 from abc import ABC, abstractmethod
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from game.events.combat import EnergySpentEvent
 
@@ -31,9 +31,10 @@ class Action(ABC):
         """
         self.source = source
         self.priority = priority
-        self.target: Optional['Character'] = None
+        self.targets: Sequence['Character'] = []
         self._is_executed = False
         self._energy_cost = 0
+        self._cooldown = 0
 
     @property
     def name(self) -> str:
@@ -45,14 +46,19 @@ class Action(ABC):
         """Возвращает стоимость энергии для выполнения действия."""
         return self._energy_cost
 
-    def set_target(self, target: 'Character') -> None:
+    @property
+    def cooldown(self) -> int:
+        """Возвращает кулдаун способности."""
+        return self._cooldown
+
+    def set_target(self, targets: Sequence['Character']) -> None:
         """
         Устанавливает цель для действия.
 
         Args:
             target: Целевой персонаж.
         """
-        self.target = target
+        self.targets = targets
 
     @abstractmethod
     def is_available(self) -> bool:
@@ -84,7 +90,7 @@ class Action(ABC):
         if self._is_executed:
             raise ValueError("Действие уже было выполнено.")
         
-        if not self.target:
+        if not self.targets:
             raise ValueError("Цель для действия не установлена.")
         
         if not self.is_available():

@@ -88,9 +88,7 @@ class EventBus(IEventBus):
         Хранит подписчиков в формате:
         (id(source), event_type) → список (приоритет, callback)-кортежей
         """
-        # --- НАЧАЛО ИЗМЕНЕНИЙ: Изменен тип значения в словаре ---
         self._subscribers: Dict[Tuple[int, Type[Event]], List[SubscriberEntry]] = {}
-        # --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
     def subscribe(
         self, 
@@ -271,7 +269,6 @@ def get_event_bus() -> IEventBus:
     """
     return _bus_instance
 
-# --- НАЧАЛО ИЗМЕНЕНИЙ: Добавлен параметр priority со значением по умолчанию ---
 def subscribe(
     source: Any, 
     event_type: Type[T], 
@@ -293,7 +290,6 @@ def subscribe(
         >>> subscribe(player, DamageEvent, on_damage_received, priority=HIGH_PRIORITY)
     """
     _bus_instance.subscribe(source, event_type, callback, priority)
-# --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
 def unsubscribe(
     source: Any, 

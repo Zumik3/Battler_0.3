@@ -18,5 +18,8 @@
   "description": "Сбалансированный класс с высокой силой и защитой.",
   "starting_abilities": [
     "BasicAttack"
-  ]
+  ],
+  "ai_config": {
+      "type": "BasicEnemyAI"
+  }
 }

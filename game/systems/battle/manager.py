@@ -96,7 +96,6 @@ class BattleManager:
             render_data=RenderData(template="%1 завершен...",
                 replacements={"1": ("Бой", Color.RED, True, False)})
             )
-        # --- ИЗМЕНЕНИЯ КОНЕЦ ---
 
         self.context.event_bus.publish(battle_ended_event)
 

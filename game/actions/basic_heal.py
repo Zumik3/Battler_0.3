@@ -32,6 +32,7 @@ class BasicHeal(Action):
         """
         super().__init__(source, priority=5) # Приоритет может быть другим, например, ниже, чем у атаки
         self._energy_cost = 10 # Стоимость энергии для выполнения лечения
+        self._cooldown = 2 # кулдаун 1 ход (т.е. один кастуем второй ждем потом на 3-й снова кастуем)
 
     def is_available(self) -> bool:
         """

@@ -19,5 +19,8 @@
     "starting_abilities": [
         "BasicHeal",
         "BasicAttack"
-    ]
+    ],
+    "ai_config": {
+        "type": "BasicEnemyAI"
+    }
 }

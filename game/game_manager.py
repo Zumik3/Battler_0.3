@@ -7,7 +7,6 @@ from game.core.character_context import CharacterContext
 from game.core.game_context import ContextFactory
 from game.systems.battle.manager import BattleManager
 from game.rewards.handlers import register_reward_handlers
-from game.entities.properties.experience import register_experience_handlers
 
 if TYPE_CHECKING:
     from game.entities.player import Player
@@ -37,11 +36,7 @@ class GameManager:
         self.player_group: List['Player'] = []
         self.current_enemies: List['Monster'] = []
         
-        # --- НОВЫЙ ШАГ: Регистрация обработчиков наград ---
-        # Это нужно сделать один раз при инициализации игры
         register_reward_handlers(self.context)
-        register_experience_handlers(self.context)
-        # --- КОНЕЦ НОВОГО ШАГА ---
 
         self._initialize_game_entities()
         self.initialized = True

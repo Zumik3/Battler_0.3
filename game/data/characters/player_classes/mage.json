@@ -18,5 +18,8 @@
   "description": "Мастер магии, наносящий огромный урон, но слабо защищенный.",
   "starting_abilities": [
     "BasicAttack"
-  ]
+  ],
+  "ai_config": {
+      "type": "BasicEnemyAI"
+  }
 }

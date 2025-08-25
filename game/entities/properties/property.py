@@ -4,12 +4,14 @@
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, List, NamedTuple, Optional, Protocol, Type
 
+
+
 from game.systems.events.bus import NORMAL_PRIORITY
 
 if TYPE_CHECKING:
     # Импорты, используемые только для аннотаций типов
     from game.events.event import Event # Используется в миксинах
-    from game.protocols import PropertyContext
+    from game.core.property_context import PropertyContext
 
 
 class HasContext(Protocol):
@@ -18,8 +20,7 @@ class HasContext(Protocol):
     @property
     def context(self) -> Optional['PropertyContext']:
         """Получить контекст свойства."""
-        # В протоколе тело метода/свойства обычно пустое (...)
-        pass
+        ...
 
 
 class SubscriptionData(NamedTuple):

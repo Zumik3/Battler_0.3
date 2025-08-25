@@ -3,8 +3,10 @@
 
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, TYPE_CHECKING
+from typing import Any, List, Dict, Optional, TYPE_CHECKING
 
+
+from game.ai.decision_makers.basic_enemy_ai import BasicEnemyAI
 from game.events.combat import DeathEvent
 from game.events.render_data import RenderData
 
@@ -19,6 +21,7 @@ if TYPE_CHECKING:
     from game.events.character import HealthChangedEvent
     from game.core.character_context import CharacterContext
     from game.protocols import AbilityManagerProtocol
+    from game.ai.ai_decision_maker import AIDecisionMaker
 
 
 # ==================== Вспомогательные классы ====================
@@ -41,6 +44,7 @@ class CharacterConfig:
     class_icon_color: str = ""
     description: str = ""
     starting_abilities: List[str] = field(default_factory=list)
+    ai_config: Optional[Dict[str, Any]] = None
 
 
 class Character(ABC):
@@ -64,6 +68,7 @@ class Character(ABC):
     combat: Optional['CombatProperty']
 
     abilities: Optional['AbilityManagerProtocol'] = None
+    ai: Optional['AIDecisionMaker'] = None
 
     def __init__(self, context: 'CharacterContext', config: 'CharacterConfig'):
 
@@ -77,19 +82,6 @@ class Character(ABC):
 
         self.class_icon = config.class_icon
         self.class_icon_color = config.class_icon_color
-
-        # TODO: Убрать строчки ниже - 2 шт
-        # self.base_stats_dict = config.base_stats
-        # self.growth_rates_dict = config.growth_rates
-
-        # Менеджеры (внедрение зависимостей)
-        # self._ability_manager: Optional[AbilityManagerProtocol] = None
-        # if character_config.ability_manager_factory:
-        #     self._ability_manager = character_config.ability_manager_factory(self)
-
-        # self._status_manager: Optional[StatusEffectManagerProtocol] = None
-        # if character_config.status_effect_manager_factory:
-        #     self._status_manager = character_config.status_effect_manager_factory(self)
 
     # ==================== Основные методы персонажа ====================
     def is_alive(self) -> bool:

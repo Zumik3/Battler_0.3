@@ -8,10 +8,14 @@ from game.protocols import AbilityRegistryProtocol
 from game.actions.basic_attack import BasicAttack
 from game.actions.basic_heal import BasicHeal
 
+# Импорт для логгирования
+import logging
+
 if TYPE_CHECKING:
     from game.entities.character import Character
     from game.actions.action import Action
 
+logger = logging.getLogger(__name__)
 
 class AbilityRegistry(AbilityRegistryProtocol):
     """
@@ -31,6 +35,7 @@ class AbilityRegistry(AbilityRegistryProtocol):
     def __init__(self) -> None:
         """Инициализирует реестр способностей и автоматически регистрирует встроенные способности."""
         # Словарь: имя способности -> фабрика (Callable, создающая Action из Character)
+        # Используем TYPE_CHECKING типы напрямую
         self._registry: Dict[str, Callable[['Character'], 'Action']] = {}
         
         # Автоматическая регистрация встроенных способностей
@@ -39,8 +44,13 @@ class AbilityRegistry(AbilityRegistryProtocol):
     def _register_builtin_abilities(self) -> None:
         """Регистрирует все встроенные способности из _BUILTIN_ABILITIES."""
         for name, (action_class, _) in self._BUILTIN_ABILITIES.items():
-            # Явно аннотируем тип фабричной функции для mypy
-            factory: Callable[['Character'], 'Action'] = lambda char, cls=action_class: cls(char)
+            # Создаем фабричную функцию напрямую, избегая проблем с замыканием
+            def make_factory(cls):
+                return lambda char: cls(char)
+            
+            factory = make_factory(action_class)
+            # Явно указываем тип для переменной factory, если mypy ругается
+            # factory: Callable[[Character], Action] = lambda char, cls=action_class: cls(char)
             self.register(name, factory)
 
     def register(self, name: str, factory: Callable[['Character'], 'Action']) -> None:
@@ -53,8 +63,8 @@ class AbilityRegistry(AbilityRegistryProtocol):
                      и возвращает экземпляр Action.
         """
         if name in self._registry:
-            # Можно логировать предупреждение о перезаписи
-            print(f"[AbilityRegistry] Предупреждение: Способность '{name}' уже зарегистрирована. Перезапись.")
+            # Используем логгер вместо print
+            logger.warning(f"Способность '{name}' уже зарегистрирована. Перезапись.")
         self._registry[name] = factory
 
     def get_factory(self, ability_name: str) -> Callable[['Character'], 'Action']:

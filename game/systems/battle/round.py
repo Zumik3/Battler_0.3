@@ -79,7 +79,7 @@ class BattleRound:
         # Публикуем событие конца раунда
         round_ended_event = RoundEndedEvent(
             round_number=self.round_number,
-            source=self
+            source=None
         )
         self.context.event_bus.publish(round_ended_event)
 
@@ -107,24 +107,24 @@ class BattleRound:
         """Выполняет ход участника.
 
         Args:
-            participant: Персонаж, выполняющий действие.
+            character: Персонаж, выполняющий действие.
         """
-        # Логика выбора действия
-        action = self._choose_action(character)
-        target = self._choose_target(character)
+        if character.ai:
+            # Определяем союзников и врагов
+            allies = self.players if character in self.players else self.enemies
+            enemies = self.enemies if character in self.players else self.players
 
-        if action and target:
-            # Выполняем выбранное действие
-            action.set_target(target)
-            action.execute()
-        else:
-            # Публикуем событие пропуска хода
-            turn_skipped_event = TurnSkippedEvent(
-                character=character,
-                source=self
-            )
-            self.context.event_bus.publish(turn_skipped_event)
-
+            alive_allies = [a for a in allies if a.is_alive()]
+            alive_enemies = [e for e in enemies if e.is_alive()]
+            
+            # Вызываем ИИ для выбора действия
+            ability_name, targets = character.ai.choose_action(character, alive_allies, alive_enemies)
+            
+            # Используем выбранную способность
+            if ability_name and targets is not None:
+                if character.abilities:
+                    character.abilities.use_ability(ability_name, targets=targets)
+ 
     def _choose_action(self, character: 'Character') -> 'Action':
         """Выбирает действие для персонажа.
 

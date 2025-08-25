@@ -1,11 +1,9 @@
 # game/systems/rewards/calculator.py
 """Калькулятор и распределитель наград."""
 
-import math
 import random
-from typing import List, TYPE_CHECKING
+from typing import List, TYPE_CHECKING, Sequence
 
-# Предполагаем, что BattleResult уже создан
 from game.systems.battle.result import BattleResult
 
 # Импортируем необходимые классы наград
@@ -17,15 +15,13 @@ from game.rewards.types import ExperienceReward # Импортируем кон�
 from game.rewards.sources import MonsterRewardSource
 
 # --- НОВЫЕ ИМПОРТЫ ДЛЯ РЕНДЕРИНГА ---
-# Импортируем события и данные для рендеринга
 from game.events.reward_events import PartyExperienceGainedEvent
 from game.events.render_data import RenderData
 from game.ui.rendering.color_manager import Color
-# --- КОНЕЦ НОВЫХ ИМПОРТОВ ---
 
 if TYPE_CHECKING:
     from game.entities.character import Character
-    from game.core.game_context import GameContext # Для доступа к event_bus
+    from game.core.game_context import GameContext
 
 class RewardCalculator:
     """
@@ -49,9 +45,6 @@ class RewardCalculator:
             battle_result (BattleResult): Результат завершенного боя.
         """
         if not battle_result.alive_players:
-            # Никто не выжил, наград нет
-            # В реальной системе это можно логировать
-            # print("Нет выживших игроков, награды не выдаются.")
             return
 
         # 1. Собрать все награды от побежденных врагов
@@ -88,7 +81,7 @@ class RewardCalculator:
         # 4. Распределить предметы (заглушка)
         # self._distribute_items(item_rewards, battle_result.alive_players)
 
-    def _distribute_experience(self, exp_rewards: List[ExperienceReward], recipients: List['Character']) -> None:
+    def _distribute_experience(self, exp_rewards: List[ExperienceReward], recipients: Sequence['Character']) -> None:
         """
         Суммирует весь опыт и распределяет его между выжившими игроками.
 
@@ -107,7 +100,7 @@ class RewardCalculator:
         # 2. Распределяем опыт между игроками
         self._distribute_total_experience(total_exp, recipients)
 
-    def _distribute_total_experience(self, total_exp: int, recipients: List['Character']) -> None:
+    def _distribute_total_experience(self, total_exp: int, recipients: Sequence['Character']) -> None:
         """
         Распределяет суммарный опыт между выжившими игроками с небольшим разбросом
         и публикует агрегированное событие награды.
