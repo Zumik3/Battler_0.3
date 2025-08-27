@@ -72,7 +72,7 @@ class EncounterManager:
                 difficulty="Сложно",
                 events=[
                     BattleEncounterEvent(enemies=[
-                        {'role': 'troll', 'level': 5}
+                        {'role': 'troll', 'level': 15}
                     ])
                 ]
             )
