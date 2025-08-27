@@ -60,8 +60,8 @@ class GameManager:
             game_context=self.context)
 
         # TODO: сделать инициализацию при начале сражения/ивента
-        self._create_initial_enemies(
-            game_context=self.context)
+        # self._create_initial_enemies(
+        #     game_context=self.context)
 
     def _create_players(self, player_data: Dict[str, str], data_dir: 
         str, game_context: 'GameContext') -> None:
