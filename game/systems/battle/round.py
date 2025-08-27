@@ -11,8 +11,10 @@ from game.actions.basic_heal import BasicHeal
 from game.events.battle_events import (
         RoundStartedEvent, RoundEndedEvent, TurnSkippedEvent
     )
+from game.events.combat import LogUpdatedEvent
 from game.events.render_data import RenderData
 from game.ui.rendering.color_manager import Color
+from game.ui.rendering.render_data_builder import RenderDataBuilder
 
 if TYPE_CHECKING:
     from game.entities.character import Character
@@ -39,24 +41,29 @@ class BattleRound:
         self.players = players
         self.enemies = enemies
         self.action_delay = 0.5  # Задержка между действиями в раунде
+        self._event_bus = context.event_bus
 
     def execute(self) -> None:
         """Выполняет все действия в рамках одного раунда."""
         # Публикуем событие начала раунда
+        # Используем RenderDataBuilder аналогично BasicAttack
+        render_data = (RenderDataBuilder()
+            .add_styled_text("･･････････････････ [", Color.GRAY, False, False)
+            .add_text(" ")
+            .add_styled_text("Раунд", Color.CYAN, True, False)
+            .add_text(" ")
+            .add_styled_text(f"{self.round_number}", Color.YELLOW, True, False)
+            .add_text(" ")
+            .add_styled_text("] ･･････････････････", Color.GRAY, False, False)
+            .build())
+        
         round_started_event = RoundStartedEvent(
             source=None,
             round_number=self.round_number,
-            render_data=RenderData(
-                template="%1 %2 %3 %4",
-                replacements={
-                    "1": ("･･････････････････ [", Color.GRAY, False, False), # Точки и открывающая скобка с пробелом
-                    "2": ("Раунд", Color.CYAN, True, False),             # Слово "Раунд"
-                    "3": (f"{self.round_number}", Color.YELLOW, True, False), # Номер раунда
-                    "4": ("] ･･････････････････", Color.GRAY, False, False)   # Закрывающая скобка с пробелом и точки
-                }
-            )
+            render_data=render_data
         )
         self.context.event_bus.publish(round_started_event)
+        time.sleep(self.action_delay)
 
         # Получаем порядок ходов
         turn_order = self._get_turn_order()
@@ -71,6 +78,8 @@ class BattleRound:
 
             # Выполняем действие участника
             self._execute_participant_turn(participant)
+
+            self._event_bus.publish(LogUpdatedEvent(source=None, need_render=True))
 
             # Задержка между действиями для визуального эффекта
             if not self._is_battle_over():
