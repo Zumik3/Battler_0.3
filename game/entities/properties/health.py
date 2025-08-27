@@ -100,9 +100,7 @@ class HealthProperty(PublishingAndDependentProperty, HealthPropertyProtocol):
 
     def take_heal(self, heal_amount: int) -> None:
         """Исцеляет персонажа."""
-        old_hp = self.health
         self.health = min(self.max_health, self.health + heal_amount)
-        # actual_heal = self.health - old_hp # Переменная удалена, так как не используется
         self._publish_health_changed()
     
     def is_alive(self) -> bool:

@@ -20,6 +20,6 @@
         "BasicAttack"
     ],
     "ai_config": {
-        "type": "BasicEnemyAI"
+        "type": "PlayerAI"
     }
 }

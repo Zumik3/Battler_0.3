@@ -124,68 +124,6 @@ class BattleRound:
             if ability_name and targets is not None:
                 if character.abilities:
                     character.abilities.use_ability(ability_name, targets=targets)
- 
-    def _choose_action(self, character: 'Character') -> 'Action':
-        """Выбирает действие для персонажа.
-
-        Args:
-            character: Персонаж, выбирающий действие.
-
-        Returns:
-            Выбранное действие или None.
-        """
-        # TODO: Реализовать логику выбора действия
-        if character.role == 'healer':
-            return BasicHeal(character)
-        else:
-            return BasicAttack(character)
-
-        #return getattr(participant, 'get_basic_attack', lambda: None)()
-
-    def _choose_target(self, attacker: 'Character') -> Optional['Character']:
-        """Выбирает цель для атаки.
-
-        Args:
-            attacker: Атакующий персонаж.
-
-        Returns:
-            Цель для атаки или None.
-        """
-        potential_targets: List['Character']
-
-        if attacker.role == "healer":
-            potential_targets = [p for p in self.players if p.is_alive()]
-            return self._choose_heal_target(potential_targets)
-
-        if attacker in self.players:
-            potential_targets = [e for e in self.enemies if e.is_alive()]
-        else:
-            potential_targets = [p for p in self.players if p.is_alive()]
-
-        # return random.choice(potential_targets) if potential_targets else None
-        return next((target for target in potential_targets), None)
-
-    def _choose_heal_target(self, alive_characters: List['Character']) -> Optional['Character']:
-        
-        if not alive_characters:
-            return None
-
-        if len(alive_characters) == 1:
-            return alive_characters[0]
-
-        # Находим самого побитого (минимальный процент HP)
-        min_health_ratio = 1.0
-        target = alive_characters[0]
-        
-        for character in alive_characters:
-            # Проверяем, есть ли у персонажа здоровье
-            if hasattr(character, 'health') and character.health and character.health.max_health > 0:
-                health_ratio = character.health.health / character.health.max_health
-                if health_ratio < min_health_ratio:
-                    min_health_ratio = health_ratio
-                    target = character
-        
-        return target
 
     def _is_battle_over(self) -> bool:
         """Проверяет условия окончания боя.

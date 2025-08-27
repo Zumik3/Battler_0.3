@@ -1,29 +1,29 @@
 # game/ai/factory.py
 """Фабрика для создания экземпляров ИИ по имени типа."""
 
-from typing import Dict, Type, Optional, Any
-from game.ai.ai_decision_maker import AIDecisionMaker
+from typing import TYPE_CHECKING, Dict, Type, Optional, Any
 
-# --- Импортируем конкретные реализации ИИ ---
-# Предполагаем, что они находятся в соответствующих модулях
 from game.ai.decision_makers.basic_enemy_ai import BasicEnemyAI
-# from game.ai.decision_makers.healer_ai import HealerAI
-# from game.ai.decision_makers.player_ai import PlayerAI
+from game.ai.decision_makers.healer_ai import HealerAI
+from game.ai.decision_makers.player_ai import PlayerAI
 # ... импортируем другие типы ИИ по мере их создания ...
+
+if TYPE_CHECKING:
+    from game.ai.ai_decision_maker import AIDecisionMaker
 
 # --- Маппинг имя_типа -> класс ---
 # Этот словарь сопоставляет строковое имя типа ИИ из конфигурационного файла
 # с соответствующим классом Python.
-_AI_TYPES: Dict[str, Type[AIDecisionMaker]] = {
+_AI_TYPES: Dict[str, Type['AIDecisionMaker']] = {
     "BasicEnemyAI": BasicEnemyAI,
-    # "HealerAI": HealerAI,
-    # "PlayerAI": PlayerAI,
+    "HealerAI": HealerAI,
+    "PlayerAI": PlayerAI,
     # ... другие сопоставления ...
 }
 # --- Конец маппинга ---
 
 
-def create_ai(ai_config: Optional[Dict[str, Any]]) -> Optional[AIDecisionMaker]:
+def create_ai(ai_config: Optional[Dict[str, Any]]) -> Optional['AIDecisionMaker']:
     """
     Создает экземпляр ИИ на основе конфигурации.
 

@@ -21,6 +21,6 @@
         "BasicAttack"
     ],
     "ai_config": {
-        "type": "BasicEnemyAI"
+        "type": "HealerAI"
     }
 }

@@ -17,9 +17,9 @@
   },
   "description": "Мастер магии, наносящий огромный урон, но слабо защищенный.",
   "starting_abilities": [
-    "BasicAttack"
+    "MagicMissile"
   ],
   "ai_config": {
-      "type": "BasicEnemyAI"
+      "type": "PlayerAI"
   }
 }

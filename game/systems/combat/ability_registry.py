@@ -2,10 +2,12 @@
 """Реестр способностей игры."""
 
 from typing import Dict, Callable, TYPE_CHECKING, Optional
+
 from game.protocols import AbilityRegistryProtocol
 
 # Импорты базовых способностей для автоматической регистрации
 from game.actions.basic_attack import BasicAttack
+from game.actions.magic_missile import MagicMissile
 from game.actions.basic_heal import BasicHeal
 
 # Импорт для логгирования
@@ -28,6 +30,7 @@ class AbilityRegistry(AbilityRegistryProtocol):
     # Формат: {"имя_способности": (класс_способности, описание)}
     _BUILTIN_ABILITIES = {
         "BasicAttack": (BasicAttack, "Базовая физическая атака"),
+        "MagicMissile": (MagicMissile, "Выпускает магическую ракету"),
         "BasicHeal": (BasicHeal, "Базовое лечение"), 
         # ... другие способности будут добавляться сюда
     }
@@ -49,8 +52,6 @@ class AbilityRegistry(AbilityRegistryProtocol):
                 return lambda char: cls(char)
             
             factory = make_factory(action_class)
-            # Явно указываем тип для переменной factory, если mypy ругается
-            # factory: Callable[[Character], Action] = lambda char, cls=action_class: cls(char)
             self.register(name, factory)
 
     def register(self, name: str, factory: Callable[['Character'], 'Action']) -> None:
