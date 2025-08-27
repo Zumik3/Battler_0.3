@@ -1,6 +1,7 @@
 # game/ui/encounter_screen.py
 """Универсальный экран для отображения событий похода (Encounter)."""
 import curses
+from sys import exception
 from typing import TYPE_CHECKING, Dict
 
 from game.events.combat import LogUpdatedEvent
@@ -9,6 +10,13 @@ from game.mixins.ui_mixin import StandardLayoutMixin
 from game.ui.base_screen import BaseScreen
 from game.ui.components.battle_components import PlayerGroupPanel, EnemyGroupPanel, BattleLog
 from game.systems.encounters.events import BattleEncounterEvent
+
+if TYPE_CHECKING:
+    from game.ui.screen_manager import ScreenManager
+    from game.systems.encounters.events import EncounterEvent
+
+
+from game.events.render_data import RenderData
 
 if TYPE_CHECKING:
     from game.ui.screen_manager import ScreenManager
@@ -31,9 +39,21 @@ class EncounterScreen(BaseScreen, StandardLayoutMixin):
     def __init__(self, manager: 'ScreenManager'):
         
         self.encounter_manager = manager.game_manager.encounter_manager
+        self.battle_active = False
 
         if self.encounter_manager.current_encounter:
             self.current_event = self.encounter_manager.current_encounter.events[self.encounter_manager.current_event_index]
+
+        # затычка - пока впихиваем тут
+        enemy_list = self.current_event.enemies
+        try:
+            manager.game_manager.create_enemies(
+                enemy_data_list=enemy_list, 
+                game_context=manager.game_manager.context)
+
+        except Exception as e:
+            print(e)
+
 
         super().__init__(manager)
         # Инициализация панелей
@@ -47,6 +67,15 @@ class EncounterScreen(BaseScreen, StandardLayoutMixin):
 
         self._setup_event_listeners()
         self._setup_elements() # Переносим вызов сюда, чтобы self.current_event был доступен
+
+    def on_enter(self) -> None:
+        """Вызывается при переключении на этот экран."""
+        self.battle_active = False
+        if self.encounter_manager.current_encounter:
+            encounter_description = self.encounter_manager.current_encounter.description
+            if self.event_log:
+                self.event_log.add_message(RenderData(template=encounter_description, replacements={}))
+        self._setup_commands()
 
     def _setup_event_listeners(self) -> None:
         """Настраивает обработчики событий."""
@@ -80,14 +109,9 @@ class EncounterScreen(BaseScreen, StandardLayoutMixin):
         }
 
     def _setup_elements(self) -> None:
-        """Настройка элементов экрана в зависимости от типа события."""
+        """Настройка элементов экрана."""
         self.elements = []
-
-        if isinstance(self.current_event, BattleEncounterEvent):
-            self._setup_battle_elements()
-        else:
-            # TODO: Обработка других типов событий (диалоги, сундуки и т.д.)
-            pass
+        self._setup_battle_elements()
 
     def _setup_battle_elements(self) -> None:
         """Настройка элементов для события боя."""
@@ -147,21 +171,42 @@ class EncounterScreen(BaseScreen, StandardLayoutMixin):
 
     def _setup_commands(self) -> None:
         """Настройка команд в зависимости от типа события."""
-        # self.command_registry.clear()
 
-        if isinstance(self.current_event, BattleEncounterEvent):
-            from game.ui.commands.battle_commands import AttackCommand, DefendCommand, MagicCommand
-            from game.ui.commands.common_commands import OpenInventoryCommand, GoBackCommand
+        # if not self.battle_active:
+        #     from game.ui.command_system.command import LambdaCommand
+        #     self.add_command(
+        #         LambdaCommand(
+        #             name="Бой",
+        #             description="Начать бой",
+        #             keys=[10],
+        #             display_key="Enter"
+        #             action=lambda context: self._initiate_battle()
+        #         )
+        #     )
+        #     from game.ui.commands.common_commands import GoBackCommand
+        #     self.add_command(GoBackCommand())
 
-            self.add_command(AttackCommand())
-            self.add_command(DefendCommand())
-            self.add_command(MagicCommand())
-            self.add_command(OpenInventoryCommand())
-            self.add_command(GoBackCommand())
-        else:
-            # TODO: Зарегистрировать команды для других типов событий
-            from game.ui.commands.common_commands import GoBackCommand
-            self.add_command(GoBackCommand())
+        # elif isinstance(self.current_event, BattleEncounterEvent):
+        #     from game.ui.commands.battle_commands import AttackCommand, DefendCommand, MagicCommand
+        #     from game.ui.commands.common_commands import OpenInventoryCommand, GoBackCommand
+
+        #     self.add_command(AttackCommand())
+        #     self.add_command(DefendCommand())
+        #     self.add_command(MagicCommand())
+        #     self.add_command(OpenInventoryCommand())
+        #     self.add_command(GoBackCommand())
+        # else:
+        #     # TODO: Зарегистрировать команды для других типов событий
+        #     from game.ui.commands.common_commands import GoBackCommand
+        #     self.add_command(GoBackCommand())
+
+    def _initiate_battle(self) -> None:
+        """Инициирует бой после нажатия Enter."""
+        self.battle_active = True
+        self.encounter_manager.start_encounter(self.encounter_manager.current_encounter)
+        self._setup_commands() # Перенастраиваем команды для боя
+        self._setup_elements() # Перенастраиваем элементы для боя
+        self.render(self.renderer.stdscr) # Принудительная перерисовка
 
     def render(self, stdscr: curses.window) -> None:
         """Отрисовка экрана."""
