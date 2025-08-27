@@ -48,13 +48,10 @@ class BattleRound:
         # Публикуем событие начала раунда
         # Используем RenderDataBuilder аналогично BasicAttack
         render_data = (RenderDataBuilder()
-            .add_styled_text("･･････････････････ [", Color.GRAY, False, False)
-            .add_text(" ")
-            .add_styled_text("Раунд", Color.CYAN, True, False)
-            .add_text(" ")
+            .add_styled_text("･･････････････････ [ ", Color.GRAY, False, False)
+            .add_styled_text("Раунд ", Color.CYAN, True, False)
             .add_styled_text(f"{self.round_number}", Color.YELLOW, True, False)
-            .add_text(" ")
-            .add_styled_text("] ･･････････････････", Color.GRAY, False, False)
+            .add_styled_text(" ] ･･････････････････", Color.GRAY, False, False)
             .build())
         
         round_started_event = RoundStartedEvent(
