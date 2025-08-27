@@ -48,26 +48,13 @@ def _load_character_data_from_file(
     filename = f"{role}.json"
     filepath = os.path.join(data_directory, filename)
 
-    # Проверяем, существует ли файл
-    if not os.path.exists(filepath):
-        # Пробуем относительный путь от корня проекта, если предыдущий не сработал
-        # Это может помочь, если скрипт запускается не из корня проекта
-        try:
-            # Получаем путь к корню проекта (предполагаем, что loader.py находится в game/data/)
-            # os.path.abspath(__file__) дает полный путь к этому файлу
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-            filepath = os.path.join(project_root, data_directory, filename)
-            if not os.path.exists(filepath):
-                print(f"Файл данных для класса '{role}' не найден: {filepath}")
-                return None
-        except Exception as e:
-            print(f"Ошибка при определении пути к файлу {filename}: {e}")
-            return None
-
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             data = json.load(f)
         return data
+    except FileNotFoundError:
+        print(f"Файл данных для класса '{role}' не найден: {filepath}")
+        return None
     except json.JSONDecodeError as e:
         print(f"Ошибка декодирования JSON в файле {filepath}: {e}")
         return None

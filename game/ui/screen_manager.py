@@ -30,6 +30,7 @@ class ScreenManager:
         """
         self.stdscr = stdscr
         self.game_manager = game_manager # Сохраняем ссылку на GameManager
+        self.running = True
 
         self.color_manager = ColorManager()
         self.color_manager.initialize(stdscr)
@@ -56,6 +57,10 @@ class ScreenManager:
         """Текущий экран - верхний элемент стека."""
         return self.screen_stack[-1]
 
+    def stop(self) -> None:
+        """Останавливает основной цикл менеджера экранов."""
+        self.running = False
+
     def change_screen(self, screen_name: str) -> None:
         """Переход на новый экран (добавление в стек).
 
@@ -74,9 +79,7 @@ class ScreenManager:
         if len(self.screen_stack) > 1:
             self.screen_stack.pop()
         else:
-            # Если это последний экран - выходим из приложения
-            # TODO: Рассмотреть использование raise SystemExit() вместо exit()
-            exit()
+            self.stop()
 
     def _update_renderer_for_all_screens(self) -> None:
         """Обновляет renderer для всех экранов в стеке."""
@@ -95,7 +98,7 @@ class ScreenManager:
 
     def run(self) -> None:
         """Основной цикл работы менеджера экранов."""
-        while True:
+        while self.running:
             # Получаем текущий экран
             current = self.current_screen
 
@@ -127,10 +130,9 @@ class ScreenManager:
                 # Обрабатываем ввод
                 current.handle_input(key)
             except KeyboardInterrupt:
-                # Обработка Ctrl+C
-                exit()
+                self.stop()
             except Exception as e:
                 # Логирование или обработка других исключений
                 # Пока просто выходим
                 print(f"Критическая ошибка: {e}")
-                exit()
+                self.stop()

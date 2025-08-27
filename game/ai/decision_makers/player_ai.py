@@ -1,11 +1,27 @@
 # game/ai/decision_makers/player_ai.py
 
 import random
-from typing import TYPE_CHECKING, Iterable, List, Tuple
+from typing import TYPE_CHECKING, Iterable, List, Tuple, Final
 from game.ai.ai_decision_maker import AIDecisionMaker
 
 if TYPE_CHECKING:
     from game.entities.character import Character
+
+# --- Константы для настройки поведения ИИ ---
+
+# Порог здоровья для добивания
+FINISH_HIM_HEALTH_THRESHOLD: Final[float] = 0.2
+
+# Настройки для АоЕ атак
+AOE_MIN_TARGETS: Final[int] = 2
+AOE_MAX_TARGETS: Final[int] = 3
+
+# Имена и ключевые слова способностей
+BASIC_ATTACK_NAME: Final[str] = "BasicAttack"
+DAMAGE_ABILITY_KEYWORDS: Final[List[str]] = ["attack", "strike", "hit", "slash", "fire", "ice", "bolt"]
+AOE_ABILITY_KEYWORDS: Final[List[str]] = ["aoe", "blast", "nova", "wave", "storm", "rain"]
+STRONG_ATTACK_KEYWORDS: Final[List[str]] = ["power", "strong", "heavy", "mighty", "crushing"]
+
 
 class PlayerAI(AIDecisionMaker):
     """ИИ для игрока, использующий систему приоритетов."""
@@ -57,7 +73,7 @@ class PlayerAI(AIDecisionMaker):
         """Пытается добить врагов с низким HP."""
         # Ищем врагов с HP < 20%
         for enemy in enemies:
-            if self._is_low_health(enemy, threshold=0.2):
+            if self._is_low_health(enemy, threshold=FINISH_HIM_HEALTH_THRESHOLD):
                 # Ищем подходящую способность для добивания
                 finish_abilities = [a for a in abilities if self._is_damage_ability(a)]
                 if finish_abilities:
@@ -70,11 +86,11 @@ class PlayerAI(AIDecisionMaker):
         ) -> Tuple[str, List['Character']] | None:
         """Пытается использовать АоЕ по группе врагов."""
         # Если врагов 2 или больше, ищем АоЕ способности
-        if len(enemies) >= 2:
+        if len(enemies) >= AOE_MIN_TARGETS:
             aoe_abilities = [a for a in abilities if self._is_aoe_ability(a)]
             if aoe_abilities:
                 # Используем АоЕ по всем врагам
-                return (random.choice(aoe_abilities), enemies[:3])  # до 3 целей
+                return (random.choice(aoe_abilities), enemies[:AOE_MAX_TARGETS])  # до 3 целей
         return None
 
     def _try_strong_attack(self, character: 'Character', 
@@ -92,9 +108,9 @@ class PlayerAI(AIDecisionMaker):
         abilities: List[str], 
         enemies: List['Character']) -> Tuple[str, List['Character']] | None:
         """Пытается использовать базовую атаку."""
-        if "BasicAttack" in abilities:
+        if BASIC_ATTACK_NAME in abilities:
             target = random.choice(enemies)
-            return ("BasicAttack", [target])
+            return (BASIC_ATTACK_NAME, [target])
         return None
 
     def _choose_random_action(self, abilities: List[str], enemies: List['Character']) -> Tuple[str, List['Character']]:
@@ -116,15 +132,12 @@ class PlayerAI(AIDecisionMaker):
 
     def _is_damage_ability(self, ability_name: str) -> bool:
         """Проверяет, является ли способность атакующей."""
-        damage_keywords = ["attack", "strike", "hit", "slash", "fire", "ice", "bolt"]
-        return any(keyword in ability_name.lower() for keyword in damage_keywords)
+        return any(keyword in ability_name.lower() for keyword in DAMAGE_ABILITY_KEYWORDS)
 
     def _is_aoe_ability(self, ability_name: str) -> bool:
         """Проверяет, является ли способность АоЕ."""
-        aoe_keywords = ["aoe", "blast", "nova", "wave", "storm", "rain"]
-        return any(keyword in ability_name.lower() for keyword in aoe_keywords)
+        return any(keyword in ability_name.lower() for keyword in AOE_ABILITY_KEYWORDS)
 
     def _is_strong_attack(self, ability_name: str) -> bool:
         """Проверяет, является ли способность сильной атакой."""
-        strong_keywords = ["power", "strong", "heavy", "mighty", "crushing"]
-        return any(keyword in ability_name.lower() for keyword in strong_keywords)
+        return any(keyword in ability_name.lower() for keyword in STRONG_ATTACK_KEYWORDS)

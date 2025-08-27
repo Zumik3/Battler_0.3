@@ -71,5 +71,5 @@ class ExitCommand(Command):
 
     def execute(self, context: Optional[Any] = None) -> None:
         """Выполнение команды выхода."""
-        # TODO: Рассмотреть использование raise SystemExit() вместо exit()
-        exit()
+        if context and hasattr(context, 'manager'):
+            context.manager.stop()

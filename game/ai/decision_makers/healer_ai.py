@@ -2,11 +2,30 @@
 """ИИ для класса лекаря, ориентированный на поддержку и лечение."""
 
 import random
-from typing import TYPE_CHECKING, Iterable, List, Tuple
+from typing import TYPE_CHECKING, Iterable, List, Tuple, Final
 from game.ai.ai_decision_maker import AIDecisionMaker
 
 if TYPE_CHECKING:
     from game.entities.character import Character
+
+# --- Константы для настройки поведения ИИ ---
+
+# Пороги здоровья для принятия решений
+CRITICAL_HEALTH_THRESHOLD: Final[float] = 0.3
+WOUNDED_HEALTH_THRESHOLD: Final[float] = 0.6
+FINISH_HIM_HEALTH_THRESHOLD: Final[float] = 0.2
+
+# Имена и ключевые слова способностей
+BASIC_ATTACK_NAME: Final[str] = "BasicAttack"
+DAMAGE_ABILITY_KEYWORDS: Final[List[str]] = ["attack", "strike", "hit", "slash", "fire", "ice", "bolt", "missile"]
+HEAL_ABILITY_KEYWORDS: Final[List[str]] = ["heal", "cure", "mend", "restore", "renew"]
+STRONG_ATTACK_KEYWORDS: Final[List[str]] = ["power", "strong", "heavy", "mighty", "crushing", "magic missile"]
+
+# Оценка силы лечения по ключевым словам
+HEAL_POTENTIAL_KEYWORDS: Final[dict[str, int]] = {
+    "minor": 1, "lesser": 2, "basic": 2, "standard": 3,
+    "greater": 4, "major": 5, "mass": 3
+}
 
 
 class HealerAI(AIDecisionMaker):
@@ -77,7 +96,7 @@ class HealerAI(AIDecisionMaker):
             return None
 
         # Ищем союзников с HP < 30%
-        critical_allies = [ally for ally in allies if self._is_low_health(ally, threshold=0.3)]
+        critical_allies = [ally for ally in allies if self._is_low_health(ally, threshold=CRITICAL_HEALTH_THRESHOLD)]
         if critical_allies:
             # Лечим первого попавшегося критически раненого
             target = critical_allies[0]
@@ -96,7 +115,7 @@ class HealerAI(AIDecisionMaker):
             return None
 
         # Ищем союзников с HP < 60%
-        wounded_allies = [ally for ally in allies if self._is_low_health(ally, threshold=0.6)]
+        wounded_allies = [ally for ally in allies if self._is_low_health(ally, threshold=WOUNDED_HEALTH_THRESHOLD)]
         if wounded_allies:
             # Лечим первого попавшегося раненого
             target = wounded_allies[0]
@@ -111,7 +130,7 @@ class HealerAI(AIDecisionMaker):
         """Пытается добить врагов с низким HP."""
         # Ищем врагов с HP < 20%
         for enemy in enemies:
-            if self._is_low_health(enemy, threshold=0.2):
+            if self._is_low_health(enemy, threshold=FINISH_HIM_HEALTH_THRESHOLD):
                 # Ищем подходящую способность для добивания
                 finish_abilities = [a for a in abilities if self._is_damage_ability(a)]
                 if finish_abilities:
@@ -133,9 +152,9 @@ class HealerAI(AIDecisionMaker):
         abilities: List[str],
         enemies: List['Character']) -> Tuple[str, List['Character']] | None:
         """Пытается использовать базовую атаку."""
-        if "BasicAttack" in abilities:
+        if BASIC_ATTACK_NAME in abilities:
             target = random.choice(enemies)
-            return ("BasicAttack", [target])
+            return (BASIC_ATTACK_NAME, [target])
         return None
 
     def _choose_random_action(self, abilities: List[str], enemies: List['Character']) -> Tuple[str, List['Character']]:
@@ -158,33 +177,21 @@ class HealerAI(AIDecisionMaker):
 
     def _is_damage_ability(self, ability_name: str) -> bool:
         """Проверяет, является ли способность атакующей."""
-        damage_keywords = ["attack", "strike", "hit", "slash", "fire", "ice", "bolt", "missile"] # Добавил missile
-        return any(keyword in ability_name.lower() for keyword in damage_keywords)
+        return any(keyword in ability_name.lower() for keyword in DAMAGE_ABILITY_KEYWORDS)
 
     def _is_heal_ability(self, ability_name: str) -> bool:
         """Проверяет, является ли способность лечебной."""
-        heal_keywords = ["heal", "cure", "mend", "restore", "renew"]
-        return any(keyword in ability_name.lower() for keyword in heal_keywords)
+        return any(keyword in ability_name.lower() for keyword in HEAL_ABILITY_KEYWORDS)
 
     def _is_strong_attack(self, ability_name: str) -> bool:
         """Проверяет, является ли способность сильной атакой."""
-        strong_keywords = ["power", "strong", "heavy", "mighty", "crushing", "magic missile"] # Добавил magic missile как пример сильной атаки
-        return any(keyword in ability_name.lower() for keyword in strong_keywords)
+        return any(keyword in ability_name.lower() for keyword in STRONG_ATTACK_KEYWORDS)
 
     def _get_heal_potential(self, ability_name: str) -> int:
         """Оценка потенциала лечения способности (для выбора наилучшей)."""
         # Это очень упрощенная оценка. В реальной игре можно было бы хранить базовые значения.
-        heal_keywords = {
-            "minor": 1,
-            "lesser": 2,
-            "basic": 2,
-            "standard": 3,
-            "greater": 4,
-            "major": 5,
-            "mass": 3 # Массовое, но на единицу меньше
-        }
         # Проверяем ключевые слова в названии
-        for keyword, value in heal_keywords.items():
+        for keyword, value in HEAL_POTENTIAL_KEYWORDS.items():
              if keyword in ability_name.lower():
                  # Если массовое, потенциал выше, если цель одна
                  if "mass" in ability_name.lower():

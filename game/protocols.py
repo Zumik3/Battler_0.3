@@ -45,33 +45,33 @@ class Attributes(Protocol):
 
 
 class HealthPropertyProtocol(Protocol):
-    """Протокол для производных атрибутов персонажа."""
+    """Протокол для свойства, управляющего здоровьем персонажа."""
     max_health: int
     health: int
 
 
 class EnergyPropertyProtocol(Protocol):
-    """Протокол для производных атрибутов персонажа."""
+    """Протокол для свойства, управляющего энергией персонажа."""
     max_energy: int
     energy: int
 
 
 class CombatPropertyProtocol(Protocol):
-    """Протокол для производных атрибутов персонажа."""
+    """Протокол для свойства, управляющего боевыми показателями персонажа."""
     attack_power: int
-    defence: int
+    defense: int
 
 
 class ExperiencePropertyProtocol(Protocol):
-    """Протокол для производных атрибутов персонажа."""
+    """Протокол для свойства, управляющего опытом персонажа."""
     def add_experience(self, amount: int) -> None:
         """Добавляет опыт персонажу."""
         ...
 
 
 class LevelPropertyProtocol(Protocol):
-    """Протокол для производных атрибутов персонажа."""
-    def level_up(self) -> None:
+    """Протокол для свойства, управляющего уровнем персонажа."""
+    def level_up(self, amount: int = 1) -> None:
         """Добавляет уровень персонажу."""
         ...
 
@@ -96,8 +96,8 @@ class AbilityRegistryProtocol(Protocol):
 
 class AbilityManagerProtocol(Protocol):
     """Протокол для менеджера способностей."""
-    def add_ability(self, ability: str) -> None:
-        """Добавляет способность персонажу."""
+    def add_ability(self, ability_name: str) -> None:
+        """Добавляет способность персонажу по имени."""
         ...
 
     def use_ability(self, ability_name: str, targets: List['CharacterType'], **kwargs) -> None:
@@ -173,24 +173,5 @@ class PropertyContextProtocol(Protocol):
 
     @property
     def character(self) -> 'CharacterType':
-        """Получить доступ к шине событий."""
-        ...
-        
-    def get_service(self, service_name: str) -> Any:
-        """Получить доступ к произвольному сервису по имени.
-        
-        Например:
-        - logger = context.get_service('logger')
-        - game_config = context.get_service('game_config')
-        - entity_manager = context.get_service('entity_manager')
-        """
-        ...
-        
-    def trigger_action(self, action_type: str, data: Any) -> None:
-        """Инициировать какое-либо действие в системе.
-        
-        Например:
-        - context.trigger_action('log', {'message': '...', 'level': 'debug'})
-        - context.trigger_action('spawn_effect', {...})
-        """
+        """Получить доступ к персонажу-владельцу."""
         ...

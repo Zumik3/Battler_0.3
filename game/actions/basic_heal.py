@@ -51,8 +51,10 @@ class BasicHeal(Action):
         Создает и публикует HealEvent для восстановления здоровья.
         """
         # Можно лечить только себя или союзников, нужно определить логику выбора цели
-        if not self.target:
-            self.target = self.source
+        if not self.targets:
+            self.targets = [self.source]
+
+        target = self.targets[0]
 
         self._spend_energy()
 
@@ -63,14 +65,14 @@ class BasicHeal(Action):
         render_data = self._create_heal_render_data(
             healer=self.source,
             heal=heal_amount,
-            target=self.target
+            target=target
         )
         
         # 4. Создаем и публикуем событие лечения
         heal_event = HealEvent(
             source=None,
             healer=self.source, # Кто лечит
-            target=self.target, # Кого лечат
+            target=target, # Кого лечат
             amount=heal_amount, # Количество восстановленного здоровья
             heal_type="direct", # Тип лечения (прямое, периодическое и т.д.)
             render_data=render_data

@@ -6,11 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, List, Dict, Optional, TYPE_CHECKING
 
 
-from game.ai.decision_makers.basic_enemy_ai import BasicEnemyAI
 from game.events.combat import DeathEvent
-from game.events.render_data import RenderData
-
-from game.ui.rendering.color_manager import Color
 
 if TYPE_CHECKING:
     from game.entities.properties.combat import CombatProperty
@@ -71,6 +67,7 @@ class Character(ABC):
     ai: Optional['AIDecisionMaker'] = None
 
     def __init__(self, context: 'CharacterContext', config: 'CharacterConfig'):
+        from game.ai.decision_makers.basic_enemy_ai import BasicEnemyAI
 
         self.context = context
         self.context.set_base_characteristics(config.base_stats, config.growth_rates)
@@ -94,13 +91,19 @@ class Character(ABC):
 
     def _died(self) -> None:  # Будет привантым - никто не должен вызывать из вне - только через событие _on_health_changed
         """Убивает персонажа."""
+        from game.ui.rendering.render_data_builder import RenderDataBuilder
         if self.is_alive():
             self.alive = False
+            
+            render_data = (RenderDataBuilder()
+               .add_character_name(self)
+               .add_text(" умирает...")
+               .build())
+
             self.context.event_bus.publish(
                 DeathEvent(
                     source=None,
                     victim=self,
-                    render_data=RenderData(template="%1 умирает...",
-                        replacements={"1": (f"{self.name}", Color.RED, True, False)})
+                    render_data=render_data
                 )
             )
