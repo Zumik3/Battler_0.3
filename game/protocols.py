@@ -109,32 +109,6 @@ class AbilityManagerProtocol(Protocol):
         ...
 
 
-class StatusEffectManagerProtocol(Protocol):
-    """Протокол для менеджера статус-эффектов."""
-    def apply_effect(self, effect: 'StatusEffect') -> None:
-        """Применить эффект к персонажу."""
-        ...
-
-    def remove_effect(self, effect_name: str) -> None:
-        """Удалить эффект по имени."""
-        ...
-
-    def update_effects(self) -> None:
-        """Обновить эффекты."""
-        ...
-
-    def get_effect(self, effect_name: str) -> Optional['StatusEffect']:
-        """Получить эффект по имени."""
-        ...
-
-    def get_all_effects(self) -> List['StatusEffect']:
-        """Получить список всех активных эффектов."""
-        ...
-
-    def clear_all_effects(self) -> None:
-        """Очистить все эффекты и вернуть список результатов."""
-        ...
-
 # ==================== Протоколы систем опыта и уровней ====================
 
 class ExperienceCalculatorProtocol(Protocol):
@@ -175,29 +149,6 @@ class MonsterNamerProtocol(Protocol):
         Returns:
             Сгенерированное имя.
         """
-        ...
-
-# ==================== Базовые абстрактные классы ====================
-
-class StatusEffect(ABC):
-    """Абстрактный базовый класс для статус-эффектов."""
-    def __init__(self, name: str, duration: int, description: str = ""):
-        self.name = name
-        self.duration = duration
-        self.description = description
-
-    @abstractmethod
-    def apply(self, target: 'CharacterType') -> None:
-        """Применить эффект к цели."""
-        ...
-
-    @abstractmethod
-    def remove(self, target: 'CharacterType') -> None:
-        """Удалить эффект с цели."""
-        ...
-
-    def tick(self, target: 'CharacterType') -> None:
-        """Выполнить действие эффекта за ход (если применимо)."""
         ...
 
 
@@ -243,7 +194,3 @@ class PropertyContextProtocol(Protocol):
         - context.trigger_action('spawn_effect', {...})
         """
         ...
-        
-    # Можно добавить другие общие методы, например:
-    # def get_owner(self) -> Any: ...
-    # def get_property(self, prop_type: type) -> Any: ...

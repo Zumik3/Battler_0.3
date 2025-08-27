@@ -37,3 +37,9 @@ class Event(Generic[TSource]):
             self.event_id = str(uuid.uuid4())
         if not self.timestamp:
             self.timestamp = datetime.now().isoformat()
+
+
+@dataclass
+class ActionRenderEvent(Event):
+    """Событие для передачи данных отрисовки для действия."""
+    render_data: 'RenderData'
