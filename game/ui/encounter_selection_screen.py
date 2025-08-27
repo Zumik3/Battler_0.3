@@ -45,7 +45,6 @@ class EncounterSelectionScreen(BaseScreen):
                 def action(context):
                     context.encounter_manager.init_encounter(enc)
                     context.manager.change_screen("encounter")
-                    # context.encounter_manager.start_encounter(enc)
                     
                 return action
 
