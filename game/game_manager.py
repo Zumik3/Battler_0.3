@@ -3,7 +3,6 @@
 
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from game.config import get_config
-from game.core.character_context import CharacterContext
 from game.core.game_context import ContextFactory
 from game.systems.battle.manager import BattleManager
 from game.rewards.handlers import register_reward_handlers
@@ -53,40 +52,36 @@ class GameManager:
             "Дамиан": "healer"
         }
         
-        char_context = CharacterContext(self.context.event_bus)
-
         self._create_players(
             player_data=starting_players, 
             data_dir=player_data_dir, 
-            context=char_context, game_cotnext=self.context)
+            game_context=self.context)
 
         # TODO: сделать инициализацию при начале сражения/ивента
         self._create_initial_enemies(
-            context=char_context,
             game_context=self.context)
 
     def _create_players(self, player_data: Dict[str, str], data_dir: 
-        str, context: 'CharacterContext', game_cotnext: 'GameContext') -> None:
+        str, game_context: 'GameContext') -> None:
         """Создает группу игроков."""
         from game.factories.player_factory import PlayerFactory
         
         for name, role in player_data.items():
             player = PlayerFactory.create_player(
-                context=context,
-                game_context=game_cotnext,
+                game_context=game_context,
                 role=role,
                 level=1
             )
             if player:
                 self.player_group.append(player)
 
-    def _create_initial_enemies(self, context: 'CharacterContext', game_context: 'GameContext') -> None:
+    def _create_initial_enemies(self, game_context: 'GameContext') -> None:
         """Создает начальную группу врагов."""
         initial_enemy_data = [
             {'role': 'goblin', 'level': 1},
             {'role': 'orc', 'level': 2},
         ]
-        self.create_enemies(enemy_data_list=initial_enemy_data, context=context, game_context=game_context)
+        self.create_enemies(enemy_data_list=initial_enemy_data, game_context=game_context)
 
     def _start_battle(self, players: list['Player'], enemies: list['Monster']) -> None:
         """Запускает бой между командами.
@@ -109,7 +104,7 @@ class GameManager:
         return self.current_enemies.copy()
 
     def create_enemies(self, enemy_data_list: List[Dict[str, Any]], 
-        context: 'CharacterContext', game_context: 'GameContext') -> bool:
+        game_context: 'GameContext') -> bool:
         """Создание новой группы врагов."""
         self.current_enemies.clear()
         
@@ -120,7 +115,6 @@ class GameManager:
             level = enemy_data.get('level', 1)
             
             monster = MonsterFactory.create_monster(
-                context=context,  # Передаем контекст
                 game_context=game_context,
                 role=role, 
                 level=level

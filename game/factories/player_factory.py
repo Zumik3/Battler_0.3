@@ -4,13 +4,12 @@
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-
+from game.core.character_context import CharacterContext
 from game.systems.data.character_loader import load_player_class_data
 from game.entities.character import CharacterConfig 
 from game.entities.player import Player
 
 if TYPE_CHECKING:
-    from game.core.character_context import CharacterContext
     from game.core.game_context import GameContext
     
 
@@ -25,12 +24,12 @@ class PlayerFactory:
     """Фабрика для создания экземпляров Player."""
 
     @staticmethod
-    def create_player(context: 'CharacterContext', game_context: 'GameContext', role: str, level: int = 1) -> Player:
+    def create_player(game_context: 'GameContext', role: str, level: int = 1) -> Player:
         """
         Создает объект Player на основе данных из JSON файла.
 
         Args:
-            context: Контекст игры.
+            game_context: Глобальный игровой контекст.
             role: Внутренний идентификатор класса.
             level: Начальный уровень.
 
@@ -45,4 +44,8 @@ class PlayerFactory:
             raise ValueError(f"Configuration data for role '{role}' not found.")
             
         config = PlayerConfig(**config_data)
-        return Player(context=context, game_context=game_context, config=config)
+        
+        # Создаем новый CharacterContext для каждого персонажа
+        char_context = CharacterContext(game_context.event_bus)
+        
+        return Player(context=char_context, game_context=game_context, config=config)
