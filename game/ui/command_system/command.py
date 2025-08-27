@@ -6,7 +6,7 @@
 
 from abc import ABC, abstractmethod
 import curses
-from typing import List, Set, Optional, Any, Union
+from typing import List, Set, Optional, Any, Union, Callable
 
 # Отложенная аннотация для избежения циклического импорта
 from typing import TYPE_CHECKING
@@ -50,6 +50,15 @@ class Command(ABC):
             bool: True если команда выполнена успешно, False в противном случае.
         """
         raise NotImplementedError("Метод execute должен быть реализован в подклассе.")
+
+class LambdaCommand(Command):
+    """Команда, выполняющая переданную функцию."""
+    def __init__(self, name: str, description: str, keys: List[Union[str, int]], action: Callable[[Any], None], display_key: str = ""):
+        super().__init__(name, description, keys, display_key)
+        self.action = action
+
+    def execute(self, context: Any = None) -> None:
+        self.action(context)
 
 
 class CommandRegistry:

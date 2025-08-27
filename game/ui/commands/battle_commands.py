@@ -4,7 +4,7 @@
 """
 
 from game.ui.command_system.command import Command
-from game.ui.battle_screen import BattleScreen
+from game.ui.encounter_screen import EncounterScreen
 from game.ui.command_system.screen_command_registry import register_screen_commands
 from typing import Optional, Any
 
@@ -64,7 +64,7 @@ class MagicCommand(Command):
 from game.ui.commands.common_commands import GoBackCommand, OpenInventoryCommand
 
 # Регистрируем команды для экрана боя
-register_screen_commands(BattleScreen, [
+register_screen_commands(EncounterScreen, [
     AttackCommand(),
     DefendCommand(),
     MagicCommand(),
