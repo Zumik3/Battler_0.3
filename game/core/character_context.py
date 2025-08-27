@@ -19,9 +19,7 @@ class CharacterContext(Context):
 
     def __init__(
         self, 
-        event_bus: 'IEventBus', 
-        #base_stats: Dict[str, int],
-        #growth_rates: Dict[str, float]
+        event_bus: 'IEventBus',
     ):
         """
         Инициализирует контекст персонажа.

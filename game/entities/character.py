@@ -8,7 +8,7 @@ from typing import Any, List, Dict, Optional, TYPE_CHECKING
 
 from game.ai.decision_makers.basic_enemy_ai import BasicEnemyAI
 from game.events.combat import DeathEvent
-from game.events.render_data import RenderData
+from game.ui.rendering.render_data_builder import RenderDataBuilder
 
 from game.ui.rendering.color_manager import Color
 
@@ -96,11 +96,16 @@ class Character(ABC):
         """Убивает персонажа."""
         if self.is_alive():
             self.alive = False
+            
+            render_data = (RenderDataBuilder()
+               .add_character_name(self)
+               .add_text(" умирает...")
+               .build())
+
             self.context.event_bus.publish(
                 DeathEvent(
                     source=None,
                     victim=self,
-                    render_data=RenderData(template="%1 умирает...",
-                        replacements={"1": (f"{self.name}", Color.RED, True, False)})
+                    render_data=render_data
                 )
             )
