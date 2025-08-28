@@ -6,7 +6,7 @@ from game.config import get_config
 from game.core.game_context import ContextFactory
 from game.systems.battle.manager import BattleManager
 from game.rewards.handlers import register_reward_handlers
-from game.systems.encounters.manager import EncounterManager
+from game.systems.encounters.encounter_manager import EncounterManager
 
 if TYPE_CHECKING:
     from game.entities.player import Player
