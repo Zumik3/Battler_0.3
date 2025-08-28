@@ -2,7 +2,7 @@
 """Система масштабирования сложности encounter'ов."""
 
 import random
-from typing import Dict, Tuple
+from typing import Any, Dict, Tuple
 
 
 class DifficultyScaler:

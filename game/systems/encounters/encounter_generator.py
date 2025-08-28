@@ -74,7 +74,7 @@ class EncounterGenerator:
         Returns:
             Кортеж (min_level, max_level, avg_level)
         """
-        levels = [player.level.level for player in player_group]
+        levels = [player.level.get_level() for player in player_group]
         min_level = min(levels)
         max_level = max(levels)
         avg_level = round(sum(levels) / len(levels))
