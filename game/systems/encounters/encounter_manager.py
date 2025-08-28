@@ -1,4 +1,4 @@
-# game/systems/encounters/manager.py
+# game/systems/encounters/encounter_manager.py
 """Модуль, содержащий менеджер для управления походами (Encounter)."""
 
 from typing import List, TYPE_CHECKING
@@ -6,9 +6,11 @@ from typing import List, TYPE_CHECKING
 from game.systems.encounters.encounter import Encounter
 from game.systems.encounters.events import BattleEncounterEvent
 from game.events.battle_events import BattleEndedEvent
+from game.systems.encounters.encounter_generator import EncounterGenerator
 
 if TYPE_CHECKING:
     from game.game_manager import GameManager
+    from game.entities.player import Player
 
 class EncounterManager:
     """
@@ -25,6 +27,7 @@ class EncounterManager:
         self.game_manager = game_manager
         self.current_encounter: 'Encounter' | None = None
         self.current_event_index: int = -1
+        self.encounter_generator = EncounterGenerator()
         self._setup_subscriptions()
 
     def _setup_subscriptions(self) -> None:
@@ -33,7 +36,7 @@ class EncounterManager:
 
     def generate_encounters(self, count: int = 3) -> List['Encounter']:
         """
-        Генерирует список случайных походов.
+        Генерирует список случайных походов на основе уровня группы игроков.
         
         Args:
             count: Количество походов для генерации.
@@ -41,7 +44,31 @@ class EncounterManager:
         Returns:
             Список сгенерированных походов.
         """
-        # TODO: Заменить на более сложную генерацию
+        # Получаем группу игроков
+        player_group = self.game_manager.get_player_group()
+        
+        # Если нет игроков, генерируем стандартные encounter'ы
+        if not player_group:
+            return self._generate_default_encounters(count)
+            
+        # Генерируем encounter'ы на основе уровня группы
+        encounters = []
+        for _ in range(count):
+            encounter = self.encounter_generator.generate_encounter_for_group(player_group)
+            encounters.append(encounter)
+            
+        return encounters
+
+    def _generate_default_encounters(self, count: int = 3) -> List['Encounter']:
+        """
+        Генерирует список стандартных походов (fallback, если нет игроков).
+        
+        Args:
+            count: Количество походов для генерации.
+
+        Returns:
+            Список стандартных походов.
+        """
         encounters = [
             Encounter(
                 name="Легкая прогулка",

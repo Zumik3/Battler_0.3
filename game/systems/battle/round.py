@@ -59,7 +59,8 @@ class BattleRound:
             round_number=self.round_number,
             render_data=render_data
         )
-        self.context.event_bus.publish(round_started_event)
+        self._event_bus.publish(round_started_event)
+        self._event_bus.publish(LogUpdatedEvent(source=None, need_render=True))
         time.sleep(self.action_delay)
 
         # Получаем порядок ходов
@@ -87,7 +88,7 @@ class BattleRound:
             round_number=self.round_number,
             source=None
         )
-        self.context.event_bus.publish(round_ended_event)
+        self._event_bus.publish(round_ended_event)
 
     def _get_turn_order(self) -> List[Character]:
         """Определяет порядок ходов в раунде.
