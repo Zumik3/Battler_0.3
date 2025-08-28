@@ -103,17 +103,41 @@ class RoomMap(Renderable):
 
     def render(self, renderer: Renderer) -> None:
         """Отрисовывает карту комнат."""
-        # Простая линейная визуализация комнат
-        map_line = ""
+        from game.ui.rendering.color_manager import Color
+
+        template_parts = ["%1"]
+        replacements = {}
+        replacements['1'] = (' Карта: ', Color.DEFAULT, False, True)
+        placeholder_index = 2
+
         for i in range(self.total_rooms):
+            # --- Открывающая скобка (серая) ---
+            open_key = str(placeholder_index)
+            template_parts.append(f"%{open_key}")
+            replacements[open_key] = ('[', Color.DEFAULT, False, True)
+            placeholder_index += 1
+
+            # --- Символ (цветной) ---
+            symbol_key = str(placeholder_index)
+            template_parts.append(f"%{symbol_key}")
             if i == self.current_room_index:
-                map_line += "[*]"  # Текущая комната
+                replacements[symbol_key] = ('*', Color.YELLOW, True, False)
             elif i < self.current_room_index:
-                map_line += "[x]"  # Пройденная комната
+                replacements[symbol_key] = ('x', Color.GREEN, True, False)
             else:
-                map_line += "[ ]"  # Непройденная комната
-            
+                replacements[symbol_key] = (' ', Color.WHITE, False, False)
+            placeholder_index += 1
+
+            # --- Закрывающая скобка (серая) ---
+            close_key = str(placeholder_index)
+            template_parts.append(f"%{close_key}")
+            replacements[close_key] = (']', Color.DEFAULT, False, True)
+            placeholder_index += 1
+
+            # --- Разделитель ---
             if i < self.total_rooms - 1:
-                map_line += "-"
+                template_parts.append("-")
+
+        template = "".join(template_parts)
         
-        renderer.draw_text("Карта: " + map_line, self.x, self.y)
+        renderer.draw_template(template, replacements, self.x, self.y)

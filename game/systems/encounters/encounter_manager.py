@@ -79,16 +79,17 @@ class EncounterManager:
             Encounter с последовательностью комнат
         """
         # Рассчитываем средний уровень группы
+
         levels = [player.level.level for player in player_group]
         avg_level = round(sum(levels) / len(levels)) if levels else 1
         
         # Определяем количество комнат в зависимости от уровня
         if avg_level <= 2:
-            room_count = 2
-        elif avg_level <= 5:
             room_count = random.randint(3, 4)
+        elif avg_level <= 5:
+            room_count = random.randint(4, 5)
         else:
-            room_count = random.randint(4, 6)
+            room_count = random.randint(5, 8)
             
         # Генерируем комнаты
         rooms = []

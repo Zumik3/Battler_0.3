@@ -11,6 +11,7 @@ from game.mixins.ui_mixin import StandardLayoutMixin
 from game.ui.base_screen import BaseScreen
 from game.ui.command_system.command import LambdaCommand
 from game.ui.components.battle_components import PlayerGroupPanel, EnemyGroupPanel, BattleLog
+from game.ui.components.room_sequence_components import RoomMap
 from game.events.render_data import RenderData
 from game.ui.rendering.color_manager import Color
 from game.ui.rendering.render_data_builder import RenderDataBuilder
@@ -23,7 +24,7 @@ class EncounterScreen(BaseScreen, StandardLayoutMixin):
     """Экран для отображения и взаимодействия с событиями похода."""
 
     # --- Константы для макета ---
-    HEADER_HEIGHT = 2
+    HEADER_HEIGHT = 2  # Увеличиваем высоту для карты комнат
     UNITS_HEIGHT = 5
     FOOTER_Y_OFFSET = 2
     HORIZONTAL_MARGIN = 1
@@ -36,8 +37,6 @@ class EncounterScreen(BaseScreen, StandardLayoutMixin):
         self.encounter_manager = manager.game_manager.encounter_manager
         self.state = "BATTLE"
 
-        # Создаем врагов для ПЕРВОЙ комнаты до инициализации UI, чтобы
-        # панели сразу отрисовались с нужными данными.
         current_event = self.encounter_manager.get_current_event()
         if current_event and hasattr(current_event, 'enemies'):
             manager.game_manager.create_enemies(
@@ -48,6 +47,7 @@ class EncounterScreen(BaseScreen, StandardLayoutMixin):
         self.left_panel: PlayerGroupPanel | None = None
         self.right_panel: EnemyGroupPanel | None = None
         self.event_log: BattleLog | None = None
+        self.room_map: RoomMap | None = None
 
         super().__init__(manager)
         self._setup_event_listeners()
@@ -66,6 +66,15 @@ class EncounterScreen(BaseScreen, StandardLayoutMixin):
         if self.right_panel:
             enemy_data = game_manager.get_current_enemies()
             self.right_panel.update_enemies(enemy_data)
+        
+        self._update_room_map()
+
+    def _update_room_map(self) -> None:
+        """Обновляет данные в карте комнат."""
+        if self.room_map and self.encounter_manager.current_room_sequence:
+            sequence = self.encounter_manager.current_room_sequence
+            self.room_map.total_rooms = sequence.get_total_rooms()
+            self.room_map.current_room_index = sequence.progress.current_room_index
 
     def on_enter(self) -> None:
         """Вызывается при переключении на этот экран."""
@@ -74,17 +83,11 @@ class EncounterScreen(BaseScreen, StandardLayoutMixin):
             if self.event_log:
                 self.event_log.add_message(RenderData(template=encounter_description, replacements={}))
         
-        # Враги для первой комнаты уже созданы в __init__.
-        # Просто запускаем бой.
         self.state = "BATTLE"
         self._setup_commands()
         
         if self.encounter_manager.current_encounter:
             self.encounter_manager.start_encounter(self.encounter_manager.current_encounter)
-        
-        # Первая отрисовка происходит в ScreenManager после on_enter,
-        # но на всякий случай можно вызвать и здесь, если нужно.
-        # self.render(self.renderer.stdscr)
 
     def _setup_event_listeners(self) -> None:
         """Настраивает обработчики событий."""
@@ -104,14 +107,10 @@ class EncounterScreen(BaseScreen, StandardLayoutMixin):
                 return
 
             self.state = "VICTORY"
-            # if self.event_log:
-            #     self.event_log.add_message(RenderData(template="Комната зачищена! Нажмите Enter, чтобы пройти в следующую.", replacements={}))
             self._setup_commands()
 
         else:
             self.state = "BATTLE_LOST"
-            # if self.event_log:
-            #     self.event_log.add_message(RenderData(template="Поражение... Нажмите Enter, чтобы выйти.", replacements={}))
             self._setup_commands()
         
         self.render(self.renderer.stdscr)
@@ -125,21 +124,20 @@ class EncounterScreen(BaseScreen, StandardLayoutMixin):
                 result_color = Color.GREEN
             else:
                 result_text = "Поражение"
-            result_color = Color.RED
+                result_color = Color.RED
 
             message_data = (RenderDataBuilder()
                 .add_text("Поход завершен! Результат: ")
                 .add_styled_text(result_text, color=result_color, bold=True)
                 .add_text(". Нажмите Enter, чтобы выйти.")
                 .build())
-
-            #message = f"Поход завершен! Результат: {'Победа' if event.success else 'Поражение'}. Нажмите Enter, чтобы выйти."
             self.event_log.add_message(message_data)
         self._setup_commands()
         self.render(self.renderer.stdscr)
 
     def _recalculate_layout(self, screen_width: int, screen_height: int) -> Dict[str, Dict[str, int]]:
         """Пересчитывает размеры и позиции компонентов."""
+        room_map_y = 0
         units_y = self.HEADER_HEIGHT
         total_units_width = max(0, screen_width - 2 * self.HORIZONTAL_MARGIN - self.GROUPS_GAP)
         half_width = total_units_width // 2
@@ -155,6 +153,7 @@ class EncounterScreen(BaseScreen, StandardLayoutMixin):
         log_height = max(self.MIN_LOG_HEIGHT, available_height)
 
         return {
+            'room_map': {'x': 0, 'y': room_map_y, 'width': screen_width, 'height': 1},
             'left_panel': {'x': left_panel_x, 'y': units_y, 'width': left_panel_width, 'height': self.UNITS_HEIGHT},
             'right_panel': {'x': right_panel_x, 'y': units_y, 'width': right_panel_width, 'height': self.UNITS_HEIGHT},
             'event_log': {'x': log_x, 'y': log_y, 'width': log_width, 'height': log_height}
@@ -175,6 +174,17 @@ class EncounterScreen(BaseScreen, StandardLayoutMixin):
         screen_height = self.renderer.height if self.renderer else 24
 
         layout = self._recalculate_layout(screen_width, screen_height)
+
+        if self.encounter_manager.current_room_sequence:
+            sequence = self.encounter_manager.current_room_sequence
+            total_rooms = sequence.get_total_rooms()
+            current_room_index = sequence.progress.current_room_index
+            
+            self.room_map = RoomMap(
+                x=layout['room_map']['x'], y=layout['room_map']['y'],
+                total_rooms=total_rooms,
+                current_room_index=current_room_index
+            )
 
         self.left_panel = PlayerGroupPanel(
             x=layout['left_panel']['x'], y=layout['left_panel']['y'],
@@ -204,6 +214,9 @@ class EncounterScreen(BaseScreen, StandardLayoutMixin):
 
         screen_width, screen_height = self.renderer.width, self.renderer.height
         layout = self._recalculate_layout(screen_width, screen_height)
+
+        if self.room_map:
+            self.room_map.x, self.room_map.y = layout['room_map']['x'], layout['room_map']['y']
 
         if self.left_panel:
             self.left_panel.x, self.left_panel.y = layout['left_panel']['x'], layout['left_panel']['y']
@@ -267,6 +280,7 @@ class EncounterScreen(BaseScreen, StandardLayoutMixin):
         self.renderer.clear()
         self.render_standard_layout("=== ПОХОД ===")
 
+        if self.room_map: self.room_map.render(self.renderer)
         if self.left_panel: self.left_panel.render(self.renderer)
         if self.right_panel: self.right_panel.render(self.renderer)
         if self.event_log: self.event_log.render(self.renderer)
