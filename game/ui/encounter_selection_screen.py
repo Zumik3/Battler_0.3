@@ -43,8 +43,9 @@ class EncounterSelectionScreen(BaseScreen):
         for i, encounter in enumerate(self.encounters):
             def create_action(enc):
                 def action(context):
-                    context.encounter_manager.init_encounter(enc)
-                    context.manager.change_screen("encounter")
+                    if context:
+                        context.encounter_manager.init_encounter(enc)
+                        context.manager.change_screen("encounter")
                     
                 return action
 

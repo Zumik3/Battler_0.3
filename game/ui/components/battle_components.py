@@ -268,6 +268,15 @@ class EnemyGroupPanel(GroupPanel):
             panel = EnemyUnitPanel(panel_x, panel_y, panel_width, panel_height, monster)
             self.panels.append(panel)
 
+    def update_enemies(self, enemies: List['Monster']) -> None:
+        """Обновляет список врагов и пересоздает панели.
+        
+        Args:
+            enemies: Новый список объектов Monster для отображения.
+        """
+        self.enemies = enemies
+        self._update_panels()
+
 
 class PlayerGroupPanel(GroupPanel):
     """Панель для отображения группы игроков."""
@@ -302,6 +311,15 @@ class PlayerGroupPanel(GroupPanel):
             # Создаем панель, передавая объект Player
             panel = PlayerUnitPanel(panel_x, panel_y, panel_width, panel_height, player)
             self.panels.append(panel)
+
+    def update_players(self, players: List['Player']) -> None:
+        """Обновляет список игроков и пересоздает панели.
+        
+        Args:
+            players: Новый список объектов Player для отображения.
+        """
+        self.players = players
+        self._update_panels()
 
 
 class BattleLog(Renderable):

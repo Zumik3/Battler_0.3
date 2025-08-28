@@ -34,9 +34,7 @@ class BattleEncounterEvent(EncounterEvent):
 
     def execute(self, game_manager: 'GameManager') -> None:
         """
-        Создает врагов и инициирует бой.
+        Инициирует бой.
+        Предполагается, что враги уже созданы и находятся в game_manager.
         """
-        # В будущем здесь может быть более сложная логика,
-        # например, передача специфичного для боя контекста.
-        game_manager.create_enemies(self.enemies, game_manager.context)
         game_manager.start_battle()

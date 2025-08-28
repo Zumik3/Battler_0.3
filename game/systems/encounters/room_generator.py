@@ -91,8 +91,8 @@ class RoomGenerator:
         """
         # Определяем количество врагов
         if position == 0:
-            # Первая комната - меньше врагов
-            enemy_count = 1
+            # Первая комната - небольшая группа врагов для разминки
+            enemy_count = random.randint(1, 2)
         elif position == total_rooms - 1:
             # Боссовая комната - один сильный враг
             enemy_count = 1

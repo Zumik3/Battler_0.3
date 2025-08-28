@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from game.game_manager import GameManager
     from game.entities.player import Player
     from game.systems.encounters.room import Room
+    from game.systems.encounters.room_sequence import RoomSequence
 
 class EncounterManager:
     """
@@ -220,6 +221,12 @@ class EncounterManager:
         else:
             self._end_encounter()
 
+    def get_current_event(self):
+        """Возвращает текущее событие, если оно есть."""
+        if self.current_encounter and 0 <= self.current_event_index < len(self.current_encounter.events):
+            return self.current_encounter.events[self.current_event_index]
+        return None
+
     def _on_battle_ended(self, event: BattleEndedEvent) -> None:
         """Обработчик события завершения боя."""
         if not self.current_encounter:
@@ -238,7 +245,7 @@ class EncounterManager:
         # Помечаем текущую комнату как пройденную
         if self.current_room_sequence:
             self.current_room_sequence.complete_current_room()
-            
+
             # Публикуем событие завершения комнаты
             event_bus = self.game_manager.event_bus
             room_completed_event = RoomCompletedEvent(
@@ -248,17 +255,20 @@ class EncounterManager:
                 success=True
             )
             event_bus.publish(room_completed_event)
-            
+
             # Проверяем, завершена ли вся последовательность
             if self.current_room_sequence.is_completed():
                 self._on_sequence_completed(victory=True)
-            else:
-                # Переходим к следующей комнате
-                self._advance_to_next_room()
+            # else:
+            #     # Теперь переход к следующей комнате будет инициироваться UI
+            #     # self._advance_to_next_room()
         else:
-            # Если нет последовательности комнат, продолжаем как раньше
+            # Если нет последовательности комнат, просто завершаем encounter
             self.current_event_index += 1
-            self._execute_current_event()
+            if self.current_encounter and self.current_event_index >= len(self.current_encounter.events):
+                self._end_encounter(is_victory=True)
+            else:
+                self._execute_current_event()
 
     def _on_battle_lost(self) -> None:
         """Обработчик поражения в бою."""
@@ -284,11 +294,15 @@ class EncounterManager:
             # Если нет последовательности комнат, завершаем как раньше
             self._end_encounter(is_victory=False)
 
-    def _advance_to_next_room(self) -> None:
-        """Переходит к следующей комнате в последовательности."""
-        if not self.current_room_sequence:
-            return
-            
+    def advance_to_next_room(self) -> bool:
+        """
+        Переходит к следующей комнате в последовательности и подготавливает
+        новое событие боя.
+        Возвращает True, если есть следующая комната, иначе False.
+        """
+        if not self.current_room_sequence or self.current_room_sequence.is_completed():
+            return False
+
         next_room = self.current_room_sequence.advance_to_next_room()
         if next_room and hasattr(next_room, 'enemies'):
             # Обновляем encounter с данными из новой комнаты
@@ -297,7 +311,10 @@ class EncounterManager:
                 battle_event = BattleEncounterEvent(enemies=next_room.enemies)
                 self.current_encounter.events = [battle_event]
                 self.current_event_index = 0
-                self._execute_current_event()
+                # self._execute_current_event() # Выполнение будет инициировано UI
+                return True
+
+        return False
 
     def _on_sequence_completed(self, victory: bool = True) -> None:
         """Обработчик завершения всей последовательности комнат."""
