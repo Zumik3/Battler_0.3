@@ -34,7 +34,7 @@ from .battle_commands import (
 
 # Специфические команды главного экрана
 from .main_screen_commands import (
-    StartBattleCommand,
+    StartEncounterCommand,
     OpenSettingsCommand
 )
 
@@ -55,6 +55,6 @@ __all__ = [
     'BattleMagicCommand',
 
     # Команды главного экрана
-    'StartBattleCommand',
+    'StartEncounterCommand',
     'OpenSettingsCommand'
 ]

@@ -8,7 +8,7 @@ from game.events.combat import DamageEvent, HealEvent
 from game.protocols import HealthPropertyProtocol, StatsProtocol
 from game.entities.properties.property import PublishingAndDependentProperty
 from game.events.character import HealthChangedEvent, StatsChangedEvent
-from game.systems.events.bus import LOW_PRIORITY
+from game.systems.events.bus import LOW_PRIORITY, NORMAL_PRIORITY
 
 if TYPE_CHECKING:
     from game.core.game_context import GameContext
@@ -51,7 +51,7 @@ class HealthProperty(PublishingAndDependentProperty, HealthPropertyProtocol):
         if not self._is_subscribed and self.stats and self.context:
             self._subscribe_to(self.stats, StatsChangedEvent, self._on_stats_event)
             self._subscribe_to(None, DamageEvent, self._on_damage_event, LOW_PRIORITY)
-            self._subscribe_to(None, HealEvent, self._on_heal_event, LOW_PRIORITY)
+            self._subscribe_to(None, HealEvent, self._on_heal_event, NORMAL_PRIORITY)
             self._is_subscribed = True
             
     def _on_stats_event(self, event: StatsChangedEvent) -> None:

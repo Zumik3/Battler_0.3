@@ -32,9 +32,10 @@ char_str.md
 files_collector.py
 combined_source.txt
 
-PROJECT_TODO.md
+docs/
 tree_builder.py
 GEMINI.md
+QWEN.md
 .env
 
 .vscode

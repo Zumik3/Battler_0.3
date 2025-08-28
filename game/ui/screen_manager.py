@@ -6,7 +6,8 @@ import curses
 from typing import Dict, Type, List, TYPE_CHECKING
 
 from game.ui.base_screen import BaseScreen
-from game.ui.battle_screen import BattleScreen
+from game.ui.encounter_screen import EncounterScreen
+from game.ui.encounter_selection_screen import EncounterSelectionScreen
 from game.ui.inventory_screen import InventoryScreen
 from game.ui.main_screen import MainScreen
 from game.ui.rendering.color_manager import ColorManager
@@ -41,7 +42,8 @@ class ScreenManager:
         # Словарь доступных экранов (имя -> класс)
         self.screens: Dict[str, Type[BaseScreen]] = {
             "main": MainScreen,
-            "battle": BattleScreen,
+            "encounter": EncounterScreen,
+            "encounter_selection": EncounterSelectionScreen,
             "inventory": InventoryScreen,
         }
 

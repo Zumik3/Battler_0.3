@@ -6,6 +6,7 @@ from game.config import get_config
 from game.core.game_context import ContextFactory
 from game.systems.battle.manager import BattleManager
 from game.rewards.handlers import register_reward_handlers
+from game.systems.encounters.encounter_manager import EncounterManager
 
 if TYPE_CHECKING:
     from game.entities.player import Player
@@ -32,6 +33,7 @@ class GameManager:
         self.context: 'GameContext' = ContextFactory.create_default_context(self.config)
         self.event_bus = self.context.event_bus
         self.battle_manager = BattleManager(self.context)
+        self.encounter_manager = EncounterManager(self)
         self.player_group: List['Player'] = []
         self.current_enemies: List['Monster'] = []
         
@@ -58,8 +60,8 @@ class GameManager:
             game_context=self.context)
 
         # TODO: сделать инициализацию при начале сражения/ивента
-        self._create_initial_enemies(
-            game_context=self.context)
+        # self._create_initial_enemies(
+        #     game_context=self.context)
 
     def _create_players(self, player_data: Dict[str, str], data_dir: 
         str, game_context: 'GameContext') -> None:

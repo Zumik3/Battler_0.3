@@ -351,7 +351,7 @@ class BattleLog(Renderable):
         """
         # Занимает всю ширину экрана (с отступами)
         self.width = max(10, total_width - 2)  # -2 для отступов
-        # Высота динамическая, устанавливается в BattleScreen._update_component_sizes
+        # Высота динамическая, устанавливается в EncounterScreen._update_component_sizes
         # Пока оставим пустую реализацию или базовую
         pass
 

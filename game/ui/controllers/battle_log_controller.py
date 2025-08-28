@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from game.events.combat import LogUpdatedEvent
 from game.events.event import Event
+from game.systems.events.bus import NORMAL_PRIORITY
 
 if TYPE_CHECKING:
     from game.ui.components.battle_components import BattleLog
@@ -37,7 +38,7 @@ class BattleLogController:
     def activate(self) -> None:
         """Активирует контроллер - подписывается на события напрямую."""
         if not self._is_active:
-            self._event_bus.subscribe(None, Event, self._handle_event)
+            self._event_bus.subscribe(None, Event, self._handle_event, NORMAL_PRIORITY)
             self._is_active = True
     
     def deactivate(self) -> None:
@@ -65,4 +66,5 @@ class BattleLogController:
             pass
 
     def _render_battle_screen(self) -> None:
-        self._event_bus.publish(LogUpdatedEvent(source=None, need_render=True))
+        pass
+        #self._event_bus.publish(LogUpdatedEvent(source=None, need_render=True))

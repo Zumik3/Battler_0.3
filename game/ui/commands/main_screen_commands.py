@@ -11,21 +11,21 @@ from game.ui.commands.common_commands import OpenInventoryCommand, ExitCommand
 from game.ui.main_screen import MainScreen
 
 
-class StartBattleCommand(Command):
-    """Команда начала боя."""
+class StartEncounterCommand(Command):
+    """Команда для перехода к выбору похода."""
 
     def __init__(self):
         super().__init__(
-            name="Бой",
-            description="Начать бой",
-            keys=[10],
-            display_key="Enter"
+            name="Поход",
+            description="Начать поход",
+            keys=['1'],
+            display_key="1"
         )
 
     def execute(self, context: Optional[Any] = None) -> None:
-        """Выполнение команды начала боя."""
+        """Выполнение команды."""
         if context and hasattr(context, 'manager'):
-            context.manager.change_screen("battle")
+            context.manager.change_screen("encounter_selection")
 
 
 class OpenSettingsCommand(Command):
@@ -48,8 +48,8 @@ class OpenSettingsCommand(Command):
 
 # Регистрируем команды для главного экрана
 register_screen_commands(MainScreen, [
-    StartBattleCommand(),
-    OpenInventoryCommand(),  # Переиспользуем общую команду
+    StartEncounterCommand(),
+    OpenInventoryCommand(),
     OpenSettingsCommand(),
-    ExitCommand()            # Переиспользуем общую команду
+    ExitCommand()
 ])
