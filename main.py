@@ -40,4 +40,12 @@ def main(stdscr: curses.window) -> None:
 
 
 if __name__ == "__main__":
-    curses.wrapper(main)
+    try:
+        curses.wrapper(main)
+    except Exception as e:
+        # Эта обработка сработает, если ошибка произойдет вне `main`
+        # или если curses.wrapper не сможет ее корректно обработать.
+        print("--- КРИТИЧЕСКАЯ ОШИБКА ВНЕ ОСНОВНОГО ЦИКЛА ---")
+        import traceback
+        traceback.print_exc()
+        print("-------------------------------------------------")

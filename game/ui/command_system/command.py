@@ -104,3 +104,6 @@ class CommandRegistry:
     def get_command_by_key(self, key_code: int) -> Optional[Command]:
         """Получение команды по коду клавиши."""
         return self._key_to_command.get(key_code)
+
+    def clear(self) -> None:
+        self._commands.clear()
