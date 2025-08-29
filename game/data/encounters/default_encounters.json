@@ -1,0 +1,44 @@
+[
+    {
+        "name": "Легкая прогулка",
+        "description": "Пара гоблинов преградила вам путь.",
+        "difficulty": "Легко",
+        "events": [
+            {
+                "type": "battle",
+                "enemies": [
+                    {"role": "goblin", "level": 1},
+                    {"role": "goblin", "level": 1}
+                ]
+            }
+        ]
+    },
+    {
+        "name": "Засада в лесу",
+        "description": "Орк и два гоблина-приспешника.",
+        "difficulty": "Средне",
+        "events": [
+            {
+                "type": "battle",
+                "enemies": [
+                    {"role": "goblin", "level": 1},
+                    {"role": "orc", "level": 2},
+                    {"role": "goblin", "level": 1}
+                ]
+            }
+        ]
+    },
+    {
+        "name": "Логово тролля",
+        "description": "Вы нашли логово тролля. Он выглядит голодным.",
+        "difficulty": "Сложно",
+        "events": [
+            {
+                "type": "battle",
+                "enemies": [
+                    {"role": "troll", "level": 15}
+                ]
+            }
+        ]
+    }
+]

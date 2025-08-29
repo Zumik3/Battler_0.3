@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from game.core.game_context import GameContext
     from game.systems.battle.round import BattleRound
     from game.ui.components.battle_components import BattleLog
-    from game.systems.events.bus import EventBus
+    from game.systems.events.bus import EventBus, IEventBus
     
 
 
@@ -162,7 +162,7 @@ class BattleManager:
         else:
             return "ongoing"
 
-    def setup_battle_log_controller(self, event_bus: 'EventBus', battle_log: 'BattleLog') -> None:
+    def setup_battle_log_controller(self, event_bus: 'IEventBus', battle_log: 'BattleLog') -> None:
         self._battle_log_controller = BattleLogController(
             event_bus=event_bus, 
             battle_log=battle_log

@@ -70,7 +70,6 @@ class ScreenManager:
             screen_name: Имя экрана для перехода.
         """
         if screen_name in self.screens:
-            # Создаем новый экран, передавая ему ссылку на ScreenManager (self)
             new_screen = self.screens[screen_name](self)
             self.screen_stack.append(new_screen)
         else:

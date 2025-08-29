@@ -2,10 +2,11 @@
 """Модуль, содержащий менеджер для управления походами (Encounter)."""
 
 import random
+import json
 from typing import List, TYPE_CHECKING
 
 from game.systems.encounters.encounter import Encounter
-from game.systems.encounters.events import BattleEncounterEvent
+from game.systems.encounters.events import BattleEncounterEvent, EncounterEvent
 from game.events.battle_events import BattleEndedEvent
 from game.systems.encounters.encounter_generator import EncounterGenerator
 from game.systems.encounters.room_generator import RoomGenerator
@@ -80,7 +81,7 @@ class EncounterManager:
         """
         # Рассчитываем средний уровень группы
 
-        levels = [player.level.level for player in player_group]
+        levels = [player.level.level for player in player_group if player.level]
         avg_level = round(sum(levels) / len(levels)) if levels else 1
         
         # Определяем количество комнат в зависимости от уровня
@@ -146,7 +147,7 @@ class EncounterManager:
 
     def _generate_default_encounters(self, count: int = 3) -> List['Encounter']:
         """
-        Генерирует список стандартных походов (fallback, если нет игроков).
+        Генерирует список стандартных походов из JSON-файла.
         
         Args:
             count: Количество походов для генерации.
@@ -154,54 +155,41 @@ class EncounterManager:
         Returns:
             Список стандартных походов.
         """
-        encounters = [
-            Encounter(
-                name="Легкая прогулка",
-                description="Пара гоблинов преградила вам путь.",
-                difficulty="Легко",
-                events=[
-                    BattleEncounterEvent(enemies=[
-                        {'role': 'goblin', 'level': 1},
-                        {'role': 'goblin', 'level': 1}
-                    ])
-                ]
-            ),
-            Encounter(
-                name="Засада в лесу",
-                description="Орк и два гоблина-приспешника.",
-                difficulty="Средне",
-                events=[
-                    BattleEncounterEvent(enemies=[
-                        {'role': 'goblin', 'level': 1},
-                        {'role': 'orc', 'level': 2},
-                        {'role': 'goblin', 'level': 1}
-                    ])
-                ]
-            ),
-            Encounter(
-                name="Логово тролля",
-                description="Вы нашли логово тролля. Он выглядит голодным.",
-                difficulty="Сложно",
-                events=[
-                    BattleEncounterEvent(enemies=[
-                        {'role': 'troll', 'level': 15}
-                    ])
-                ]
-            )
-        ]
-        return encounters[:count]
-
-    def init_encounter(self, encounter: 'Encounter') -> None:
-        self.current_encounter = encounter
-        self.current_event_index = 0
+        # TODO: путь к файлу лучше брать из конфига
+        file_path = "game/data/encounters/default_encounters.json"
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            encounters = []
+            for enc_data in data:
+                events: List[EncounterEvent] = []
+                for event_data in enc_data.get("events", []):
+                    if event_data.get("type") == "battle":
+                        events.append(BattleEncounterEvent(enemies=event_data.get("enemies", [])))
+                
+                encounters.append(Encounter(
+                    name=enc_data["name"],
+                    description=enc_data["description"],
+                    difficulty=enc_data["difficulty"],
+                    events=events
+                ))
+            return encounters[:count]
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            # Логирование ошибки было бы здесь уместно
+            print(f"Ошибка загрузки стандартных походов: {e}")
+            return []
 
     def start_encounter(self, encounter: 'Encounter') -> None:
         """
-        Начинает выбранный поход.
+        Начинает выбранный поход, устанавливая его как текущий.
 
         Args:
             encounter: Экземпляр похода для запуска.
         """
+        self.current_encounter = encounter
+        self.current_event_index = 0
+
         # Публикуем событие начала последовательности комнат, если есть
         if self.current_room_sequence:
             event_bus = self.game_manager.event_bus
